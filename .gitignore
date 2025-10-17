@@ -208,5 +208,6 @@ __marimo__/
 
 # Project specific
 *.csv
+*.parquet
 secrets.json
 .DS_Store
