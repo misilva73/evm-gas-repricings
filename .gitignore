@@ -212,4 +212,3 @@ __marimo__/
 secrets.json
 .DS_Store
 .vscode/
-opcode_run_times_estimation/

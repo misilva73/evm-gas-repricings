@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", module="statsmodels")
 
 
 def process_gas_bench_data(
-    user: str, password: str, start_date: str, end_date: str
+    user: str, password: str, start_date: str
 ) -> pd.DataFrame:
     file_dir = os.path.dirname(os.path.abspath(__file__))
     file_name = os.path.abspath(os.path.join(file_dir, "opcodes_in_test_name.txt"))
@@ -33,7 +33,7 @@ def process_gas_bench_data(
         raw_run_duration_ms AS run_duration_ms,
         opcount
     FROM repricings2
-    WHERE ingestion_timestamp BETWEEN '{start_date}'::timestamp AND '{end_date}'::timestamp
+    WHERE ingestion_timestamp >= '{start_date}'::timestamp
     AND raw_run_duration_ms > 0
     """
     engine = create_engine(gas_bench_db_url)
@@ -165,8 +165,7 @@ if __name__ == "__main__":
         repo_dir,
         "reports",
         "opcode_run_times_estimation",
-        "test",
-        # run_time.strftime("%d-%m-%Y_%H:%M:%S"),
+        run_time.strftime("%d-%m-%Y_%H:%M:%S"),
     )
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(os.path.join(out_dir, "figs"), exist_ok=True)
@@ -177,9 +176,8 @@ if __name__ == "__main__":
     password = secrets_dict["gas_bench_password"]
     # Start and end data for querying
     start_date = "2025-12-19"
-    end_date = "2025-12-20"
     # Query raw data and save
-    gas_bench_df = process_gas_bench_data(user, password, start_date, end_date)
+    gas_bench_df = process_gas_bench_data(user, password, start_date)
     outfile = os.path.join(out_dir, "gas_bench_data.csv")
     gas_bench_df.to_csv(outfile, index=False)
     # Start markdown report
