@@ -68,6 +68,7 @@ lz4==4.4.4
 MarkupSafe==3.0.2
 matplotlib==3.10.5
 matplotlib-inline==0.1.7
+mdutils==1.8.1
 mistune==3.1.3
 nbclient==0.10.2
 nbconvert==7.16.6
@@ -86,6 +87,7 @@ platformdirs==4.3.8
 prometheus_client==0.22.1
 prompt_toolkit==3.0.51
 psutil==7.0.0
+psycopg2==2.9.11
 ptyprocess==0.7.0
 pure_eval==0.2.3
 py-ecc==8.0.0
@@ -122,6 +124,7 @@ threadpoolctl==3.6.0
 tinycss2==1.4.0
 toolz==1.0.0
 tornado==6.5.2
+tqdm==4.67.1
 traitlets==5.14.3
 types-python-dateutil==2.9.0.20250822
 typing-inspection==0.4.1
