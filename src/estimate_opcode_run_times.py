@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import datetime
 import warnings
@@ -8,12 +9,16 @@ import seaborn as sns
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from pathlib import Path
 from typing import List, Any
 from mdutils.mdutils import MdUtils
 from sqlalchemy import create_engine
 
 # Suppress statsmodels warnings
 warnings.filterwarnings("ignore", module="statsmodels")
+
+sys.path.append(str(Path(__file__).parent))
+import operation_types
 
 
 def process_gas_bench_data(
@@ -35,6 +40,7 @@ def process_gas_bench_data(
     FROM repricings2
     WHERE ingestion_timestamp >= '{start_date}'::timestamp
     AND raw_run_duration_ms > 0
+    AND opcount >= 0
     """
     engine = create_engine(gas_bench_db_url)
     df = pd.read_sql(query_str, con=engine)
@@ -69,6 +75,13 @@ def process_gas_bench_data(
         df["test_params"].str.len() == 0, np.nan, df["test_params"]
     )
     df = df.drop(columns="test_title")
+    # Fixed misnamed operations
+    df["test_opcode"] = np.where(
+        df["test_opcode"] == "JUMPDESTS", "JUMPDEST", df["test_opcode"]
+    )
+    df["test_opcode"] = np.where(
+        df["test_opcode"] == "KECCAK", "KECCAK256", df["test_opcode"]
+    )
     return df
 
 
@@ -97,10 +110,7 @@ opcode run time as a function of the opcode count. The results are presented bel
     )
     # Estimate run times for simple opcodes (i.e. no inputs or params)
     out_list = []
-    file_dir = os.path.dirname(os.path.abspath(__file__))
-    file_name = os.path.abspath(os.path.join(file_dir, "simple_opcodes.txt"))
-    with open(file_name, "r") as f:
-        simple_opcodes = [line.strip() for line in f.readlines()]
+    simple_opcodes = operation_types.SIMPLE_COMPUTE
     for opcode in tqdm(simple_opcodes, desc="Estimating simple opcodes"):
         # Run estimation and add to report
         opcode_list = estimate_run_time_for_simple_opcode(
@@ -141,7 +151,13 @@ def estimate_run_time_for_simple_opcode(
                 "opcode": opcode,
                 "client": client,
                 "intercept": intercept,
+                "intercept_pvalue": result.pvalues["const"],
                 "slope": slope,
+                "slope_pvalue": result.pvalues["opcount"],
+                "slope_conf_int_low": result.conf_int().loc["opcount", 0],
+                "slope_conf_int_high": result.conf_int().loc["opcount", 1],
+                "rsquared": result.rsquared, 
+                "rsquared_adj": result.rsquared_adj,
                 "type": "simple_opcode",
             }
             out_list.append(out_dict)
@@ -161,7 +177,7 @@ def estimate_run_time_for_simple_opcode(
             )
             plt.xlabel("Opcode Count")
             plt.ylabel("Run Duration (ms)")
-            plt.title(f"OLS Linear Regression for {opcode} opcode in {client} client\nIntercept: {intercept:.2f}, Slope: {slope:.2f}")
+            plt.title(f"OLS Linear Regression for {opcode} opcode in {client} client\nIntercept: {intercept:.2f}, Slope: {slope:.2e}")
             # Save plot
             fig.savefig(
                 os.path.join(out_dir, "figs", f"{opcode}_{client}_regression.png"),
@@ -191,7 +207,7 @@ if __name__ == "__main__":
         repo_dir,
         "reports",
         "opcode_run_times_estimation",
-        f"{start_date}_{run_time.strftime('%d-%m-%Y')}",
+        f"{start_date}_{run_time.strftime('%Y-%m-%d')}",
     )
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(os.path.join(out_dir, "figs"), exist_ok=True)
