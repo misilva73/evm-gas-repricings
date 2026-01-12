@@ -20,6 +20,14 @@ test_extcodecopy_warm
 test_returndatasize_nonzero
 test_codesize
 test_codecopy
+test_codecopy_benchmark
 test_tload
 test_selfdestruct_created
 test_keccak_max_permutations
+test_keccak_diff_mem_msg_sizes
+test_identity_fixed_size
+test_ripemd160_fixed_size
+test_sha256_fixed_size
+test_ecrecover
+test_point_evaluation
+test_blake2f

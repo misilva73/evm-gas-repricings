@@ -60,7 +60,7 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
         client_name,
         raw_run_duration_ms AS run_duration_ms,
         opcount
-    FROM repricings2
+    FROM repricings_new
     WHERE ingestion_timestamp >= '{start_date}'::timestamp
     AND raw_run_duration_ms > 0
     AND opcount >= 0
@@ -77,7 +77,7 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
         df["test_title"].str.split("opcode_").str[1].str.split("-").str[0],
     )
     df["test_opcode"] = df["test_opcode"].str.split("]").str[0]
-    df["test_params"] = (
+    df["test_params_str"] = (
         df["test_title"]
         .str.split("[")
         .str[1]
@@ -85,6 +85,9 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
         .str[0]
         .str.split("benchmark_test-")
         .str[1]
+    )
+    df["test_params"] = (
+        df["test_params_str"]
         .str.split("-")
         .apply(
             lambda x: (
@@ -98,12 +101,44 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
         df["test_params"].str.len() == 0, np.nan, df["test_params"]
     )
     df = df.drop(columns="test_title")
+    # Format alt_bn precompiles
+    df["test_opcode"] = np.where(
+        (df["test_name"] == "test_alt_bn128") & (df["test_params_str"].str.contains("add")),
+        "ECADD",
+        df["test_opcode"],
+    )
+    df["test_opcode"] = np.where(
+        (df["test_name"] == "test_alt_bn128") & (df["test_params_str"].str.contains("mul")),
+        "ECMUL",
+        df["test_opcode"],
+    )
+    # Format BLS12 precompiles
+    df["test_opcode"] = np.where(
+        df["test_name"] == "test_bls12_381",
+        df["test_params_str"].str.split("-").str[0].str.upper(),
+        df["test_opcode"],
+    )
     # Fixed misnamed operations
     df["test_opcode"] = np.where(
         df["test_opcode"] == "JUMPDESTS", "JUMPDEST", df["test_opcode"]
     )
     df["test_opcode"] = np.where(
         df["test_opcode"] == "KECCAK", "KECCAK256", df["test_opcode"]
+    )
+    df["test_opcode"] = np.where(
+        df["test_opcode"] == "RIPEMD160", "RIPEMD-160", df["test_opcode"]
+    )
+    df["test_opcode"] = np.where(
+        df["test_opcode"] == "SHA256", "SHA2-256", df["test_opcode"]
+    )
+    df["test_opcode"] = np.where(
+        df["test_opcode"] == "POINT", "POINT_EVALUATION", df["test_opcode"]
+    )
+    df["test_opcode"] = np.where(
+        df["test_opcode"] == "BLS12_FP_TO_G1", "BLS12_MAP_FP_TO_G1", df["test_opcode"]
+    )
+    df["test_opcode"] = np.where(
+        df["test_opcode"] == "BLS12_FP_TO_G2", "BLS12_MAP_FP_TO_G2", df["test_opcode"]
     )
     return df
 
@@ -222,7 +257,7 @@ def estimate_run_time_for_simple_opcode(
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2025-12-19"
+    start_date = "2026-01-10"
     # Directories
     file_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(file_dir, ".."))
