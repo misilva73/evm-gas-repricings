@@ -4,7 +4,7 @@
 
 This report summarizes an empirical EDA of Ethereum mainnet execution-layer behavior across multiple gas-limit regimes (≈30M, 36M, 45M, 60M). Using per-block data (gas used, gas limit, base fee) and execution state-size telemetry, we quantify how **block utilization**, **base fee**, and **net state growth** changed as the gas limit increased. The aim is descriptive: we document what happened in the observed windows; we do not claim causal effects from gas limit changes alone.
 
-The full analysis is in the notebook: [0.6-state_growth_EDA_v2.ipynb](https://github.com/misilva73/evm-gas-repricings/blob/c32094737d8e57c22d26262073992ed3be66ac2b/notebooks/0.6-state_growth_EDA_v2.ipynb)
+The full analysis is in the notebook: [0.6-state_growth_EDA_v2.ipynb](https://github.com/misilva73/evm-gas-repricings/blob/03ad1631aa5e1205d5cff67b72cc1e0854465146/notebooks/0.6-state_growth_EDA_v2.ipynb)
 
 ### Key takeaways
 
