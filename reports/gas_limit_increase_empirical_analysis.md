@@ -77,39 +77,17 @@ Of course, the demand for block space on Ethereum can change significantly throu
 
 ## Impact on state growth
 
-Here, “state growth” is the net change in execution state size (`total_bytes`) measured from telemetry and aggregated over time. The analysis uses per-block diffs and summarizes net growth per day (MiB/day) and per week (GiB/week). Because it is net growth, negative values can occur in the daily distribution.
+Here, “state growth” is the net change in execution state size (`total_bytes`) measured from telemetry and aggregated over time. The analysis uses per-block diffs and summarizes net growth per week (GiB/week). Because it is net growth, negative values can occur in the daily distribution.
 
-### State growth by day
+The current size of the state DB (as of January 15th) is 389 GiB. The next plot shows the weekly state growth and how it increased at each new gas limit.
 
-**Figure placeholder:** daily net state growth over time  
-[fig_03_cell23.png](sandbox:/mnt/data/fig_03_cell23.png?_chatgptios_conversationID=6960d7c2-9ce4-8331-8261-e101a46dc1ef&_chatgptios_messageID=0b85ff24-927b-4a99-b65c-4d8296a07b62)
-
-### Distribution of new state added by gas limit
-
-**Figure placeholders:**  
-Daily distribution: [fig_02_cell22.png](sandbox:/mnt/data/fig_02_cell22.png?_chatgptios_conversationID=6960d7c2-9ce4-8331-8261-e101a46dc1ef&_chatgptios_messageID=0b85ff24-927b-4a99-b65c-4d8296a07b62)  
-Weekly distribution: [fig_01_cell18.png](sandbox:/mnt/data/fig_01_cell18.png?_chatgptios_conversationID=6960d7c2-9ce4-8331-8261-e101a46dc1ef&_chatgptios_messageID=0b85ff24-927b-4a99-b65c-4d8296a07b62)
-
-### Key metrics by gas limit (median, average, std)
-
-Daily net growth (MiB/day), as summarized in the notebook outputs:
-
-| Gas limit (M) | Mean    | Std    | Median  |
-|---:|---:|---:|---:|
-| 30 | 105.152 | 29.275 | 98.117 |
-| 36 | 174.747 | 65.267 | 151.402 |
-| 45 | 181.440 | 52.548 | 164.379 |
-
-Weekly net growth (GiB/week):
+![weekly_state_growth](./figures/gas_limit_impact_report/weekly_state_growth.png)
 
 | Gas limit (M) | Mean  | Std  | Median |
 |---:|---:|---:|---:|
 | 30 | 0.741 | 0.187 | 0.689 |
-| 36 | 1.189 | 0.340 | 1.084 |
-| 45 | 1.187 | 0.292 | 1.190 |
+| 36 | 1.188 | 0.342 | 1.084 |
+| 45 | 1.319 | 0.431 | 1.191 |
+| 60 | 1.914 | 0.671 | 2.328 |
 
-### Diffs by gas limit and what it tells us (linearity)
-
-Using medians, daily net state growth increases ~54% from 30M→36M (98→151 MiB/day) and only ~8.6% from 36M→45M (151→164 MiB/day). Weekly medians show a similar pattern: ~57% increase (0.689→1.084 GiB/week), then ~9.8% (1.084→1.190 GiB/week). This is not linear scaling with gas limit. In this window, a large portion of the observed growth shift happens between 30M and 36M; the incremental change from 36M to 45M is notably smaller.
-
-The notebook outputs included here do not provide comparable state-growth summary statistics for the 60M regime; if the notebook contains them elsewhere, the report should be extended to include the same tables and distribution plots for 60M.
+In general, as we increase the gas limit, the state growth also increases. However, the increase has not been consistent through the various gas limit changes. From 30M → 36M (+20% gas limit), the median state growth increases 57%. From 36M → 45M (+25%), it only increases 9%. And from 45M → 60M (+33.3%), it increases 95%. Thus, we went from a growth rate of 38 GiB per year on average to 99 GiB per year on average, which is more than double!
