@@ -10,7 +10,7 @@ The full analysis is in the notebook: [0.6-state_growth_EDA_v2.ipynb](https://gi
 
 - Block utilization stays pinned near ~50% across gas limits (daily utilization is ~0.502–0.504 on average), which is consistent with EIP-1559 targeting half-full blocks on average. This indicates that there is still demand for more block space on Ethereum.￼
 - Average base fee drops sharply as gas limits rise (the median of the daily average base fee is ~10.27 gwei at 30M → ~1.07 at 36M → ~0.48 at 45M → ~0.058 at 60M). This decline is not linear with gas limit changes.
-- State growth increases with higher gas limits, but not proportionally: median daily net state growth increases ~+54% from 30M → 36M, then only ~+8.6% from 36M → 45M.
+- State growth increases with higher gas limits, but not proportionally. After increasing the gas limit from 30M to 60M, the average growth rate increased from 38 GiB per year to 99 GiB per year, which is more than double.
 
 ## Data collection and processing
 
@@ -79,7 +79,7 @@ Of course, the demand for block space on Ethereum can change significantly throu
 
 Here, “state growth” is the net change in execution state size (`total_bytes`) measured from telemetry and aggregated over time. The analysis uses per-block diffs and summarizes net growth per week (GiB/week). Because it is net growth, negative values can occur in the daily distribution.
 
-The current size of the state DB (as of January 15th) is 389 GiB. The next plot shows the weekly state growth and how it increased at each new gas limit.
+The current size of the state DB (as of January 15th) is 389 GiB. The following plot shows the weekly state growth and the increase at each new gas limit.
 
 ![weekly_state_growth](./figures/gas_limit_impact_report/weekly_state_growth.png)
 
@@ -90,4 +90,4 @@ The current size of the state DB (as of January 15th) is 389 GiB. The next plot 
 | 45 | 1.319 | 0.431 | 1.191 |
 | 60 | 1.914 | 0.671 | 2.328 |
 
-In general, as we increase the gas limit, the state growth also increases. However, the increase has not been consistent through the various gas limit changes. From 30M → 36M (+20% gas limit), the median state growth increases 57%. From 36M → 45M (+25%), it only increases 9%. And from 45M → 60M (+33.3%), it increases 95%. Thus, we went from a growth rate of 38 GiB per year on average to 99 GiB per year on average, which is more than double!
+In general, as we increase the gas limit, state growth increases as well. However, the increase has not been consistent through the various gas limit changes. From 30M → 36M (+20% gas limit), the median state growth increases 57%. From 36M → 45M (+25%), it only increases 9%. And from 45M → 60M (+33.3%), it increases 95%. Thus, we went from an average growth rate of 38 GiB per year to 99 GiB per year, more than double!
