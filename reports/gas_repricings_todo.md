@@ -60,11 +60,12 @@ This proposal increases calldata cost for data-heavy transactions, thus lowering
 
 - [ ] Estimate how much gas each byte of calldata should cost
   - [ ] How can we translate bytes into propagation time?
-  - [ ] How much time relative to execution will we have after ePBS
+  - [ ] How much time relative to execution will we have after ePBS?
 - [ ] Update EIP (if needed)
 - [ ] Do community outreach to affected stakeholders
 - [ ] Write execution specs
 - [ ] Implement new gas schedule in all clients
+- [ ] Design test taking BALs into account - what is now the worse case block?
 - [ ] Integrate gas schedule into BAL devnet and test
 
 ## [EIP-7981](https://eips.ethereum.org/EIPS/eip-7981): Increase access list cost
