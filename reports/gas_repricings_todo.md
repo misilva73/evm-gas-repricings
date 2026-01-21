@@ -78,8 +78,15 @@ This proposal charges access lists for their data footprint, thus lowering the w
 - [ ] Implement new gas schedule in all clients
 - [ ] Integrate gas schedule into BAL devnet and test
 
-
 ## [EIP-8037](https://eips.ethereum.org/EIPS/eip-8037): State Creation Gas Cost Increase
 
-This proposal introduces a dynamic cost for state creation operations that depends on the block limit and meters state creation gas costs independently from all the other gas costs.
+This proposal introduces a dynamic cost for state creation operations that depends on the block limit and meters state creation gas costs independently of all the other gas costs.
 
+- [ ] Write execution specs and figure out open questions:
+  - [ ] How to split the CREATE costs?
+  - [ ] How to deal with tx receipts?
+- [ ] Update EIP
+- [ ] Do community outreach to affected stakeholders
+- [ ] Implement new gas schedule in all clients
+- [ ] Create tests and prep devnet
+- [ ] Integrate gas schedule into BAL devnet
