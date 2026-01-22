@@ -219,7 +219,7 @@ def create_and_save_1dim_regression_plot(
         dpi=144,
         bbox_inches="tight",
     )
-    plt.close()
+    plt.close("all")
 
 
 def create_and_save_multidim_regression_plot(
@@ -228,7 +228,6 @@ def create_and_save_multidim_regression_plot(
     opcode: str,
     client: str,
     out_dir: str,
-    params: List[str],
 ) -> None:
     # Process regression features
     features = feature_df.drop(columns=["run_duration_ms", "opcount"]).columns.to_list()
@@ -260,7 +259,7 @@ def create_and_save_multidim_regression_plot(
         dpi=144,
         bbox_inches="tight",
     )
-    plt.close()
+    plt.close("all")
 
 
 def create_and_save_diagnostic_plots(
@@ -331,7 +330,7 @@ def create_and_save_diagnostic_plots(
         for idx in high_leverage_idx:
             ax4.annotate(
                 f"{idx}",
-                xy=(leverage.iloc[idx], standardized_residuals.iloc[idx]),
+                xy=(leverage[idx], standardized_residuals[idx]),
                 xytext=(5, 5),
                 textcoords="offset points",
                 fontsize=8,
@@ -381,7 +380,7 @@ opcode run time as a function of the opcode count. The results are presented bel
     simple_opcodes = operation_types.SIMPLE_COMPUTE
     for opcode in tqdm(simple_opcodes, desc="Estimating simple opcodes"):
         # Run estimation and add to report
-        opcode_list = estimate_run_time_for_simple_opcode(
+        opcode_list = estimate_run_time_for_simple_operation(
             gas_bench_df, opcode, md_file, out_dir
         )
         out_list.extend(opcode_list)
@@ -393,7 +392,7 @@ opcode run time as a function of the opcode count. The results are presented bel
     md_file.create_md_file()
 
 
-def estimate_run_time_for_simple_opcode(
+def estimate_run_time_for_simple_operation(
     gas_bench_df: pd.DataFrame, opcode: str, md_file: MdUtils, out_dir: str
 ) -> List[dict[str, Any]]:
     md_file.new_header(level=1, title=opcode)
@@ -489,7 +488,7 @@ opcode run time as a function of the opcode count and other opcode configuration
     out_list = []
     for opcode in tqdm(opcodes, desc=f"Estimating {op_type} opcodes"):
         # Run estimation and add to report
-        opcode_list = estimate_run_time_for_non_simple_opcode(
+        opcode_list = estimate_run_time_for_non_simple_operation(
             gas_bench_df, opcode, md_file, out_dir, params
         )
         out_list.extend(opcode_list)
@@ -501,7 +500,7 @@ opcode run time as a function of the opcode count and other opcode configuration
     md_file.create_md_file()
 
 
-def estimate_run_time_for_non_simple_opcode(
+def estimate_run_time_for_non_simple_operation(
     gas_bench_df: pd.DataFrame,
     opcode: str,
     md_file: MdUtils,
@@ -561,7 +560,7 @@ def estimate_run_time_for_non_simple_opcode(
             md_file.new_line("```")
             # Create a save plots
             create_and_save_multidim_regression_plot(
-                feature_df, result, opcode, client, out_dir, params
+                feature_df, result, opcode, client, out_dir
             )
             create_and_save_diagnostic_plots(result, opcode, client, out_dir)
             # Add plots to markdown
@@ -604,14 +603,13 @@ precompile run time as a function of the precompile count and other configuratio
 Everytime the report references "opcode", assume we it means "precompile". 
 """
     )
-
     # Estimate run times for simple precompiles
     out_list = []
     for precomp in tqdm(
         operation_types.SIMPLE_PRECOMPILES, desc=f"Estimating simple precompiles"
     ):
         # Run estimation and add to report
-        opcode_list = estimate_run_time_for_simple_opcode(
+        opcode_list = estimate_run_time_for_simple_operation(
             gas_bench_df, precomp, md_file, out_dir
         )
         out_list.extend(opcode_list)
@@ -620,7 +618,7 @@ Everytime the report references "opcode", assume we it means "precompile".
         operation_types.VARIABLE_PRECOMPILES, desc=f"Estimating variable precompiles"
     ):
         # Run estimation and add to report
-        opcode_list = estimate_run_time_for_non_simple_opcode(
+        opcode_list = estimate_run_time_for_non_simple_operation(
             gas_bench_df, precomp, md_file, out_dir, PRECOMPILE_PARAMS
         )
         out_list.extend(opcode_list)
