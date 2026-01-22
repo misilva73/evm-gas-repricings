@@ -22,7 +22,7 @@ This proposal raises the cost of all operations performing worse than 60Mgas/s, 
 This proposal updates the costs of state access operations, thus removing state access as a scaling bottleneck.
 
 - [ ] Add `GAS_COLD_ACCOUNT_WRITE` parameter
-- [ ] Finish data collection for stateful tests. We need:
+- [ ] Check data collection for stateful tests. We need:
   - [ ] Warm slot access (SLOAD)
   - [ ] Cold slot access (SLOAD)
   - [ ] Warm account access (BALANCE, CALL, transfer)
@@ -31,8 +31,8 @@ This proposal updates the costs of state access operations, thus removing state 
   - [ ] Non-cached code access (EXTCODESIZE, EXTCODEHASH, EXTCODECOPY)
   - [ ] Account write (transfer, ?)
   - [ ] Slot write (SSTORE)
-- [ ] Decide on how to approach gains from BALs
-- [ ] Compute the new gas costs for each operation (assuming 60Mgas/s? this depends on expected gains from BALs)
+- [ ] Benchmark state operations in BAL-optimised client branches
+- [ ] Compute the new gas costs for each operation
 - [ ] Update EIP
 - [ ] Write execution specs
 - [ ] Run backward compatibility analysis
@@ -45,9 +45,10 @@ This proposal updates the costs of state access operations, thus removing state 
 
 This proposal aligns the cost of ETH transfers with the rest of the compute and state operations, thus increasing the throughput of ETH transfers and aligning their cost with similar operations.
 
+- [ ] Write execution specs with current values
 - [ ] Port costs from EIP-7904, EIP-8038 and EIP-8037
 - [ ] Update EIP
-- [ ] Write execution specs
+- [ ] Update execution specs
 - [ ] Run backward compatibility analysis
 - [ ] Do community outreach for affected stakeholders
 - [ ] Implement new gas schedule in all clients
@@ -91,3 +92,20 @@ This proposal introduces a dynamic cost for state creation operations that depen
 - [ ] Implement new gas schedule in all clients
 - [ ] Create tests and prep devnet
 - [ ] Integrate gas schedule into BAL devnet
+
+## Devnet rollout milestones
+
+End of February:
+
+- we have all BAL optimizations in client branches
+- we can benchmark state and compute operations
+- we can input gas changes into client branches and run benchmarks
+- we have execution specs for all EIPs (final for EIP-8037, with possible number changes for all the others)
+
+End of March:
+
+- we have a BAL + repricings branch, and we start testing
+
+End of April:
+
+- we need to have everything ready for interop
