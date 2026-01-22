@@ -216,7 +216,7 @@ def create_and_save_1dim_regression_plot(
     # Save plot
     fig.savefig(
         os.path.join(out_dir, "figs", f"{opcode}_{client}_regression.png"),
-        dpi=144 * 3,
+        dpi=144,
         bbox_inches="tight",
     )
     plt.close()
@@ -257,7 +257,7 @@ def create_and_save_multidim_regression_plot(
     # Save plot
     fig.savefig(
         os.path.join(out_dir, "figs", f"{opcode}_{client}_regression.png"),
-        dpi=144 * 3,
+        dpi=144,
         bbox_inches="tight",
     )
     plt.close()
@@ -346,7 +346,7 @@ def create_and_save_diagnostic_plots(
     # Save plot
     fig.savefig(
         os.path.join(out_dir, "figs", f"{opcode}_{client}_diagnostics.png"),
-        dpi=144 * 3,
+        dpi=144,
         bbox_inches="tight",
     )
     plt.close("all")
@@ -551,9 +551,9 @@ def estimate_run_time_for_non_simple_opcode(
             for param in params:
                 if param in result.params:
                     out_dict[param] = result.params[param]
-                    out_dict[param+"_pvalue"] = result.pvalues[param]
-                    out_dict[param+"_conf_int_low"] = result.conf_int().loc[param, 0]
-                    out_dict[param+"_conf_int_high"] = result.conf_int().loc[param, 1]
+                    out_dict[param + "_pvalue"] = result.pvalues[param]
+                    out_dict[param + "_conf_int_low"] = result.conf_int().loc[param, 0]
+                    out_dict[param + "_conf_int_high"] = result.conf_int().loc[param, 1]
             out_list.append(out_dict)
             # Add outputs in mardown report
             md_file.new_paragraph("```python")
