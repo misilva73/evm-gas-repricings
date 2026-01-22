@@ -45,7 +45,7 @@ Operations were selected as candidates for repricing based on the following crit
 
 #### Run times distribution by client
 
-The benchmark data covers 237,733 test runs across 4 clients (Besu, Erigon, Geth, Nethermind, and Reth) on the Prague fork. The overall distribution of MGas/s shows significant variation across tests and clients.
+The benchmark data covers 237,733 test runs across 5 clients (Besu, Erigon, Geth, Nethermind, and Reth) on the Prague fork. The overall distribution of MGas/s shows significant variation across tests and clients.
 
 ![mgas_distribution_by_clientt](../figures/7904_included_operations/mgas_distribution_by_client.png)
 
@@ -70,54 +70,56 @@ The next plot shows the distribution of the performance ratio between the worst 
 
 ![worst_second_worst_gap](../figures/7904_included_operations/worst_second_worst_gap.png)
 
-For a majority of tests, the between worst and second-worst is small (<20%), suggesting that clients have a 
+For a majority of tests, the gap between worst and second-worst is small (<20%), suggesting that the worst client is not significantly underperforming on relation to the other clients. However, we do see some tests with the gas is much wider. These test are more frequent for when Besu is the worst client.
 
 #### Underpriced operations at 60 MGas/s
 
 The following table shows operations with worst-case performance below 60 MGas/s:
 
-| Operation | Worst MGas/s | Worst Client | Second Worst MGas/s |
-|-----------|-------------|--------------|---------------------|
-| MULMOD | 20.60 | besu | 57.02 |
-| MODEXP | 21.63 | geth | 25.06 |
-| EQ | 22.80 | besu | 122.96 |
-| SDIV | 23.14 | besu | 85.18 |
-| REVERT | 23.38 | besu | 110.41 |
-| SMOD | 24.99 | besu | 67.98 |
-| MOD | 25.27 | besu | 70.98 |
-| SAR | 27.15 | besu | 134.36 |
-| MUL | 27.60 | besu | 147.87 |
-| SUB | 28.80 | besu | 122.66 |
-| DIV | 29.94 | besu | 88.54 |
-| SHIFT | 30.47 | besu | 124.32 |
-| point evaluation | 31.75 | erigon | 31.85 |
-| RETURN | 32.95 | besu | 103.85 |
-| ADDMOD | 32.98 | besu | 91.12 |
-| CALLCODE | 34.78 | besu | 112.96 |
-| CALLDATALOAD | 35.52 | besu | 77.65 |
-| CALL | 35.60 | besu | 98.94 |
-| DELEGATECALL | 36.30 | besu | 127.70 |
-| SELFDESTRUCT | 36.65 | besu | 628.81 |
-| STATICCALL | 37.60 | besu | 105.77 |
-| CALLDATACOPY | 38.08 | besu | 193.12 |
-| KECCAK | 38.49 | besu | 70.90 |
-| SHL | 39.64 | besu | 136.58 |
-| SHR | 41.84 | besu | 134.38 |
-| BLS12_G1ADD | 41.97 | besu | 73.64 |
-| XOR | 47.34 | besu | 122.21 |
-| blake2f | 47.48 | reth | 50.07 |
-| ecAdd | 47.89 | besu | 63.51 |
-| BLS12_G2ADD | 49.01 | besu | 69.11 |
-| SHA2-256 | 52.29 | besu | 235.32 |
-| AND | 54.66 | besu | 122.87 |
-| identity | 54.74 | besu | 178.01 |
-| OR | 54.91 | besu | 126.59 |
-| ecRecover | 55.04 | besu | 58.41 |
-| TLOAD | 55.90 | erigon | 789.42 |
-| CALLDATASIZE | 56.91 | besu | 134.27 |
-| MSTORE | 57.07 | besu | 145.72 |
-| ecPairing | 57.34 | nethermind | 67.85 |
-| ecMul | 58.66 | reth | 90.32 |
+| Operation | Type | Worst MGas/s | Worst Client | Second Worst MGas/s |
+|-----------|------|-------------|--------------|---------------------|
+| MULMOD | opcode | 20.60 | besu | 57.02 |
+| MODEXP | precompile | 21.63 | geth | 25.06 |
+| EQ | opcode | 22.80 | besu | 122.96 |
+| SDIV | opcode | 23.14 | besu | 85.18 |
+| REVERT | opcode | 23.38 | besu | 110.41 |
+| SMOD | opcode | 24.99 | besu | 67.98 |
+| MOD | opcode | 25.27 | besu | 70.98 |
+| SAR | opcode | 27.15 | besu | 134.36 |
+| MUL | opcode | 27.60 | besu | 147.87 |
+| SUB | opcode | 28.80 | besu | 122.66 |
+| DIV | opcode | 29.94 | besu | 88.54 |
+| SHIFT | opcode | 30.47 | besu | 124.32 |
+| point evaluation | precompile | 31.75 | erigon | 31.85 |
+| RETURN | opcode | 32.95 | besu | 103.85 |
+| ADDMOD | opcode | 32.98 | besu | 91.12 |
+| CALLCODE | opcode | 34.78 | besu | 112.96 |
+| CALLDATALOAD | opcode | 35.52 | besu | 77.65 |
+| CALL | opcode | 35.60 | besu | 98.94 |
+| DELEGATECALL | opcode | 36.30 | besu | 127.70 |
+| SELFDESTRUCT | opcode | 36.65 | besu | 628.81 |
+| STATICCALL | opcode | 37.60 | besu | 105.77 |
+| CALLDATACOPY | opcode | 38.08 | besu | 193.12 |
+| KECCAK | opcode | 38.49 | besu | 70.90 |
+| SHL | opcode | 39.64 | besu | 136.58 |
+| SHR | opcode | 41.84 | besu | 134.38 |
+| BLS12_G1ADD | precompile | 41.97 | besu | 73.64 |
+| XOR | opcode | 47.34 | besu | 122.21 |
+| blake2f | precompile | 47.48 | reth | 50.07 |
+| ecAdd | precompile | 47.89 | besu | 63.51 |
+| BLS12_G2ADD | precompile | 49.01 | besu | 69.11 |
+| SHA2-256 | precompile | 52.29 | besu | 235.32 |
+| AND | opcode | 54.66 | besu | 122.87 |
+| identity | precompile | 54.74 | besu | 178.01 |
+| OR | opcode | 54.91 | besu | 126.59 |
+| ecRecover | precompile | 55.04 | besu | 58.41 |
+| TLOAD | opcode | 55.90 | erigon | 789.42 |
+| CALLDATASIZE | opcode | 56.91 | besu | 134.27 |
+| MSTORE | opcode | 57.07 | besu | 145.72 |
+| ecPairing | precompile | 57.34 | nethermind | 67.85 |
+| ecMul | precompile | 58.66 | reth | 90.32 |
+
+This table is then split into two categories below: **Candidates for repricing** (where multiple clients struggle) and **Operations requiring client optimization** (where only one client struggles).
 
 As expected, there are a significant number of operations where Besu is performing bellow 60Mgas/s, but the rest of the clients have a significantly higher performance. These are the likely cases where a single client optimization is needed.
 
@@ -142,54 +144,54 @@ The following operations are candidates for repricing under EIP-7904. These are 
 - The worst-case MGas/s is below 60 MGas/s, AND
 - The second-worst client also performs below 72 MGas/s (60 × 1.2), indicating the poor performance is not isolated to a single client
 
-| Operation | Worst MGas/s | Worst Client | Second Worst MGas/s | Second Worst / Worst |
-|-----------|-------------|--------------|---------------------|----------------------|
-| MULMOD | 20.60 | besu | 57.02 | 2.77× |
-| MODEXP | 21.63 | geth | 25.06 | 1.16× |
-| SMOD | 24.99 | besu | 67.98 | 2.72× |
-| MOD | 25.27 | besu | 70.98 | 2.81× |
-| point evaluation | 31.75 | erigon | 31.85 | 1.00× |
-| KECCAK | 38.49 | besu | 70.90 | 1.84× |
-| BLS12_G1ADD | 41.97 | besu | 73.64 | 1.75× |
-| blake2f | 47.48 | reth | 50.07 | 1.05× |
-| ecAdd | 47.89 | besu | 63.51 | 1.33× |
-| BLS12_G2ADD | 49.01 | besu | 69.11 | 1.41× |
-| ecRecover | 55.04 | besu | 58.41 | 1.06× |
-| ecPairing | 57.34 | nethermind | 67.85 | 1.18× |
+| Operation | Type | Worst MGas/s | Worst Client | Second Worst MGas/s | Second Worst / Worst |
+|-----------|------|-------------|--------------|---------------------|----------------------|
+| MULMOD | opcode | 20.60 | besu | 57.02 | 2.77× |
+| MODEXP | precompile | 21.63 | geth | 25.06 | 1.16× |
+| SMOD | opcode | 24.99 | besu | 67.98 | 2.72× |
+| MOD | opcode | 25.27 | besu | 70.98 | 2.81× |
+| point evaluation | precompile | 31.75 | erigon | 31.85 | 1.00× |
+| KECCAK | opcode | 38.49 | besu | 70.90 | 1.84× |
+| BLS12_G1ADD | precompile | 41.97 | besu | 73.64 | 1.75× |
+| blake2f | precompile | 47.48 | reth | 50.07 | 1.05× |
+| ecAdd | precompile | 47.89 | besu | 63.51 | 1.33× |
+| BLS12_G2ADD | precompile | 49.01 | besu | 69.11 | 1.41× |
+| ecRecover | precompile | 55.04 | besu | 58.41 | 1.06× |
+| ecPairing | precompile | 57.34 | nethermind | 67.85 | 1.18× |
 
 #### Operations requiring client optimization
 
 The following operations have poor performance on a single client but acceptable performance on others. These should be addressed through client optimization rather than protocol-level repricing:
 
-| Operation | Worst MGas/s | Worst Client | Second Worst MGas/s | Gap |
-|-----------|-------------|--------------|---------------------|-----|
-| EQ | 22.80 | besu | 122.96 | 5.4× |
-| SDIV | 23.14 | besu | 85.18 | 3.7× |
-| REVERT | 23.38 | besu | 110.41 | 4.7× |
-| SAR | 27.15 | besu | 134.36 | 4.9× |
-| MUL | 27.60 | besu | 147.87 | 5.4× |
-| SUB | 28.80 | besu | 122.66 | 4.3× |
-| DIV | 29.94 | besu | 88.54 | 3.0× |
-| SHIFT | 30.47 | besu | 124.32 | 4.1× |
-| RETURN | 32.95 | besu | 103.85 | 3.2× |
-| ADDMOD | 32.98 | besu | 91.12 | 2.8× |
-| CALLCODE | 34.78 | besu | 112.96 | 3.2× |
-| CALLDATALOAD | 35.52 | besu | 77.65 | 2.2× |
-| CALL | 35.60 | besu | 98.94 | 2.8× |
-| DELEGATECALL | 36.30 | besu | 127.70 | 3.5× |
-| SELFDESTRUCT | 36.65 | besu | 628.81 | 17.2× |
-| STATICCALL | 37.60 | besu | 105.77 | 2.8× |
-| CALLDATACOPY | 38.08 | besu | 193.12 | 5.1× |
-| SHL | 39.64 | besu | 136.58 | 3.4× |
-| SHR | 41.84 | besu | 134.38 | 3.2× |
-| XOR | 47.34 | besu | 122.21 | 2.6× |
-| SHA2-256 | 52.29 | besu | 235.32 | 4.5× |
-| AND | 54.66 | besu | 122.87 | 2.2× |
-| identity | 54.74 | besu | 178.01 | 3.3× |
-| OR | 54.91 | besu | 126.59 | 2.3× |
-| TLOAD | 55.90 | erigon | 789.42 | 14.1× |
-| CALLDATASIZE | 56.91 | besu | 134.27 | 2.4× |
-| MSTORE | 57.07 | besu | 145.72 | 2.6× |
-| ecMul | 58.66 | reth | 90.32 | 1.5× |
+| Operation | Type | Worst MGas/s | Worst Client | Second Worst MGas/s | Gap |
+|-----------|------|-------------|--------------|---------------------|-----|
+| EQ | opcode | 22.80 | besu | 122.96 | 5.4× |
+| SDIV | opcode | 23.14 | besu | 85.18 | 3.7× |
+| REVERT | opcode | 23.38 | besu | 110.41 | 4.7× |
+| SAR | opcode | 27.15 | besu | 134.36 | 4.9× |
+| MUL | opcode | 27.60 | besu | 147.87 | 5.4× |
+| SUB | opcode | 28.80 | besu | 122.66 | 4.3× |
+| DIV | opcode | 29.94 | besu | 88.54 | 3.0× |
+| SHIFT | opcode | 30.47 | besu | 124.32 | 4.1× |
+| RETURN | opcode | 32.95 | besu | 103.85 | 3.2× |
+| ADDMOD | opcode | 32.98 | besu | 91.12 | 2.8× |
+| CALLCODE | opcode | 34.78 | besu | 112.96 | 3.2× |
+| CALLDATALOAD | opcode | 35.52 | besu | 77.65 | 2.2× |
+| CALL | opcode | 35.60 | besu | 98.94 | 2.8× |
+| DELEGATECALL | opcode | 36.30 | besu | 127.70 | 3.5× |
+| SELFDESTRUCT | opcode | 36.65 | besu | 628.81 | 17.2× |
+| STATICCALL | opcode | 37.60 | besu | 105.77 | 2.8× |
+| CALLDATACOPY | opcode | 38.08 | besu | 193.12 | 5.1× |
+| SHL | opcode | 39.64 | besu | 136.58 | 3.4× |
+| SHR | opcode | 41.84 | besu | 134.38 | 3.2× |
+| XOR | opcode | 47.34 | besu | 122.21 | 2.6× |
+| SHA2-256 | precompile | 52.29 | besu | 235.32 | 4.5× |
+| AND | opcode | 54.66 | besu | 122.87 | 2.2× |
+| identity | precompile | 54.74 | besu | 178.01 | 3.3× |
+| OR | opcode | 54.91 | besu | 126.59 | 2.3× |
+| TLOAD | opcode | 55.90 | erigon | 789.42 | 14.1× |
+| CALLDATASIZE | opcode | 56.91 | besu | 134.27 | 2.4× |
+| MSTORE | opcode | 57.07 | besu | 145.72 | 2.6× |
+| ecMul | precompile | 58.66 | reth | 90.32 | 1.5× |
 
 The next step is to reach out to the individual clients and assess the reason for the slow performance and whether it can be improved by Glamsterdam.
