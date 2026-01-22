@@ -2,7 +2,7 @@
 
 #### Maria Silva, January 2026
 
-In this report, we present which operations should have a cost increase with EIP-7904 and describe the methodology to pick them.
+In this report, we present which operations should have a cost increase with EIP-7904 and describe the methodology to pick them. The analysis can be reproduced in the [0.5-gasbench_data_eda](https://github.com/misilva73/evm-gas-repricings/blob/185f37f5e0a5636161d5da4983d87a4e420b227a/notebooks/0.5-gasbench_data_eda.ipynb) notebook.
 
 ### Methodology
 
@@ -122,6 +122,16 @@ The following table shows operations with worst-case performance below 60 MGas/s
 As expected, there are a significant number of operations where Besu is performing bellow 60Mgas/s, but the rest of the clients have a significantly higher performance. These are the likely cases where a single client optimization is needed.
 
 MODEXP is still performing at 21.63 Mgas/s, however we expect this value to change in the Osaka branch as this operation was already repriced there. We need to run this again on the newest fork.
+
+#### Slow tests
+
+We also observed test performing at less than 20Mgas/s. Since there are likely issues in the data, we exclude them from the underpriced operations. However, we need to confirm whether this is actually issues in the test and not a new bottleneck. The test in question are the following:
+
+- `test_extcode_ops` in Geth and Erigon
+- `test_xcall` in Geth
+- `test_artimetic` in Besu (only `opcode_ADD`)
+- `test_selfbalance` in Besu (only `contract_balance_0`)
+- `test_call_frame_context_ops` in Besu (`opcode_ORIGIN`)
 
 ### Final list
 
