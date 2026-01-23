@@ -171,13 +171,10 @@ SIMPLE_EIP_7904 = [
     "SMOD",
     "MOD",
     "POINT_EVALUATION",
-    "KECCAK256",
     "BLS12_G1ADD",
     "BLS12_G2ADD",
-    "BLAKE2F",
     "ECADD",
     "ECRECOVER",
-    "ECPAIRING",
 ]
 
 VARIABLE_EIP_7904 = [

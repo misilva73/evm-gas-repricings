@@ -412,39 +412,40 @@ def estimate_run_time_for_simple_operation(
             # Fit linear regression model using OLS
             model = sm.OLS(y, X_with_intercept_df)
             result = model.fit()
-            intercept = result.params["const"]
-            slope = result.params["opcount"]
-            out_dict = {
-                "opcode": opcode,
-                "client": client,
-                "intercept": intercept,
-                "intercept_pvalue": result.pvalues["const"],
-                "rsquared": result.rsquared,
-                "rsquared_adj": result.rsquared_adj,
-                "slope": slope,
-                "slope_pvalue": result.pvalues["opcount"],
-                "slope_conf_int_low": result.conf_int().loc["opcount", 0],
-                "slope_conf_int_high": result.conf_int().loc["opcount", 1],
-            }
-            out_list.append(out_dict)
-            # Add outputs in mardown report
-            md_file.new_paragraph("```python")
-            md_file.new_line(str(result.summary()))
-            md_file.new_line("```")
-            # Create a save plots
-            create_and_save_1dim_regression_plot(op_df, result, opcode, client, out_dir)
-            create_and_save_diagnostic_plots(result, opcode, client, out_dir)
-            # Add plots to markdown
-            md_file.new_paragraph(
-                f'<img src="./figs/{opcode}_{client}_regression.png" alt="{opcode}_{client}_regression" width="600"/>'
-            )
-            md_file.new_paragraph(
-                f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
-            )
-            md_file.new_paragraph("")
         except Exception as e:
             md_file.new_line(f"OLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")
+            continue
+        intercept = result.params["const"]
+        slope = result.params["opcount"]
+        out_dict = {
+            "opcode": opcode,
+            "client": client,
+            "intercept": intercept,
+            "intercept_pvalue": result.pvalues["const"],
+            "rsquared": result.rsquared,
+            "rsquared_adj": result.rsquared_adj,
+            "slope": slope,
+            "slope_pvalue": result.pvalues["opcount"],
+            "slope_conf_int_low": result.conf_int().loc["opcount", 0],
+            "slope_conf_int_high": result.conf_int().loc["opcount", 1],
+        }
+        out_list.append(out_dict)
+        # Add outputs in mardown report
+        md_file.new_paragraph("```python")
+        md_file.new_line(str(result.summary()))
+        md_file.new_line("```")
+        # Create a save plots
+        create_and_save_1dim_regression_plot(op_df, result, opcode, client, out_dir)
+        create_and_save_diagnostic_plots(result, opcode, client, out_dir)
+        # Add plots to markdown
+        md_file.new_paragraph(
+            f'<img src="./figs/{opcode}_{client}_regression.png" alt="{opcode}_{client}_regression" width="600"/>'
+        )
+        md_file.new_paragraph(
+            f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
+        )
+        md_file.new_paragraph("")
     return out_list
 
 
@@ -524,7 +525,7 @@ def estimate_run_time_for_non_simple_operation(
             )
         # Get feature matrix
         na_counts = op_df[params].isna().sum()
-        features = ["opcount"] + na_counts[na_counts == 0].index.to_list()
+        features = ["opcount"] + na_counts[na_counts != len(op_df)].index.to_list()
         feature_df = op_df[features + ["run_duration_ms"]].dropna()
         X_df = feature_df[features].astype(float)
         X_with_intercept_df = sm.add_constant(X_df)  # adds intercept
@@ -533,47 +534,49 @@ def estimate_run_time_for_non_simple_operation(
             # Fit linear regression model using OLS
             model = sm.OLS(y, X_with_intercept_df)
             result = model.fit()
-            intercept = result.params["const"]
-            slope = result.params["opcount"]
-            out_dict = {
-                "opcode": opcode,
-                "client": client,
-                "intercept": intercept,
-                "intercept_pvalue": result.pvalues["const"],
-                "rsquared": result.rsquared,
-                "rsquared_adj": result.rsquared_adj,
-                "slope": slope,
-                "slope_pvalue": result.pvalues["opcount"],
-                "slope_conf_int_low": result.conf_int().loc["opcount", 0],
-                "slope_conf_int_high": result.conf_int().loc["opcount", 1],
-            }
-            for param in params:
-                if param in result.params:
-                    out_dict[param] = result.params[param]
-                    out_dict[param + "_pvalue"] = result.pvalues[param]
-                    out_dict[param + "_conf_int_low"] = result.conf_int().loc[param, 0]
-                    out_dict[param + "_conf_int_high"] = result.conf_int().loc[param, 1]
-            out_list.append(out_dict)
-            # Add outputs in mardown report
-            md_file.new_paragraph("```python")
-            md_file.new_line(str(result.summary()))
-            md_file.new_line("```")
-            # Create a save plots
-            create_and_save_multidim_regression_plot(
-                feature_df, result, opcode, client, out_dir
-            )
-            create_and_save_diagnostic_plots(result, opcode, client, out_dir)
-            # Add plots to markdown
-            md_file.new_paragraph(
-                f'<img src="./figs/{opcode}_{client}_regression.png" alt="{opcode}_{client}_regression" width="600"/>'
-            )
-            md_file.new_paragraph(
-                f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
-            )
-            md_file.new_paragraph("")
         except Exception as e:
             md_file.new_line(f"OLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")
+            continue
+        intercept = result.params["const"]
+        slope = result.params["opcount"]
+        out_dict = {
+            "opcode": opcode,
+            "client": client,
+            "intercept": intercept,
+            "intercept_pvalue": result.pvalues["const"],
+            "rsquared": result.rsquared,
+            "rsquared_adj": result.rsquared_adj,
+            "slope": slope,
+            "slope_pvalue": result.pvalues["opcount"],
+            "slope_conf_int_low": result.conf_int().loc["opcount", 0],
+            "slope_conf_int_high": result.conf_int().loc["opcount", 1],
+        }
+        for param in params:
+            if param in result.params:
+                out_dict[param] = result.params[param]
+                out_dict[param + "_pvalue"] = result.pvalues[param]
+                out_dict[param + "_conf_int_low"] = result.conf_int().loc[param, 0]
+                out_dict[param + "_conf_int_high"] = result.conf_int().loc[param, 1]
+        out_list.append(out_dict)
+        # Add outputs in mardown report
+        md_file.new_paragraph("```python")
+        md_file.new_line(str(result.summary()))
+        md_file.new_line("```")
+        # Create a save plots
+        create_and_save_multidim_regression_plot(
+            feature_df, result, opcode, client, out_dir
+        )
+        create_and_save_diagnostic_plots(result, opcode, client, out_dir)
+        # Add plots to markdown
+        md_file.new_paragraph(
+            f'<img src="./figs/{opcode}_{client}_regression.png" alt="{opcode}_{client}_regression" width="600"/>'
+        )
+        md_file.new_paragraph(
+            f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
+        )
+        md_file.new_paragraph("")
+        
     return out_list
 
 
