@@ -165,3 +165,30 @@ We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/eb73f
 - SELFDESTRUCT
 
 </details>
+
+## 23-01-2026
+
+In this run, we focused on the candidate compute operations for repricing in EIP-7904. For more info on this list and the selection criteria, please refer to [this report](https://github.com/misilva73/evm-gas-repricings/blob/282f1a432106d994726aa254707fddcd879eea34/reports/eip-7904/included_operations.md).
+
+The data was collected from the `repricings_new` table in the `perfnet.core.nethermind.dev:5432/monitoring` database. We filtered the data to include only tests run between `2026-01-10` and `2026-01-23`.
+
+We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/1ab681788c602b5d810f1e232322dbae58cbb6e9/src/estimate_7904_repricings.py) to query the raw data and estimate the run times. [This notebook](https://github.com/misilva73/evm-gas-repricings/blob/1ab681788c602b5d810f1e232322dbae58cbb6e9/notebooks/1.7-7904_runtimes_eda.ipynb) contains an exploratory analysis of the raw data and the estimated run times.
+
+### Key takeaways
+
+- `ECPAIRING` seems to have a bug in the opcode count column, where the value there is not matching the test description. As expected, this is causing weird results in the model.
+- Erigon is missing data for `BLAKE2F`, `BLS12_G1ADD`, `BLS12_G2ADD`, `ECADD`, `ECPAIRING`, `ECRECOVER`, and `POINT_EVALUATION`.
+- `KECCAK256` runtime does not seem to change with varying `mem_sizes`. This means we can ignore the memory size when estimating its runtime.
+- Nethermind has some runs where the runtime of the opcode does not increase with the opcode count. This happens for `BLS12_G1ADD`, `BLS12_G2ADD`, `ECRECOVER` and `POINT_EVALUATION`. Example:
+
+![](./eip-7904/runtime_estimation/2026-01-10_2026-01-23/figs/BLS12_G1ADD_nethermind_regression.png)
+
+- `ECADD` has a bad fit in almost all clients. This is due to a different behavior between the two test configs - `bn128_add_infinities` and `bn128_add`. I am assuming we can simply use the worst config, but we should double-check. Here is a plot to illustrate:
+
+![ECADD_test_configs](./figures/ECADD_test_configs.png)
+
+### ToDo's
+
+- [ ] Fix the opcode count column in the ecPairing tests.
+- [ ] Investigate why Erigon is not running some tests.
+- [ ] (low priority) Investigate why Nethermind has some runs where runtime does not increase with the opcode count.
