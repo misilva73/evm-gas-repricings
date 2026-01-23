@@ -181,11 +181,11 @@ We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/1ab68
 - `KECCAK256` runtime does not seem to change with varying `mem_sizes`. This means we can ignore the memory size when estimating its runtime.
 - Nethermind has some runs where the runtime of the opcode does not increase with the opcode count. This happens for `BLS12_G1ADD`, `BLS12_G2ADD`, `ECRECOVER` and `POINT_EVALUATION`. Example:
 
-![](./eip-7904/runtime_estimation/2026-01-10_2026-01-23/figs/BLS12_G1ADD_nethermind_regression.png)
+![ECADD_test_configs](https://raw.githubusercontent.com/misilva73/evm-gas-repricings/main/reports/eip-7904/runtime_estimation/2026-01-10_2026-01-23/figs/BLS12_G1ADD_nethermind_regression.png)
 
 - `ECADD` has a bad fit in almost all clients. This is due to a different behavior between the two test configs - `bn128_add_infinities` and `bn128_add`. I am assuming we can simply use the worst config, but we should double-check. Here is a plot to illustrate:
 
-![ECADD_test_configs](./figures/ECADD_test_configs.png)
+![ECADD_test_configs](https://raw.githubusercontent.com/misilva73/evm-gas-repricings/main/reports/figures/ECADD_test_configs.png)
 
 ### ToDo's
 
