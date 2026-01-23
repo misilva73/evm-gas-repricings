@@ -9,6 +9,7 @@ This proposal raises the cost of all operations performing worse than 60Mgas/s, 
 - [ ] Decide on the list of operations to reprice
 - [ ] Compute the new gas costs for each operation (assuming 60Mgas/s)
 - [ ] Update EIP
+  - [ ] Integrate [EIP-8096](https://github.com/ethereum/EIPs/pull/11028#issuecomment-3776989691)
 - [ ] Write execution specs
 - [ ] Run backward compatibility analysis
 - [ ] Do community outreach for affected stakeholders
@@ -61,6 +62,7 @@ This proposal increases calldata cost for data-heavy transactions, thus lowering
 
 - [ ] Estimate how much gas each byte of calldata should cost
   - [ ] How can we translate bytes into propagation time?
+    - Check [block-propagation-size](https://observatory.ethp2p.dev/latest/block-propagation-size) and [data](https://observatory.ethp2p.dev/data)
   - [ ] How much time relative to execution will we have after ePBS?
 - [ ] Update EIP (if needed)
 - [ ] Do community outreach to affected stakeholders
@@ -87,7 +89,10 @@ This proposal introduces a dynamic cost for state creation operations that depen
 - [ ] Write execution specs and figure out open questions:
   - [ ] How to split the CREATE costs?
   - [ ] How to deal with tx receipts?
+  - [ ] What aggregation function should we use for the base fee update?
 - [ ] Update EIP
+  - [ ] Add rounding to `cost_per_byte` calculation to avoid too frequent cost updates
+  - [ ] Improve multidim metering section?
 - [ ] Do community outreach to affected stakeholders
 - [ ] Implement new gas schedule in all clients
 - [ ] Create tests and prep devnet
