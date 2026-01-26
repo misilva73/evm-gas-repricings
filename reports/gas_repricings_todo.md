@@ -7,7 +7,7 @@
 This proposal raises the cost of all operations performing worse than 60Mgas/s, thus removing these bottlenecks and allowing a higher block limit.
 
 - [ ] Decide on the list of operations to reprice
-- [ ] Compute the new gas costs for each operation (assuming 60Mgas/s)
+- [ ] Compute the new gas costs for each operation (assuming 60Mgas/s) and estimate impact on the average block
 - [ ] Update EIP
   - [ ] Integrate [EIP-8096](https://github.com/ethereum/EIPs/pull/11028#issuecomment-3776989691)
 - [ ] Write execution specs
@@ -100,16 +100,25 @@ This proposal introduces a dynamic cost for state creation operations that depen
 
 ## Devnet rollout milestones
 
+End of January:
+
+- we have initial numbers for all EIPs
+- we have an initial backward compatibility analysis
+
 End of February:
 
 - we have all BAL optimizations in client branches
-- we can benchmark state and compute operations
+- we can benchmark state and compute operations with BALs
 - we can input gas changes into client branches and run benchmarks
 - we have execution specs for all EIPs (final for EIP-8037, with possible number changes for all the others)
+- we have reached out to all affected entities and collected their feedback on initial numbers
 
 End of March:
 
+- we have benchmarks for BAL worst-case blocks
 - we have a BAL + repricings branch, and we start testing
+- we have reached out to all affected entities and collected their feedback on final numbers
+- we have kicked-off the security review
 
 End of April:
 
