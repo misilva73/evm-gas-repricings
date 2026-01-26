@@ -27,7 +27,6 @@ PARAMS = [
     "num_rounds",
     "num_pairs",
     "msg_size",
-    "mem_size",
 ]
 
 

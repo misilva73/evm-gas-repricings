@@ -9,7 +9,7 @@ import pandas as pd
 import seaborn as sns
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
-from scipy.stats import probplot
+from scipy.stats import probplot, zscore
 from tqdm import tqdm
 from pathlib import Path
 from typing import List, Any
@@ -71,7 +71,8 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
         test_title,
         client_name,
         raw_run_duration_ms AS run_duration_ms,
-        opcount
+        opcount,
+        ingestion_timestamp
     FROM repricings_new
     WHERE ingestion_timestamp >= '{start_date}'::timestamp
     AND raw_run_duration_ms > 0
@@ -185,6 +186,8 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
     df["test_opcode"] = np.where(
         df["test_opcode"] == "PREVRANDAO", "DIFFICULTY", df["test_opcode"]
     )
+    # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
+    df = df[df["test_params"] != "bn128_add_infinities"]
     return df
 
 
@@ -223,15 +226,17 @@ def create_and_save_1dim_regression_plot(
 
 
 def create_and_save_multidim_regression_plot(
-    feature_df: pd.DataFrame,
+    op_df: pd.DataFrame,
     result: sm.regression.linear_model.RegressionResultsWrapper,
     opcode: str,
     client: str,
     out_dir: str,
+    all_features: List[str],
 ) -> None:
+    features = list(set(all_features).difference(set(["opcount"])))
     # Process regression features
-    features = feature_df.drop(columns=["run_duration_ms", "opcount"]).columns.to_list()
-    feature_df[features] = feature_df[features].astype(int)
+    feature_df = op_df.copy()
+    feature_df[features] = feature_df[features].astype(float)
     # Get regression slope and intercept
     intercept = result.params["const"]
     slope = result.params["opcount"]
@@ -351,6 +356,61 @@ def create_and_save_diagnostic_plots(
     plt.close("all")
 
 
+### OLS auxiliary functions ##############################################################
+
+
+def fit_OLS(
+    feature_df: pd.DataFrame, features: List[str]
+) -> sm.regression.linear_model.RegressionResults:
+    # Process variables
+    X_df = feature_df[features].astype(float)
+    X_with_intercept_df = sm.add_constant(X_df)  # adds intercept
+    y = feature_df["run_duration_ms"].astype(float)
+    # Fit OLS
+    model = sm.OLS(y, X_with_intercept_df)
+    result = model.fit()
+    return result
+
+
+def fit_OLS_without_low_diff_runs(
+    op_df: pd.DataFrame, features: List[str]
+) -> sm.regression.linear_model.RegressionResults:
+    feature_df = op_df[features + ["run_duration_ms"]].dropna()
+    result = fit_OLS(feature_df, features)
+    # if we have a poor fit, try to remove runs with non-increasing runtimes
+    if result.rsquared <= 0.5:
+        filtered_op_df = find_low_diff_runs(op_df)
+        filtered_feature_df = filtered_op_df[features + ["run_duration_ms"]].dropna()
+        result_v2 = fit_OLS(filtered_feature_df, features)
+        if result_v2.rsquared > 0.5:
+            return result_v2
+    # if we have a good fit or removing low diff runs does not help, return original model
+    return result
+
+
+def find_low_diff_runs(op_df: pd.DataFrame) -> pd.DataFrame:
+    cols_zscore = ["test_file", "test_name", "test_params"]
+    all_cols = cols_zscore + ["ingestion_timestamp"]
+    # Compute average diff in runtime per run
+    avg_diff_df = (
+        op_df.sort_values("opcount")
+        .groupby(all_cols)["run_duration_ms"]
+        .apply(lambda x: x.diff().mean())
+        .reset_index()
+        .rename(columns={"run_duration_ms": "avg_diff"})
+    )
+    # Calculate z-scores on average diff
+    avg_diff_df["z_score"] = avg_diff_df.groupby(cols_zscore)["avg_diff"].transform(
+        lambda x: zscore(x, nan_policy="omit") if len(x) > 1 else 0
+    )
+    # Filter runs with low average diff (based on z-score)
+    low_diff_runs = avg_diff_df[avg_diff_df["z_score"] < -1][
+        "ingestion_timestamp"
+    ].unique()
+    filtered_op_df = op_df[~op_df["ingestion_timestamp"].isin(low_diff_runs)]
+    return filtered_op_df
+
+
 ### Simple opcode analysis ################################################################
 
 
@@ -405,13 +465,9 @@ def estimate_run_time_for_simple_operation(
             (gas_bench_df["client_name"] == client)
             & (gas_bench_df["test_opcode"] == opcode)
         ]
-        X_df = op_df[["opcount"]]
-        X_with_intercept_df = sm.add_constant(X_df)  # adds intercept
-        y = op_df["run_duration_ms"]
         try:
             # Fit linear regression model using OLS
-            model = sm.OLS(y, X_with_intercept_df)
-            result = model.fit()
+            result = fit_OLS_without_low_diff_runs(op_df, ["opcount"])
         except Exception as e:
             md_file.new_line(f"OLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")
@@ -421,6 +477,7 @@ def estimate_run_time_for_simple_operation(
         out_dict = {
             "opcode": opcode,
             "client": client,
+            "nobs": result.nobs,
             "intercept": intercept,
             "intercept_pvalue": result.pvalues["const"],
             "rsquared": result.rsquared,
@@ -526,14 +583,9 @@ def estimate_run_time_for_non_simple_operation(
         # Get feature matrix
         na_counts = op_df[params].isna().sum()
         features = ["opcount"] + na_counts[na_counts != len(op_df)].index.to_list()
-        feature_df = op_df[features + ["run_duration_ms"]].dropna()
-        X_df = feature_df[features].astype(float)
-        X_with_intercept_df = sm.add_constant(X_df)  # adds intercept
-        y = feature_df["run_duration_ms"]
         try:
             # Fit linear regression model using OLS
-            model = sm.OLS(y, X_with_intercept_df)
-            result = model.fit()
+            result = fit_OLS_without_low_diff_runs(op_df, features)
         except Exception as e:
             md_file.new_line(f"OLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")
@@ -543,6 +595,7 @@ def estimate_run_time_for_non_simple_operation(
         out_dict = {
             "opcode": opcode,
             "client": client,
+            "nobs": result.nobs,
             "intercept": intercept,
             "intercept_pvalue": result.pvalues["const"],
             "rsquared": result.rsquared,
@@ -565,7 +618,7 @@ def estimate_run_time_for_non_simple_operation(
         md_file.new_line("```")
         # Create a save plots
         create_and_save_multidim_regression_plot(
-            feature_df, result, opcode, client, out_dir
+            op_df, result, opcode, client, out_dir, features
         )
         create_and_save_diagnostic_plots(result, opcode, client, out_dir)
         # Add plots to markdown
@@ -576,7 +629,7 @@ def estimate_run_time_for_non_simple_operation(
             f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
         )
         md_file.new_paragraph("")
-        
+
     return out_list
 
 
