@@ -100,10 +100,10 @@ This proposal introduces a dynamic cost for state creation operations that depen
 
 ## Devnet rollout milestones
 
-End of January:
+Middle of February:
 
-- we have initial numbers for all EIPs
-- we have an initial backward compatibility analysis
+- we have preliminary numbers for all EIPs
+- we have a preliminary backward compatibility analysis
 
 End of February:
 
@@ -111,15 +111,17 @@ End of February:
 - we can benchmark state and compute operations with BALs
 - we can input gas changes into client branches and run benchmarks
 - we have execution specs for all EIPs (final for EIP-8037, with possible number changes for all the others)
-- we have reached out to all affected entities and collected their feedback on initial numbers
+- we have reached out to all affected entities to collect their feedback on initial numbers
 
 End of March:
 
 - we have benchmarks for BAL worst-case blocks
 - we have a BAL + repricings branch, and we start testing
-- we have reached out to all affected entities and collected their feedback on final numbers
-- we have kicked-off the security review
+- we have reached out to all affected entities to collect their feedback on final numbers
+- we have done an internal security review with preliminary numbers
 
 End of April:
 
+- we have collected community feedback on the final numbers
+- we have done an external security review with preliminary numbers
 - we need to have everything ready for interop
