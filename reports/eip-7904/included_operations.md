@@ -14,6 +14,19 @@ Each test was run multiple times to isolate random variations in runtime and out
 
 The test are still using the Prague fork. A similar analysis is still needed for the Osaka fork.
 
+All benchmarks were run on the performance branches of each client using the following hardware specification:
+
+| Specification | Value |
+|--------------|-------|
+| spec_processor_type | x86_64 |
+| spec_system_os | Linux |
+| spec_kernel_release | 6.8.0-53-generic |
+| spec_kernel_version | #55-Ubuntu SMP PREEMPT_DYNAMIC |
+| spec_machine_arch | x86_64 |
+| spec_processor_arch | 64bit |
+| spec_cpu_model | AMD EPYC 7713 64-Core Processor |
+| spec_num_cpus | 32 |
+
 #### Data processing
 
 The raw benchmark data was processed as follows:
