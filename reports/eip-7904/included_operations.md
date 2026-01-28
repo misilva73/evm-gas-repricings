@@ -208,3 +208,11 @@ The following operations have poor performance on a single client but acceptable
 | ecMul | precompile | 58.66 | reth | 90.32 | 1.5× |
 
 The next step is to reach out to the individual clients and assess the reason for the slow performance and whether it can be improved by Glamsterdam.
+
+#### Client feedback
+
+The Besu team provided the following feedback:
+
+- They are not yet able to reproduce the numbers for `EQ`, so more analysis here is needed.
+- They are already working on optimizing arithmetic operations (e.g. `MOD`, `SMOD`, `ADDMOD`, `MULMOD`, `DIV`, `SDIV`, `MUL` and `SUB`). They expect the performance to improve with new `Uint256` implementation.
+- They proposed to add to the repricing table all the `DIV` related opcodes as they are more complex than simple arithmetic like `ADD` and based on the same algorithm. The list of these operations is `MOD`, `SMOD`, `ADDMOD`, `MULMOD`, `DIV`, and `SDIV`.
