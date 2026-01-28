@@ -8,8 +8,6 @@ import pandas as pd
 from tqdm import tqdm
 from pathlib import Path
 from mdutils.mdutils import MdUtils
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Suppress warnings
 warnings.filterwarnings("ignore", module="statsmodels")
@@ -20,11 +18,12 @@ pd.options.mode.chained_assignment = None
 sys.path.append(str(Path(__file__).parent))
 import operation_types
 from operation_gas_costs import fusaka_dict
-from estimate_opcode_run_times import (
-    process_gas_bench_data,
-    estimate_run_time_for_non_simple_operation,
+from data import process_gas_bench_data
+from runtime_estimation import (
     estimate_run_time_for_simple_operation,
+    estimate_run_time_for_non_simple_operation,
 )
+from plotting import create_and_save_new_gas_plot
 
 
 PARAMS = [
@@ -32,66 +31,6 @@ PARAMS = [
     "num_pairs",
     "msg_size",
 ]
-
-
-def create_and_save_new_gas_plot(new_gas_df: pd.DataFrame, out_dir:str) -> None:
-    # Create the plot
-    fig, ax = plt.subplots(figsize=(10, max(8, len(new_gas_df) * 0.05)))
-    # Create a combined label for opcode_param for better visualization
-    new_gas_df["opcode_param"] = new_gas_df["opcode"] + " (" + new_gas_df["param"] + ")"
-    # Sort by opcode and param for better organization
-    plot_df = new_gas_df.sort_values(["opcode", "param"]).reset_index(drop=True)
-    # Get unique combinations and clients
-    unique_combos = plot_df["opcode_param"].unique()
-    clients = plot_df["client"].unique()
-    # Create color palette
-    palette = sns.color_palette("husl", n_colors=len(clients))
-    client_colors = dict(zip(clients, palette))
-    # Plot each client's data
-    for idx, client in enumerate(clients):
-        client_data = plot_df[plot_df["client"] == client].copy()
-        # Create y-positions with slight offsets for each client to avoid overlap
-        y_positions = []
-        for opcode_param in client_data["opcode_param"]:
-            base_pos = np.where(unique_combos == opcode_param)[0][0]
-            # Offset based on client index to spread them out
-            offset = (idx - len(clients) / 2) * 0.15
-            y_positions.append(base_pos + offset)
-        # Plot points and error bars
-        ax.errorbar(
-            client_data["new_gas_rounded"],
-            y_positions,
-            xerr=[
-                client_data["new_gas_rounded"] - client_data["new_gas_conf_int_low"],
-                client_data["new_gas_conf_int_high"] - client_data["new_gas_rounded"],
-            ],
-            fmt="o",
-            label=client,
-            color=client_colors[client],
-            markersize=6,
-            capsize=3,
-            capthick=1.5,
-            alpha=0.8,
-        )
-    # Set logarithmic scale for x-axis to handle different scales
-    ax.set_xscale("log")
-    # Set y-axis labels
-    ax.set_yticks(range(len(unique_combos)))
-    ax.set_yticklabels(unique_combos)
-    ax.set_xlabel("New Gas Cost (Rounded) - Log Scale", fontsize=12)
-    ax.set_ylabel("Operation (Parameter)", fontsize=12)
-    ax.set_title(
-        "New Gas Costs by Client with Confidence Intervals",
-        fontsize=14,
-        fontweight="bold",
-    )
-    ax.legend(title="Client", bbox_to_anchor=(1.05, 1), loc="upper left")
-    ax.grid(axis="x", alpha=0.3, linestyle="--", which="both")
-    ax.grid(axis="y", alpha=0.1, linestyle="-")
-    plt.tight_layout()
-    plot_path = os.path.join(out_dir, "figs", "gas_costs_by_client.png")
-    plt.savefig(plot_path, dpi=144, bbox_inches="tight")
-    plt.close()
 
 
 def get_current_gas_cost(opcode: str, param: str) -> int | None:
