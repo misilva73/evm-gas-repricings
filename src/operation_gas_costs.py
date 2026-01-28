@@ -1,0 +1,22 @@
+fusaka_dict = {
+    # opcodes
+    "DIV": 5,
+    "SDIV": 5,
+    "MOD": 5,
+    "SMOD": 5,
+    "ADDMOD": 8,
+    "MULMOD": 8,
+    "KECCAK256": 30,
+    "KECCAK256_WORD": 6,
+    # Precompiles
+    "ECRECOVER": 3_000,
+    "ECADD": 150,
+    "ECPAIRING": 45_000,
+    "ECPAIRING_PAIRS": 34_000,
+    "BLAKE2F": 0,
+    "BLAKE2F_ROUNDS": 1,
+    "POINT_EVALUATION": 50_000,
+    "BLS12_G1ADD": 375,
+    "BLS12_G2ADD": 600,
+}
+

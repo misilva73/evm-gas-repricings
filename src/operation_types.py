@@ -168,8 +168,12 @@ ALL_OPERATIONS = ALL_OPCODES + PRECOMPILES
 
 SIMPLE_EIP_7904 = [
     "MULMOD",
+    "ADDMOD",
     "SMOD",
     "MOD",
+    "SMOD",
+    "DIV",
+    "SDIV",
     "POINT_EVALUATION",
     "BLS12_G1ADD",
     "BLS12_G2ADD",

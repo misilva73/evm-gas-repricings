@@ -80,6 +80,15 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
     """
     engine = create_engine(gas_bench_db_url)
     df = pd.read_sql(query_str, con=engine)
+    df = process_test_title_col(df)
+    df = df.drop(columns="test_title")
+    # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
+    df = df[df["test_params"] != "bn128_add_infinities"]
+    return df
+
+
+def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
+    df = prev_df.copy()
     df["test_file"] = (
         df["test_title"].str.replace("tests_benchmark_", "").str.split(".py").str[0]
     )
@@ -111,7 +120,6 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
         )
         .apply(lambda x: "-".join(x) if isinstance(x, list) else np.nan)
     )
-    df = df.drop(columns="test_title")
     # Format alt_bn precompiles
     df["test_opcode"] = np.where(
         (df["test_name"] == "test_alt_bn128") & (df["test_params"].str.contains("add")),
@@ -186,9 +194,24 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
     df["test_opcode"] = np.where(
         df["test_opcode"] == "PREVRANDAO", "DIFFICULTY", df["test_opcode"]
     )
-    # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
-    df = df[df["test_params"] != "bn128_add_infinities"]
     return df
+
+
+def process_test_trace_data(user: str, password: str) -> pd.DataFrame:
+    gas_bench_db_url = (
+        f"postgresql://{user}:{password}@perfnet.core.nethermind.dev:5432/monitoring"
+    )
+    query_str = f"""
+    SELECT test_name as test_title, opcodes as traces
+    FROM gas_limit_benchmarks_test_metadata
+    """
+    engine = create_engine(gas_bench_db_url)
+    trace_df = pd.read_sql(query_str, con=engine)
+    trace_df = process_test_title_col(trace_df)
+    traces_expanded = pd.json_normalize(trace_df["traces"])
+    trace_df = pd.concat([trace_df.drop(columns=["traces"]), traces_expanded], axis=1)
+    trace_df = trace_df.drop(columns="test_title")
+    return trace_df
 
 
 ### General ploting ##################################################################
@@ -692,7 +715,7 @@ Everytime the report references "opcode", assume we it means "precompile".
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2026-01-10"
+    start_date = "2026-01-15"
     # Directories
     file_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(file_dir, ".."))
