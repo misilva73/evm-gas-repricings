@@ -361,10 +361,9 @@ if __name__ == "__main__":
     user = secrets_dict["gas_bench_username"]
     password = secrets_dict["gas_bench_password"]
     # Query raw data and save
-    # gas_bench_df = process_gas_bench_data(user, password, start_date)
+    gas_bench_df = process_gas_bench_data(user, password, start_date)
     outfile = os.path.join(out_dir, "gas_bench_data.csv")
-    # gas_bench_df.to_csv(outfile, index=False)
-    gas_bench_df = pd.read_csv(outfile)
+    gas_bench_df.to_csv(outfile, index=False)
     # Run estimations and generate reports
     generate_runtime_report(gas_bench_df, out_dir)
     generate_repricings_report(out_dir, anchor_rate)
