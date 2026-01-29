@@ -7,12 +7,14 @@ from mdutils.mdutils import MdUtils
 
 sys.path.append(str(Path(__file__).parent))
 from plotting import (
-    create_and_save_1dim_regression_plot,
-    create_and_save_diagnostic_plots,
-    create_and_save_multidim_regression_plot,
+    create_and_save_1dim_nnls_regression_plot,
+    create_and_save_nnls_diagnostic_plots,
+    create_and_save_multidim_nnls_regression_plot,
+    create_and_save_nnls_bootstrap_diagnostic,
 )
 from data import extract_param_values
-from ols import fit_OLS_without_low_diff_runs
+from nnls import fit_NNLS_without_low_diff_runs
+
 
 def estimate_run_time_for_simple_operation(
     gas_bench_df: pd.DataFrame, opcode: str, md_file: MdUtils, out_dir: str
@@ -28,10 +30,10 @@ def estimate_run_time_for_simple_operation(
             & (gas_bench_df["test_opcode"] == opcode)
         ]
         try:
-            # Fit linear regression model using OLS
-            result = fit_OLS_without_low_diff_runs(op_df, ["opcount"])
+            # Fit linear regression model using NNLS
+            result = fit_NNLS_without_low_diff_runs(op_df, ["opcount"])
         except Exception as e:
-            md_file.new_line(f"OLS model did not run... Error: {str(e)}")
+            md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")
             continue
         intercept = result.params["const"]
@@ -54,15 +56,21 @@ def estimate_run_time_for_simple_operation(
         md_file.new_paragraph("```python")
         md_file.new_line(str(result.summary()))
         md_file.new_line("```")
-        # Create a save plots
-        create_and_save_1dim_regression_plot(op_df, result, opcode, client, out_dir)
-        create_and_save_diagnostic_plots(result, opcode, client, out_dir)
+        # Create and save plots
+        create_and_save_1dim_nnls_regression_plot(
+            op_df, result, opcode, client, out_dir
+        )
+        create_and_save_nnls_diagnostic_plots(result, opcode, client, out_dir)
+        create_and_save_nnls_bootstrap_diagnostic(result, opcode, client, out_dir)
         # Add plots to markdown
         md_file.new_paragraph(
             f'<img src="./figs/{opcode}_{client}_regression.png" alt="{opcode}_{client}_regression" width="600"/>'
         )
         md_file.new_paragraph(
             f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
+        )
+        md_file.new_paragraph(
+            f'<img src="./figs/{opcode}_{client}_bootstrap.png" alt="{opcode}_{client}_bootstrap" width="600"/>'
         )
         md_file.new_paragraph("")
     return out_list
@@ -94,10 +102,10 @@ def estimate_run_time_for_non_simple_operation(
         na_counts = op_df[params].isna().sum()
         features = ["opcount"] + na_counts[na_counts != len(op_df)].index.to_list()
         try:
-            # Fit linear regression model using OLS
-            result = fit_OLS_without_low_diff_runs(op_df, features)
+            # Fit linear regression model using NNLS
+            result = fit_NNLS_without_low_diff_runs(op_df, features)
         except Exception as e:
-            md_file.new_line(f"OLS model did not run... Error: {str(e)}")
+            md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")
             continue
         intercept = result.params["const"]
@@ -126,11 +134,12 @@ def estimate_run_time_for_non_simple_operation(
         md_file.new_paragraph("```python")
         md_file.new_line(str(result.summary()))
         md_file.new_line("```")
-        # Create a save plots
-        create_and_save_multidim_regression_plot(
+        # Create and save plots
+        create_and_save_multidim_nnls_regression_plot(
             op_df, result, opcode, client, out_dir, features
         )
-        create_and_save_diagnostic_plots(result, opcode, client, out_dir)
+        create_and_save_nnls_diagnostic_plots(result, opcode, client, out_dir)
+        create_and_save_nnls_bootstrap_diagnostic(result, opcode, client, out_dir)
         # Add plots to markdown
         md_file.new_paragraph(
             f'<img src="./figs/{opcode}_{client}_regression.png" alt="{opcode}_{client}_regression" width="600"/>'
@@ -138,6 +147,8 @@ def estimate_run_time_for_non_simple_operation(
         md_file.new_paragraph(
             f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
         )
+        md_file.new_paragraph(
+            f'<img src="./figs/{opcode}_{client}_bootstrap.png" alt="{opcode}_{client}_bootstrap" width="600"/>'
+        )
         md_file.new_paragraph("")
-
     return out_list

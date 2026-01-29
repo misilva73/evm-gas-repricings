@@ -65,7 +65,7 @@ with the [Nethermind benchmarking tooling](https://github.com/NethermindEth/gas-
 
 The data includes all the simple opcode tests run between {start_date} and {run_time.strftime('%Y-%m-%d')}.
 
-For each opcode and client, an OLS linear regression model is fitted to estimate the 
+For each opcode and client, an NNLS linear regression model is fitted to estimate the 
 opcode run time as a function of the opcode count. The results are presented below.
 """
     )
@@ -108,7 +108,7 @@ with the [Nethermind benchmarking tooling](https://github.com/NethermindEth/gas-
 
 The data includes all the {op_type} opcode tests run between {start_date} and {run_time.strftime('%Y-%m-%d')}.
 
-For each opcode and client, an OLS linear regression model is fitted to estimate the 
+For each opcode and client, an NNLS linear regression model is fitted to estimate the 
 opcode run time as a function of the opcode count and other opcode configurations. The results are presented below.
 """
     )
@@ -158,7 +158,7 @@ with the [Nethermind benchmarking tooling](https://github.com/NethermindEth/gas-
 
 The data includes all the precompile tests run between {start_date} and {run_time.strftime('%Y-%m-%d')}.
 
-For each opcode and client, an OLS linear regression model is fitted to estimate the 
+For each opcode and client, an NNLS linear regression model is fitted to estimate the 
 precompile run time as a function of the precompile count and other configurations. The results are presented below.
 
 Everytime the report references "opcode", assume we it means "precompile". 

@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from scipy.stats import probplot
@@ -68,28 +69,41 @@ def create_and_save_new_gas_plot(new_gas_df: pd.DataFrame, out_dir: str) -> None
     plt.close()
 
 
-def create_and_save_1dim_regression_plot(
+def create_and_save_1dim_nnls_regression_plot(
     op_df: pd.DataFrame,
-    result: sm.regression.linear_model.RegressionResultsWrapper,
+    result,  # NNLSResults type
     opcode: str,
     client: str,
     out_dir: str,
 ) -> None:
+    """
+    Create and save 1D regression plot for NNLS model.
+
+    Args:
+        op_df: Original data with "opcount" and "run_duration_ms"
+        result: NNLS regression results
+        opcode: Operation code name for title
+        client: Client name for title
+        out_dir: Output directory for saving plot
+    """
     intercept = result.params["const"]
     slope = result.params["opcount"]
     # Plot scatterplot with data
     fig = plt.figure(figsize=(10, 4))
     sns.scatterplot(data=op_df, x="opcount", y="run_duration_ms")
-    # Plot OLS regression line
+    # Plot NNLS regression line
     X_range = np.linspace(op_df["opcount"].min(), op_df["opcount"].max(), 100)
-    X_range_with_const = np.column_stack([np.ones(len(X_range)), X_range])
-    y_pred = result.predict(X_range_with_const)
-    plt.plot(X_range, y_pred, color="red", linewidth=2, label="OLS Regression line")
+    X_range_df = pd.DataFrame({"opcount": X_range})
+    y_pred = result.predict(X_range_df)
+    plt.plot(X_range, y_pred, color="red", linewidth=2, label="NNLS Regression line")
     plt.xlabel("Opcode Count")
     plt.ylabel("Run Duration (ms)")
     plt.title(
-        f"OLS Linear Regression for {opcode} in {client}\nIntercept: {intercept:.2f}, Slope: {slope:.2e}"
+        f"NNLS Linear Regression for {opcode} in {client}\n"
+        f"Intercept: {intercept:.2f}, Slope: {slope:.2e}\n"
+        f"Non-negative coefficients constraint"
     )
+    plt.legend()
     # Save plot
     fig.savefig(
         os.path.join(out_dir, "figs", f"{opcode}_{client}_regression.png"),
@@ -99,14 +113,25 @@ def create_and_save_1dim_regression_plot(
     plt.close("all")
 
 
-def create_and_save_multidim_regression_plot(
+def create_and_save_multidim_nnls_regression_plot(
     op_df: pd.DataFrame,
-    result: sm.regression.linear_model.RegressionResultsWrapper,
+    result,  # NNLSResults type
     opcode: str,
     client: str,
     out_dir: str,
     all_features: List[str],
 ) -> None:
+    """
+    Create and save multi-dimensional regression plot for NNLS model.
+
+    Args:
+        op_df: Original data
+        result: NNLS regression results
+        opcode: Operation code name
+        client: Client name
+        out_dir: Output directory
+        all_features: All features including "opcount"
+    """
     features = list(set(all_features).difference(set(["opcount"])))
     # Process regression features
     feature_df = op_df.copy()
@@ -115,23 +140,41 @@ def create_and_save_multidim_regression_plot(
     intercept = result.params["const"]
     slope = result.params["opcount"]
     # Create grid plot
-    fig, axes = plt.subplots(1, len(features), figsize=(4 * len(features), 4))
+    fig, axes = plt.subplots(
+        1, len(features), figsize=(4 * len(features), 4), constrained_layout=True
+    )
+    # for each feature, plot the actual vs. fitted
     for i, feature in enumerate(features):
         ax = axes[i] if len(features) > 1 else axes
-        sns.lineplot(
-            data=feature_df,
-            x="opcount",
-            y="run_duration_ms",
-            hue=feature,
-            ax=ax,
-            errorbar="sd",
-            palette="Set2",
-        )
+        unique_param_values = sorted(feature_df[feature].unique())
+        colors = matplotlib.color_sequences["Set2"][: len(unique_param_values)]
+        for idx, param_val in enumerate(unique_param_values):
+            subset = feature_df[feature_df[feature] == param_val]
+            ax.scatter(
+                subset["opcount"],
+                subset["run_duration_ms"],
+                alpha=0.6,
+                s=20,
+                color=colors[idx],
+                label=f"{feature}={param_val}",
+            )
+            # Plot fitted line for this parameter value
+            x_range = np.array([subset["opcount"].min(), subset["opcount"].max()])
+            y_fit = (
+                result.params["const"]
+                + result.params["opcount"] * x_range
+                + result.params[feature] * param_val
+            )
+            ax.plot(x_range, y_fit, "--", color=colors[idx], alpha=0.8, linewidth=2)
+        ax.set_xlabel(feature)
+        ax.set_ylabel("run_duration_ms")
         ax.set_title(f"{feature}: {result.params[feature]:.2e}")
+        ax.legend(loc="best", fontsize=8)
+        ax.grid(True, alpha=0.3)
     plt.suptitle(
-        f"Run duration vs opcount by feature ({opcode} - {client})\nIntercept: {intercept:.2f}, Slope: {slope:.2e}"
+        f"NNLS: Run duration vs opcount by feature ({opcode} - {client})\n"
+        f"Intercept: {intercept:.2f}, Slope: {slope:.2e}"
     )
-    plt.tight_layout()
     # Save plot
     fig.savefig(
         os.path.join(out_dir, "figs", f"{opcode}_{client}_regression.png"),
@@ -141,89 +184,132 @@ def create_and_save_multidim_regression_plot(
     plt.close("all")
 
 
-def create_and_save_diagnostic_plots(
-    result: sm.regression.linear_model.RegressionResultsWrapper,
+def create_and_save_nnls_diagnostic_plots(
+    result,  # NNLSResults type
     opcode: str,
     client: str,
     out_dir: str,
 ) -> None:
-    # Calculate diagnostic values
-    fitted_values = result.fittedvalues
-    residuals = result.resid
-    influence = result.get_influence()
-    standardized_residuals = influence.resid_studentized_internal
-    leverage = influence.hat_matrix_diag
-    cooks_d = influence.cooks_distance[0]
-    # Create 2x2 diagnostic plot panel
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    # Plot 1 (top-left): Residuals vs Fitted Values
-    ax1 = axes[0, 0]
-    sns.scatterplot(x=fitted_values, y=residuals, alpha=0.6, ax=ax1)
-    ax1.axhline(y=0, color="red", linestyle="--", linewidth=1)
-    sns.regplot(
-        x=fitted_values,
-        y=residuals,
-        lowess=True,
-        scatter=False,
-        color="blue",
-        ax=ax1,
-        line_kws={"linewidth": 2},
-    )
-    ax1.set_xlabel("Fitted values")
-    ax1.set_ylabel("Residuals")
-    ax1.set_title("Residuals vs Fitted")
-    ax1.grid(True, alpha=0.3)
-    # Plot 2 (top-right): Q-Q Plot
-    ax2 = axes[0, 1]
-    probplot(residuals, dist="norm", plot=ax2)
-    ax2.set_title("Normal Q-Q")
-    ax2.set_xlabel("Theoretical Quantiles")
-    ax2.set_ylabel("Sample Quantiles")
-    ax2.grid(True, alpha=0.3)
-    # Plot 3 (bottom-left): Scale-Location Plot
-    ax3 = axes[1, 0]
-    sqrt_abs_std_resid = np.sqrt(np.abs(standardized_residuals))
-    sns.scatterplot(x=fitted_values, y=sqrt_abs_std_resid, alpha=0.6, ax=ax3)
-    sns.regplot(
-        x=fitted_values,
-        y=sqrt_abs_std_resid,
-        lowess=True,
-        scatter=False,
-        color="red",
-        ax=ax3,
-        line_kws={"linewidth": 2},
-    )
-    ax3.set_xlabel("Fitted values")
-    ax3.set_ylabel("√|Standardized residuals|")
-    ax3.set_title("Scale-Location")
-    ax3.grid(True, alpha=0.3)
-    # Plot 4 (bottom-right): Residuals vs Leverage
-    ax4 = axes[1, 1]
-    sns.scatterplot(x=leverage, y=standardized_residuals, alpha=0.6, ax=ax4)
-    ax4.axhline(y=0, color="grey", linestyle="--", linewidth=0.8)
-    # Add Cook's distance contours (optional - for points with high influence)
-    # Highlight points with high Cook's distance (> 0.5)
-    high_cooks_mask = cooks_d > 0.5
-    if high_cooks_mask.any():
-        high_leverage_idx = np.where(high_cooks_mask)[0]
-        for idx in high_leverage_idx:
-            ax4.annotate(
-                f"{idx}",
-                xy=(leverage[idx], standardized_residuals[idx]),
-                xytext=(5, 5),
-                textcoords="offset points",
-                fontsize=8,
-            )
-    ax4.set_xlabel("Leverage")
-    ax4.set_ylabel("Standardized Residuals")
-    ax4.set_title("Residuals vs Leverage")
-    ax4.grid(True, alpha=0.3)
-    # Add overall title
-    plt.suptitle(f"Diagnostic Plots for {opcode} ({client})", fontsize=16, y=1.00)
+    """
+    Create and save 2x2 diagnostic plot panel for NNLS model.
+    """
+    # Get values and fits
+    y = result._y
+    y_pred = result._fittedvalues
+    residuals = result._resid
+    # Start figure
+    fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+    # 1. Actual vs Predicted
+    axes[0, 0].scatter(y, y_pred, alpha=0.5, s=10)
+    axes[0, 0].plot([y.min(), y.max()], [y.min(), y.max()], "r--", lw=2)
+    axes[0, 0].set_xlabel("Actual run_duration_ms")
+    axes[0, 0].set_ylabel("Predicted run_duration_ms")
+    axes[0, 0].set_title("Actual vs Predicted")
+    axes[0, 0].grid(True, alpha=0.3)
+    # 2. Residuals vs Predicted
+    axes[0, 1].scatter(y_pred, residuals, alpha=0.5, s=10)
+    axes[0, 1].axhline(y=0, color="r", linestyle="--", lw=2)
+    axes[0, 1].set_xlabel("Predicted run_duration_ms")
+    axes[0, 1].set_ylabel("Residuals")
+    axes[0, 1].set_title("Residuals vs Predicted")
+    axes[0, 1].grid(True, alpha=0.3)
+    # 3. Residuals histogram
+    axes[1, 0].hist(residuals, bins=50, edgecolor="black", alpha=0.7)
+    axes[1, 0].axvline(x=0, color="r", linestyle="--", lw=2)
+    axes[1, 0].set_xlabel("Residuals")
+    axes[1, 0].set_ylabel("Frequency")
+    axes[1, 0].set_title("Residual Distribution")
+    axes[1, 0].grid(True, alpha=0.3)
+    # 4. Q-Q plot
+    probplot(residuals, dist="norm", plot=axes[1, 1])
+    axes[1, 1].set_title("Normal Q-Q Plot")
+    axes[1, 1].grid(True, alpha=0.3)
+    # Dynamic title based on configuration
+    title = f"NNLS Model Diagnostics for {opcode}"
+    if client:
+        title += f" ({client})"
+    plt.suptitle(title, fontsize=14, fontweight="bold")
     plt.tight_layout()
     # Save plot
     fig.savefig(
         os.path.join(out_dir, "figs", f"{opcode}_{client}_diagnostics.png"),
+        dpi=144,
+        bbox_inches="tight",
+    )
+    plt.close("all")
+
+
+def create_and_save_nnls_bootstrap_diagnostic(
+    result,  # NNLSResults type
+    opcode: str,
+    client: str,
+    out_dir: str,
+) -> None:
+    """
+    Create and save bootstrap coefficient distribution plot.
+
+    Shows histogram of bootstrap coefficients with confidence intervals.
+    This helps visualize coefficient stability and the effect of the
+    non-negativity constraint.
+
+    Args:
+        result: NNLS regression results with bootstrap_coefs
+        opcode: Operation code name
+        client: Client name
+        out_dir: Output directory
+    """
+    # Access bootstrap coefficients
+    bootstrap_coefs = result._bootstrap_coefs
+    feature_names = result._feature_names
+    coefficients = result._coefficients
+    ci = result.conf_int()
+    # Create grid of histograms
+    n_features = len(feature_names)
+    fig, axes = plt.subplots(1, n_features, figsize=(4 * n_features, 4))
+    # Handle single feature case
+    if n_features == 1:
+        axes = [axes]
+    for i, feature_name in enumerate(feature_names):
+        ax = axes[i]
+        # Plot histogram of bootstrap coefficients
+        ax.hist(
+            bootstrap_coefs[:, i],
+            bins=50,
+            alpha=0.7,
+            edgecolor="black",
+            color="skyblue",
+        )
+        # Add vertical lines for actual coefficient and CI bounds
+        ax.axvline(
+            coefficients[i],
+            color="red",
+            linewidth=2,
+            label=f"Estimate: {coefficients[i]:.4f}",
+        )
+        ax.axvline(
+            ci.loc[feature_name, 0],
+            color="orange",
+            linestyle="--",
+            linewidth=1.5,
+            label=f"95% CI",
+        )
+        ax.axvline(
+            ci.loc[feature_name, 1], color="orange", linestyle="--", linewidth=1.5
+        )
+        ax.set_xlabel("Coefficient Value")
+        ax.set_ylabel("Frequency")
+        ax.set_title(f"{feature_name}")
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+    plt.suptitle(
+        f"Bootstrap Coefficient Distributions for {opcode} ({client})",
+        fontsize=14,
+        fontweight="bold",
+    )
+    plt.tight_layout()
+    # Save plot
+    fig.savefig(
+        os.path.join(out_dir, "figs", f"{opcode}_{client}_bootstrap.png"),
         dpi=144,
         bbox_inches="tight",
     )
