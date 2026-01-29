@@ -32,6 +32,10 @@ PARAMS = [
     "msg_size",
 ]
 
+PARAM_MULTIPLIERS = {
+    "msg_size": 1/32.0,  # per word (32 bytes)
+}
+
 
 def get_current_gas_cost(opcode: str, param: str) -> int | None:
     """Map opcode and parameter to current gas cost from fusaka_dict"""
@@ -96,7 +100,7 @@ is the one that allows us to estimate the per-operation runtime.
 For simple operations, the model estimates: `runtime = intercept + slope × operation_count`
 
 For variable operations, the model estimates: `runtime = intercept + slope × operation_count +
- param1_coef × param1 + param2_coef × param2 + ...`
+ param1_coef × operation_count × param1 + param2_coef × operation_count × param2 + ...`
 """
     )
 
@@ -226,7 +230,11 @@ in the gas cost proposals. Operations with poor model fits are listed separately
                 param + "_conf_int_high": "conf_int_high",
             }
         )
-        param_df["new_gas"] = (anchor_rate * param_df["runtime_ms"]) / 1e3
+        if param in PARAM_MULTIPLIERS:
+            multiplier = PARAM_MULTIPLIERS[param]
+        else:
+            multiplier = 1.0
+        param_df["new_gas"] = (anchor_rate * param_df["runtime_ms"] * multiplier) / 1e3
         param_df["new_gas_rounded"] = np.ceil(param_df["new_gas"])
         param_df["new_gas_conf_int_low"] = np.ceil(
             (anchor_rate * param_df["conf_int_low"]) / 1e3
@@ -297,10 +305,13 @@ in the gas cost proposals. Operations with poor model fits are listed separately
     )
     # Add section on operations with bad fit
     md_file.new_header(level=2, title="Errors and caveats", add_table_of_contents="n")
-    md_file.new_paragraph("The following parameters had a poor model fit:")
-    md_file.new_paragraph("")
-    for opcode, param in poor_fit_list:
-        md_file.new_list([f"{opcode} - {param}"])
+    if len(poor_fit_list) == 0:
+        md_file.new_paragraph("All parameters had a good model fit.")
+    else:
+        md_file.new_paragraph("The following parameters had a poor model fit:")
+        md_file.new_paragraph("")
+        for opcode, param in poor_fit_list:
+            md_file.new_list([f"{opcode} - {param}"])
     md_file.new_paragraph()
     # Add section on clients with missing estimations
     estimation_by_client = results_df.groupby("opcode")["client"].nunique()
@@ -313,12 +324,15 @@ in the gas cost proposals. Operations with poor model fits are listed separately
         )
         missing_clients = all_clients - present_clients
         missing_clients_by_opcode[opcode] = sorted(missing_clients)
-    md_file.new_paragraph(
-        "The following operations have no estimation for the following clients:"
-    )
-    md_file.new_paragraph("")
-    for opcode, clients in missing_clients_by_opcode.items():
-        md_file.new_list([f"{opcode}: {', '.join(clients)}"])
+    if len(missing_clients_by_opcode) == 0:
+        md_file.new_paragraph("All operations have estimations for all clients.")
+    else:
+        md_file.new_paragraph(
+            "The following operations have no estimation for the following clients:"
+        )
+        md_file.new_paragraph("")
+        for opcode, clients in missing_clients_by_opcode.items():
+            md_file.new_list([f"{opcode}: {', '.join(clients)}"])
     # Finish and save markdown file
     md_file.create_md_file()
 
@@ -347,9 +361,10 @@ if __name__ == "__main__":
     user = secrets_dict["gas_bench_username"]
     password = secrets_dict["gas_bench_password"]
     # Query raw data and save
-    gas_bench_df = process_gas_bench_data(user, password, start_date)
+    # gas_bench_df = process_gas_bench_data(user, password, start_date)
     outfile = os.path.join(out_dir, "gas_bench_data.csv")
-    gas_bench_df.to_csv(outfile, index=False)
+    # gas_bench_df.to_csv(outfile, index=False)
+    gas_bench_df = pd.read_csv(outfile)
     # Run estimations and generate reports
     generate_runtime_report(gas_bench_df, out_dir)
     generate_repricings_report(out_dir, anchor_rate)

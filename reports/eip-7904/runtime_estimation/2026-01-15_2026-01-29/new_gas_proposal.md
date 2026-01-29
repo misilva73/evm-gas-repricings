@@ -46,15 +46,17 @@ The following table shows the new gas cost for all operations and parameters wit
 |Opcode|Parameter|Current Gas|New Gas (Rounded)|Change|
 | :---: | :---: | :---: | :---: | :---: |
 |ADDMOD|constant|8|8|0.0|
-|BLAKE2F|constant|0|176|inf|
-|BLAKE2F|num_rounds|1|1001407|1001406.0|
+|BLAKE2F|constant|0|170|inf|
+|BLAKE2F|num_rounds|1|2|1.0|
 |BLS12_G1ADD|constant|375|643|0.71|
 |BLS12_G2ADD|constant|600|765|0.27|
 |DIV|constant|5|15|2.0|
 |ECADD|constant|150|314|1.09|
+|ECPAIRING|constant|45000|34710|-0.23|
+|ECPAIRING|num_pairs|34000|34103|0.0|
 |ECRECOVER|constant|3000|2904|-0.03|
-|KECCAK256|constant|30|50|0.67|
-|KECCAK256|msg_size|6|126536|21088.33|
+|KECCAK256|constant|30|45|0.5|
+|KECCAK256|msg_size|6|1|-0.83|
 |MOD|constant|5|12|1.4|
 |MULMOD|constant|8|11|0.38|
 |POINT_EVALUATION|constant|50000|89363|0.79|
@@ -71,13 +73,7 @@ The following plot shows the new gas costs (rounded) for each operation paramete
 ## Errors and caveats
 
 
-The following parameters had a poor model fit:
-
-
-- ECPAIRING - slope
-
-- ECPAIRING - num_pairs
-
+All parameters had a good model fit.
 
 
 

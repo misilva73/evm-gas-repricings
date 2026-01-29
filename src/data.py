@@ -33,7 +33,7 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
     FROM repricings_new
     WHERE ingestion_timestamp >= '{start_date}'::timestamp
     AND raw_run_duration_ms > 0
-    AND opcount >= 0
+    AND opcount > 0
     """
     engine = create_engine(gas_bench_db_url)
     df = pd.read_sql(query_str, con=engine)

@@ -100,10 +100,17 @@ def estimate_run_time_for_non_simple_operation(
             )
         # Get feature matrix
         na_counts = op_df[params].isna().sum()
-        features = ["opcount"] + na_counts[na_counts != len(op_df)].index.to_list()
+        extra_features = na_counts[na_counts != len(op_df)].index.to_list()
+        features = ["opcount"] + extra_features
         try:
+            # Prepare data for modeling - extra params must be multiplied by opcount
+            model_op_df = op_df.copy()
+            model_op_df[extra_features] = model_op_df[extra_features].astype(float)
+            model_op_df[extra_features] = model_op_df[extra_features].mul(
+                model_op_df["opcount"], axis=0
+            )
             # Fit linear regression model using NNLS
-            result = fit_NNLS_without_low_diff_runs(op_df, features)
+            result = fit_NNLS_without_low_diff_runs(model_op_df, features)
         except Exception as e:
             md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")

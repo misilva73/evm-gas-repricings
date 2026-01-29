@@ -163,7 +163,7 @@ def create_and_save_multidim_nnls_regression_plot(
             y_fit = (
                 result.params["const"]
                 + result.params["opcount"] * x_range
-                + result.params[feature] * param_val
+                + result.params[feature] * param_val * x_range
             )
             ax.plot(x_range, y_fit, "--", color=colors[idx], alpha=0.8, linewidth=2)
         ax.set_xlabel(feature)
