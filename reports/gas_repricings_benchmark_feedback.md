@@ -192,3 +192,29 @@ We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/1ab68
 - [ ] Fix the opcode count column in the ecPairing tests.
 - [ ] Investigate why Erigon is not running some tests.
 - [ ] (low priority) Investigate why Nethermind has some runs where runtime does not increase with the opcode count.
+
+
+## 02-02-2026
+
+In this run, we focused on the candidate compute operations for repricing in EIP-8038, which includes all the state access operations.
+
+The data was collected from the `repricings_new` table in the `perfnet.core.nethermind.dev:5432/monitoring` database. We filtered the data to include only tests run between `2026-01-26` and `2026-02-02`.
+
+We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/ac045c7ecd7edc6e889e90e539bee644fe532e6a/src/estimate_8038_repricings.py) to query the raw data, estimate the run times and compute the new gas costs. The new gas costs as only focussed on `SSTORE` and `SLOAD` as the other operations did not yet have the needed configurations. The script outputs can be found in this [folder](https://github.com/misilva73/evm-gas-repricings/tree/ac045c7ecd7edc6e889e90e539bee644fe532e6a/reports/eip-8038/runtime_estimation/2026-01-26_2026-02-02).
+
+### Key takeaways
+
+- Tests for `EXTCODECOPY` and `SELFDESTRUCT` are missing.
+- None of the configs have information on the storage size and state size. We need state size for all stateful operations and the storage size for all stateful operations except `BALANCE`.
+- `EXTCODE*` operations don't have the warm/cold configuration. They currently have a single config, namely `initial_storage_True-initial_balance_True-empty_code_True`.
+- `*CALL` operations don't have the warm/cold and memory configuration. They currently have a single config, namely `initial_storage_True-initial_balance_True-empty_code_True`.
+- `SSTORE` cold only have 1k opcode counts. We need more data points to have a better estimation.
+- New gas prices for `SSTORE` and `SLOAD` seem too low, indicating issues with the run setup. Are we running this on top of mainnet state? Can we check the storage size?
+
+### ToDo's
+
+- [ ] Add missing tests for `EXTCODECOPY` and `SELFDESTRUCT`.
+- [ ] Investigate whether we are running the benchmarks on top of mainnet and bloatnet and add that info to the DB.
+- [ ] Add storage size configuration info to the DB and check if all the correct configs are being run.
+- [ ] Add missing configurations for `EXTCODE*` and `*CALL` operations.
+- [ ] Run `SSTORE` cold test for more opcode ranges.
