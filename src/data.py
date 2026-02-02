@@ -1,9 +1,13 @@
 import re
+import sys
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import List
 from sqlalchemy import create_engine
+
+sys.path.append(str(Path(__file__).parent))
+from operation_gas_costs import fusaka_dict
 
 
 opcodes_file_name = Path(__file__).parent.joinpath("opcodes_in_test_name.txt")
@@ -20,7 +24,33 @@ def extract_param_values(params_str: str, param_name: str):
         return np.nan
 
 
-def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.DataFrame:
+def get_current_gas_cost(opcode: str, param: str) -> int | None:
+    """Map opcode and parameter to current gas cost from fusaka_dict"""
+    # Handle parameter-based costs
+    # 8038 repricings
+    if param == "new":
+        return fusaka_dict.get(f"{opcode}_NEW", None)
+    elif param == "cold":
+        return fusaka_dict.get(f"{opcode}_COLD", None)
+    elif param == "update":
+        return fusaka_dict.get(f"{opcode}_UPDATE", None)
+    # 7904 repricings
+    elif param == "num_rounds":
+        return fusaka_dict.get(f"{opcode}_ROUNDS", None)
+    elif param == "num_pairs":
+        return fusaka_dict.get(f"{opcode}_PAIRS", None)
+    elif param == "msg_size":
+        return fusaka_dict.get(f"{opcode}_WORD", None)
+    # For constant/main parameter, return the base cost
+    elif param == "constant":
+        return fusaka_dict.get(opcode, None)
+    else:
+        return None
+
+
+def process_gas_bench_data(
+    user: str, password: str, start_date: str, opcodes_sample: List[str] = None
+) -> pd.DataFrame:
     gas_bench_db_url = (
         f"postgresql://{user}:{password}@perfnet.core.nethermind.dev:5432/monitoring"
     )
@@ -39,9 +69,11 @@ def process_gas_bench_data(user: str, password: str, start_date: str) -> pd.Data
     engine = create_engine(gas_bench_db_url)
     df = pd.read_sql(query_str, con=engine)
     df = process_test_title_col(df)
-    df = df.drop(columns="test_title")
+    # df = df.drop(columns="test_title")
     # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
     df = df[df["test_params"] != "bn128_add_infinities"]
+    if opcodes_sample is not None:
+        df = df[df["test_opcode"].isin(opcodes_sample)]
     return df
 
 
@@ -118,13 +150,8 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
     )
     # Format SSTORE and SLOAD
     df["test_opcode"] = np.where(
-        df["test_name"] == "test_storage_access_warm_benchmark",
+        df["test_name"].str.contains("test_storage_access"),
         df["test_params"].str.split(" ").str[0].str.upper(),
-        df["test_opcode"],
-    )
-    df["test_opcode"] = np.where(
-        df["test_name"] == "test_storage_access_cold_benchmark",
-        df["test_params"].str.split("_").str[0].str.upper(),
         df["test_opcode"],
     )
     # Fixed misnamed operations
@@ -151,6 +178,34 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
     )
     df["test_opcode"] = np.where(
         df["test_opcode"] == "PREVRANDAO", "DIFFICULTY", df["test_opcode"]
+    )
+    # Cold/warm param addition
+    df["extra_test_params"] = np.where(
+        df["test_opcode"].isin(["SLOAD", "SSTORE"]),
+        df["test_name"].apply(lambda x: "-cold_1" if "cold" in x else "-cold_0"),
+        "",
+    )
+    df["test_params"] = df["test_params"] + df["extra_test_params"]
+    # new slot param addition
+    df["extra_test_params"] = np.where(
+        df["test_opcode"] == "SSTORE",
+        df["test_params"].apply(lambda x: "-new_1" if "new" in x else "-new_0"),
+        "",
+    )
+    df["test_params"] = df["test_params"] + df["extra_test_params"]
+    df = df.drop(columns=["extra_test_params"])
+    # Remove sload and sstore from test params
+    df["test_params"] = (
+        df["test_params"]
+        .str.split("-")
+        .apply(
+            lambda x: (
+                [item for item in x if item[:5] not in ["SSTOR", "SLOAD"]]
+                if isinstance(x, list)
+                else []
+            )
+        )
+        .apply(lambda x: "-".join(x) if isinstance(x, list) else np.nan)
     )
     return df
 

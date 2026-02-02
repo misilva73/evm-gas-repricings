@@ -166,7 +166,7 @@ def create_and_save_multidim_nnls_regression_plot(
                 + result.params[feature] * param_val * x_range
             )
             ax.plot(x_range, y_fit, "--", color=colors[idx], alpha=0.8, linewidth=2)
-        ax.set_xlabel(feature)
+        ax.set_xlabel("opcount")
         ax.set_ylabel("run_duration_ms")
         ax.set_title(f"{feature}: {result.params[feature]:.2e}")
         ax.legend(loc="best", fontsize=8)

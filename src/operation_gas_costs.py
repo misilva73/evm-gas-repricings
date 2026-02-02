@@ -8,6 +8,12 @@ fusaka_dict = {
     "MULMOD": 8,
     "KECCAK256": 30,
     "KECCAK256_WORD": 6,
+    "SSTORE": 100,
+    "SSTORE_NEW": 20_000-100,
+    "SSTORE_UPDATE": 5_000-2_100-100,
+    "SSTORE_COLD": 2_100,
+    "SLOAD": 100,
+    "SLOAD_COLD": 2_100-100,
     # Precompiles
     "ECRECOVER": 3_000,
     "ECADD": 150,

@@ -20,22 +20,19 @@ import operation_types
 from data import process_gas_bench_data
 from reports import generate_repricings_report, generate_runtime_report
 
-
 PARAMS = [
-    "num_rounds",
-    "num_pairs",
-    "msg_size",
+    "new",
+    "cold",
+    # "update"
 ]
 
-PARAM_MULTIPLIERS = {
-    "msg_size": 1 / 32.0,  # per word (32 bytes)
-}
+PARAM_MULTIPLIERS = {}
 
 
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2026-01-15"
+    start_date = "2026-01-26"
     # Anchor rate for repricings
     anchor_rate = 60 * 1e6
     # Directories
@@ -44,7 +41,7 @@ if __name__ == "__main__":
     out_dir = os.path.join(
         repo_dir,
         "reports",
-        "eip-7904",
+        "eip-8038",
         "runtime_estimation",
         f"{start_date}_{run_time.strftime('%Y-%m-%d')}",
     )
@@ -56,26 +53,27 @@ if __name__ == "__main__":
     user = secrets_dict["gas_bench_username"]
     password = secrets_dict["gas_bench_password"]
     # Query raw data and save
-    gas_bench_df = process_gas_bench_data(user, password, start_date)
+    gas_bench_df = process_gas_bench_data(
+        user, password, start_date, operation_types.STATEFUL
+    )
     outfile = os.path.join(out_dir, "gas_bench_data.csv")
     gas_bench_df.to_csv(outfile, index=False)
     # Run estimations and generate reports
     generate_runtime_report(
         start_date=start_date,
         end_date=run_time.strftime("%Y-%m-%d"),
-        eip_number=7904,
+        eip_number=8038,
         gas_bench_df=gas_bench_df,
         out_dir=out_dir,
         params=PARAMS,
-        simple_operations=operation_types.SIMPLE_EIP_7904,
-        variable_operations=operation_types.VARIABLE_EIP_7904,
+        variable_operations=["SSTORE", "SLOAD"],
     )
     generate_repricings_report(
         start_date=start_date,
         end_date=run_time.strftime("%Y-%m-%d"),
         out_dir=out_dir,
         anchor_rate=anchor_rate,
-        eip_number=7904,
+        eip_number=8038,
         params=PARAMS,
         params_multipliers=PARAM_MULTIPLIERS,
     )
