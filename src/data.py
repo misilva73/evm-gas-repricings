@@ -2,6 +2,7 @@ import re
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from typing import List
 from sqlalchemy import create_engine
 
 
@@ -154,18 +155,35 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def process_test_trace_data(user: str, password: str) -> pd.DataFrame:
+def process_test_trace_data(
+    user: str, password: str, start_date: str, opcodes_sample: List[str]
+) -> pd.DataFrame:
     gas_bench_db_url = (
         f"postgresql://{user}:{password}@perfnet.core.nethermind.dev:5432/monitoring"
     )
-    query_str = f"""
+    # Query traces
+    trace_query_str = f"""
     SELECT test_name as test_title, opcodes as traces
     FROM gas_limit_benchmarks_test_metadata
     """
     engine = create_engine(gas_bench_db_url)
-    trace_df = pd.read_sql(query_str, con=engine)
+    trace_df = pd.read_sql(trace_query_str, con=engine)
     trace_df = process_test_title_col(trace_df)
     traces_expanded = pd.json_normalize(trace_df["traces"])
     trace_df = pd.concat([trace_df.drop(columns=["traces"]), traces_expanded], axis=1)
-    trace_df = trace_df.drop(columns="test_title")
-    return trace_df
+    # Query test info
+    test_query_str = f"""
+    SELECT DISTINCT
+        test_title,
+        opcount
+    FROM repricings_new
+    WHERE ingestion_timestamp >= '{start_date}'::timestamp
+    AND raw_run_duration_ms > 0
+    AND opcount > 0
+    """
+    engine = create_engine(gas_bench_db_url)
+    test_df = pd.read_sql(test_query_str, con=engine)
+    # Join data
+    df = test_df.merge(trace_df, on="test_title", how="left")
+    df = df[df["test_opcode"].isin(opcodes_sample)]
+    return df
