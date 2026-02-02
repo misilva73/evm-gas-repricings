@@ -71,7 +71,7 @@ def process_gas_bench_data(
     df = process_test_title_col(df)
     # df = df.drop(columns="test_title")
     # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
-    df = df[df["test_params"] != "bn128_add_infinities"]
+    # df = df[df["test_params"] != "bn128_add_infinities"]
     if opcodes_sample is not None:
         df = df[df["test_opcode"].isin(opcodes_sample)]
     return df
@@ -152,6 +152,11 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
     df["test_opcode"] = np.where(
         df["test_name"].str.contains("test_storage_access"),
         df["test_params"].str.split(" ").str[0].str.upper(),
+        df["test_opcode"],
+    )
+    df["test_opcode"] = np.where(
+        df["test_opcode"].str.contains("SSTORE_"),
+        df["test_opcode"].str.split("_").str[0],
         df["test_opcode"],
     )
     # Fixed misnamed operations

@@ -188,7 +188,7 @@ in the gas cost proposals. Operations with poor model fits are listed separately
     # Process estimation results and compute new gas costs
     all_params = ["slope"] + params
     new_gas_df = pd.DataFrame()
-    poor_fit_list = []
+    poor_fit_dict = dict()
     for param in all_params:
         # Good fits
         param_df = results_df[
@@ -226,10 +226,14 @@ in the gas cost proposals. Operations with poor model fits are listed separately
         # Poor fits
         poor_fit_df = results_df[
             (results_df[param + "_pvalue"] >= 0.05) | (results_df["rsquared"] <= 0.5)
-        ][["opcode", "client", param]].dropna()
-        if len(poor_fit_df) > 0:
-            opcode = poor_fit_df["opcode"].iloc[0]
-            poor_fit_list.append((opcode, param))
+        ][["opcode", "client"]].dropna()
+        for row in poor_fit_df.itertuples():
+            if (row.opcode, param) not in poor_fit_dict:
+                poor_fit_dict[(row.opcode, param)] = set([row.client])
+            else:
+                poor_fit_dict[(row.opcode, param)] = poor_fit_dict[
+                    (row.opcode, param)
+                ].union(set([row.client]))
     # Save cost estimation
     new_gas_df.to_csv(os.path.join(out_dir, f"new_gas.csv"), index=False)
     # Get worse per client
@@ -284,13 +288,14 @@ in the gas cost proposals. Operations with poor model fits are listed separately
     )
     # Add section on operations with bad fit
     md_file.new_header(level=2, title="Errors and caveats", add_table_of_contents="n")
-    if len(poor_fit_list) == 0:
+    if len(poor_fit_dict) == 0:
         md_file.new_paragraph("All parameters had a good model fit.")
     else:
         md_file.new_paragraph("The following parameters had a poor model fit:")
         md_file.new_paragraph("")
-        for opcode, param in poor_fit_list:
-            md_file.new_list([f"{opcode} - {param}"])
+        poor_fit_dict = dict(sorted(poor_fit_dict.items()))
+        for (opcode, param), clients in poor_fit_dict.items():
+            md_file.new_list([f"{opcode} - {param} - {', '.join(clients)}"])
     md_file.new_paragraph()
     # Add section on clients with missing estimations
     estimation_by_client = results_df.groupby("opcode")["client"].nunique()

@@ -47,6 +47,7 @@ The following table shows the new gas cost for all operations and parameters wit
 | :---: | :---: | :---: | :---: | :---: |
 |SLOAD|cold|2000|574|-0.71|
 |SLOAD|constant|100|26|-0.74|
+|SSTORE|cold|2100|4698|1.24|
 |SSTORE|constant|100|33|-0.67|
 |SSTORE|new|19900|18|-1.0|
 
@@ -63,9 +64,13 @@ The following plot shows the new gas costs (rounded) for each operation paramete
 The following parameters had a poor model fit:
 
 
-- SLOAD - slope
+- SLOAD - cold - geth
 
-- SSTORE - cold
+- SLOAD - new - geth
+
+- SLOAD - slope - geth
+
+- SSTORE - cold - nethermind
 
 
 
