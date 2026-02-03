@@ -48,7 +48,7 @@ The raw benchmark data was processed as follows:
 
 Operations were selected as candidates for repricing based on the following criteria:
 
-1. **Performance threshold**: The worst-case MGas/s must be below 60 MGas/s. By increase the costs of thesde operations, we will be able to increase our base throughput 3x from our current 20Mgas/s.
+1. **Performance threshold**: The worst-case MGas/s must be below 60 MGas/s. By increase the costs of these operations, we will be able to increase our base throughput 3x from our current 20Mgas/s.
 
 2. **Multi-client validation**: To avoid penalizing all clients for a single client's implementation inefficiency, the second-worst client's performance is also considered. If the second-worst client achieves significantly better performance (>20% above the threshold), the operation is flagged for client optimization rather than repricing.
 
@@ -70,7 +70,7 @@ The boxplot above shows that different clients have different performance charac
 
 #### Worst vs. second-worst client
 
-An important consideration for repricing is whether poor performance is isolated to a single client or affects multiple implementations.This is important for distinguishing between:
+An important consideration for repricing is whether poor performance is isolated to a single client or affects multiple implementations. This is important for distinguishing between:
 
 - Operations that genuinely need repricing (multiple clients struggle)
 - Operations where a specific client needs optimization (only one client struggles)
