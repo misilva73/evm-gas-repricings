@@ -2,103 +2,7 @@
 
 #### Maria Silva, January 2025
 
-## [EIP-7904](https://eips.ethereum.org/EIPS/eip-7904): General Repricing
-
-This proposal raises the cost of all operations performing worse than 60Mgas/s, thus removing these bottlenecks and allowing a higher block limit.
-
-- [ ] Decide on the list of operations to reprice
-- [ ] Compute the new gas costs for each operation (assuming 60Mgas/s) and estimate impact on the average block
-- [ ] Update EIP
-  - [ ] Integrate [EIP-8096](https://github.com/ethereum/EIPs/pull/11028#issuecomment-3776989691)
-- [ ] Write execution specs
-- [ ] Run backward compatibility analysis
-- [ ] Do community outreach for affected stakeholders
-- [ ] Implement new gas schedule in all clients
-- [ ] Run benchmarks to find bottlenecks and correct numbers if needed
-- [ ] Integrate gas schedule into BAL devnet and test
-- [ ] Derive possible block limit after BALs and ePBS
-
-## [EIP-8038](https://eips.ethereum.org/EIPS/eip-8038): State-access gas cost update
-
-This proposal updates the costs of state access operations, thus removing state access as a scaling bottleneck.
-
-- [ ] Add `GAS_COLD_ACCOUNT_WRITE` parameter
-- [ ] Check data collection for stateful tests. We need:
-  - [ ] Warm slot access (SLOAD)
-  - [ ] Cold slot access (SLOAD)
-  - [ ] Warm account access (BALANCE, CALL, transfer)
-  - [ ] Cold account access (BALANCE, CALL, transfer)
-  - [ ] Cached code access (EXTCODESIZE, EXTCODEHASH, EXTCODECOPY)
-  - [ ] Non-cached code access (EXTCODESIZE, EXTCODEHASH, EXTCODECOPY)
-  - [ ] Account write (transfer, ?)
-  - [ ] Slot write (SSTORE)
-- [ ] Benchmark state operations in BAL-optimised client branches
-- [ ] Compute the new gas costs for each operation
-- [ ] Update EIP
-- [ ] Write execution specs
-- [ ] Run backward compatibility analysis
-- [ ] Do community outreach for affected stakeholders
-- [ ] Implement new gas schedule in all clients
-- [ ] Run benchmarks to find bottlenecks and correct numbers if needed
-- [ ] Integrate gas schedule into BAL devnet and test
-
-## [EIP-2780](https://eips.ethereum.org/EIPS/eip-2780): Reduce intrinsic transaction gas
-
-This proposal aligns the cost of ETH transfers with the rest of the compute and state operations, thus increasing the throughput of ETH transfers and aligning their cost with similar operations.
-
-- [ ] Write execution specs with current values
-- [ ] Port costs from EIP-7904, EIP-8038 and EIP-8037
-- [ ] Update EIP
-- [ ] Update execution specs
-- [ ] Run backward compatibility analysis
-- [ ] Do community outreach for affected stakeholders
-- [ ] Implement new gas schedule in all clients
-- [ ] Run benchmarks to find bottlenecks and correct numbers if needed
-- [ ] Integrate gas schedule into BAL devnet and test
-
-## [EIP-7976](https://eips.ethereum.org/EIPS/eip-7976): Increase Calldata Floor Cost
-
-This proposal increases calldata cost for data-heavy transactions, thus lowering the worst-case block size achieved through call data. Depending on the final parameters for the remaining resources, we may also need to adjust the base cost of calldata for all transactions.
-
-- [ ] Estimate how much gas each byte of calldata should cost
-  - [ ] How can we translate bytes into propagation time?
-    - Check [block-propagation-size](https://observatory.ethp2p.dev/latest/block-propagation-size) and [data](https://observatory.ethp2p.dev/data)
-  - [ ] How much time relative to execution will we have after ePBS?
-- [ ] Update EIP (if needed)
-- [ ] Do community outreach to affected stakeholders
-- [ ] Write execution specs
-- [ ] Implement new gas schedule in all clients
-- [ ] Design test taking BALs into account - what is now the worse case block?
-- [ ] Integrate gas schedule into BAL devnet and test
-
-## [EIP-7981](https://eips.ethereum.org/EIPS/eip-7981): Increase access list cost
-
-This proposal charges access lists for their data footprint, thus lowering the worst-case block size achieved through call data.
-
-- [ ] Align costs with EIP-2780
-- [ ] Update EIP (if needed)
-- [ ] Do community outreach to affected stakeholders
-- [ ] Write execution specs
-- [ ] Implement new gas schedule in all clients
-- [ ] Integrate gas schedule into BAL devnet and test
-
-## [EIP-8037](https://eips.ethereum.org/EIPS/eip-8037): State Creation Gas Cost Increase
-
-This proposal introduces a dynamic cost for state creation operations that depends on the block limit and meters state creation gas costs independently of all the other gas costs.
-
-- [ ] Write execution specs and figure out open questions:
-  - [ ] How to split the CREATE costs?
-  - [ ] How to deal with tx receipts?
-  - [ ] What aggregation function should we use for the base fee update?
-- [ ] Update EIP
-  - [ ] Add rounding to `cost_per_byte` calculation to avoid too frequent cost updates
-  - [ ] Improve multidim metering section?
-- [ ] Do community outreach to affected stakeholders
-- [ ] Implement new gas schedule in all clients
-- [ ] Create tests and prep devnet
-- [ ] Integrate gas schedule into BAL devnet
-
-## Devnet rollout milestones
+## Rollout milestones
 
 Middle of February:
 
@@ -116,7 +20,7 @@ End of February:
 End of March:
 
 - we have benchmarks for BAL worst-case blocks
-- we have a BAL + repricings branch, and we start testing
+- we have a BAL + repricings devnet, and we start testing
 - we have reached out to all affected entities to collect their feedback on final numbers
 - we have done an internal security review with preliminary numbers
 
@@ -125,3 +29,67 @@ End of April:
 - we have collected community feedback on the final numbers
 - we have done an external security review with preliminary numbers
 - we need to have everything ready for interop
+
+## Current workstreams - gals for end of Feb
+
+### Benchmarking
+
+- [ ] [Jochem Brouwer + Louis Tsai] Review tests:
+  - [ ] Why are repricing tests for `ECPAIRING`, `ECRECOVER`, `KECCAK256`, and `SMOD` leading to cost decreases?
+  - [ ] Do we have all the cases in the ETH transfer tests for EIP-2780?
+  - [ ] Do we have all the configurations for EIP-8038?
+    - [ ] Warm slot access (`SLOAD`)
+    - [ ] Cold slot access (`SLOAD`)
+    - [ ] Warm account access (`BALANCE`, `CALL`, transfer)
+    - [ ] Cold account access (`BALANCE`, `CALL`, transfer)
+    - [ ] Cached code access (`EXTCODESIZE`, `EXTCODEHASH`, `EXTCODECOPY`)
+    - [ ] Non-cached code access (`EXTCODESIZE`, `EXTCODEHASH`, `EXTCODECOPY`)
+    - [ ] Account write (transfer to existent account)
+    - [ ] Account creation (transfer to non-existent account)
+    - [ ] Slot write (`SSTORE`)
+- [ ] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
+- [ ] [Rafael Matias] Finish Benchmarkoor and run stateful and compute benchmarks
+
+### Security and community outreach
+
+- [ ] [Carl Beekhuizen] Run backward compatibility analysis
+  - [ ] EIP-7904 with preliminary numbers
+  - [ ] EIP-8038 with preliminary numbers
+  - [ ] EIP-2708 with preliminary numbers
+  - [ ] EIP-8037
+- [ ] [Butta] Update repricings website with current numbers
+- [ ] [Butta] Do a broad community outreach to ask for feedback
+- [ ] [Butta] Contact affected entities from backward compatibility analysis
+
+### EIP and spec
+
+- [ ] [Maria Silva] Update EIPs
+  - [X] Operations to reprice in EIP-7904
+  - [X] Preliminary numbers for EIP-7904
+  - [ ] Preliminary numbers for EIP-8038
+- [ ] [Maria Silva + ?] Resolve 8037 open questions:
+  - [ ] Which aggregation function to use?
+  - [ ] Which stake growth rate (and cost increase) to target?
+  - [ ] Which rounding base for `cost_per_byte` to use?
+  - [ ] How to split the CREATE costs?
+  - [ ] How to deal with tx receipts?
+- [ ] Create specs:
+  - [ ] [Maria Silva] EIP-7904
+  - [ ] [Maria Silva] EIP-8038
+  - [ ] [Ben Adams] EIP-2708
+  - [ ] [?] EIP-8037
+  - [ ] [Toni Wahrstätter] EIP-7976 + EIP-7981
+- [ ] [Maria Silva] Estimate how much gas each byte of calldata should cost
+  - [ ] How can we translate bytes into propagation time?
+    - Check [block-propagation-size](https://observatory.ethp2p.dev/latest/block-propagation-size) and [data](https://observatory.ethp2p.dev/data)
+  - [ ] How much time relative to execution will we have after ePBS?
+
+### Devnet integration
+
+- [ ] [Toni Wahrstätter] Implement BAL optimizations in all the major clients
+  - [ ] State writes: parallel state root calculation
+    - Missing clients:
+  - [ ] State reads: batch reads
+    - Missing clients:
+  - [ ] Compute: parallel execution
+    - Missing clients:
