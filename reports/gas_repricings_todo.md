@@ -49,6 +49,10 @@ End of April:
     - [ ] Slot write (`SSTORE`)
 - [ ] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
 - [ ] [Rafael Matias] Finish Benchmarkoor and run stateful and compute benchmarks
+- [ ] [Maria Silva] Run emprical analysis to derive preliminary numbers:
+  - [x] EIP-7904
+  - [ ] EIP-8038
+  - [ ] EIP-2708
 
 ### Security and community outreach
 
@@ -68,7 +72,7 @@ End of April:
   - [X] Preliminary numbers for EIP-7904
   - [ ] Preliminary numbers for EIP-8038
 - [ ] [Maria Silva + ?] Resolve 8037 open questions:
-  - [ ] Which aggregation function to use?
+  - [ ] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
   - [ ] Which stake growth rate (and cost increase) to target?
   - [ ] Which rounding base for `cost_per_byte` to use?
   - [ ] How to split the CREATE costs?
@@ -78,7 +82,7 @@ End of April:
   - [ ] [Maria Silva] EIP-8038
   - [ ] [Ben Adams] EIP-2708
   - [ ] [?] EIP-8037
-  - [ ] [Toni Wahrstätter] EIP-7976 + EIP-7981
+  - [ ] [Toni Wahrstätter] EIP-7976 + EIP-7981 ([PR](https://github.com/ethereum/execution-specs/pull/2133))
 - [ ] [Maria Silva] Estimate how much gas each byte of calldata should cost
   - [ ] How can we translate bytes into propagation time?
     - Check [block-propagation-size](https://observatory.ethp2p.dev/latest/block-propagation-size) and [data](https://observatory.ethp2p.dev/data)
