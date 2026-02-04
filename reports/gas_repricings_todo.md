@@ -1,7 +1,5 @@
 # Master List of ToDo's For Glamsterdam Repricings
 
-#### Maria Silva, January 2025
-
 ## Rollout milestones
 
 Middle of February:
@@ -38,15 +36,6 @@ End of April:
   - [ ] Why are repricing tests for `ECPAIRING`, `ECRECOVER`, `KECCAK256`, and `SMOD` leading to cost decreases?
   - [ ] Do we have all the cases in the ETH transfer tests for EIP-2780?
   - [ ] Do we have all the configurations for EIP-8038?
-    - [ ] Warm slot access (`SLOAD`)
-    - [ ] Cold slot access (`SLOAD`)
-    - [ ] Warm account access (`BALANCE`, `CALL`, transfer)
-    - [ ] Cold account access (`BALANCE`, `CALL`, transfer)
-    - [ ] Cached code access (`EXTCODESIZE`, `EXTCODEHASH`, `EXTCODECOPY`)
-    - [ ] Non-cached code access (`EXTCODESIZE`, `EXTCODEHASH`, `EXTCODECOPY`)
-    - [ ] Account write (transfer to existent account)
-    - [ ] Account creation (transfer to non-existent account)
-    - [ ] Slot write (`SSTORE`)
 - [ ] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
 - [ ] [Rafael Matias] Finish Benchmarkoor and run stateful and compute benchmarks
 - [ ] [Maria Silva] Run emprical analysis to derive preliminary numbers:
@@ -75,8 +64,11 @@ End of April:
   - [ ] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
   - [ ] Which stake growth rate (and cost increase) to target?
   - [ ] Which rounding base for `cost_per_byte` to use?
-  - [ ] How to split the CREATE costs?
-  - [ ] How to deal with tx receipts?
+  - [ ] How to split the `CREATE` costs?
+  - [ ] How to deal with tx receipts? What should cumulative gas be?
+  - [ ] Is the design compatible with BALs?
+  - [ ] `TX_MAX_GAS_LIMIT` enforcement: clarify that we want to enforce that max(intrinsic_regular_gas, calldata_floor_gas_cost) < `TX_MAX_GAS_LIMIT`, and leave `TX_MAS_GAS_LIMIT` - intrinsic_regular_gas available during execution. And what to do with the call data floor cost?
+  - [ ] What about refunds, shouldn’t that be discounted from state gas? And how to integrate it with EIP-7778?
 - [ ] Create specs:
   - [ ] [Maria Silva] EIP-7904
   - [ ] [Maria Silva] EIP-8038
