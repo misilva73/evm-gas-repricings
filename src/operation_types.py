@@ -180,7 +180,6 @@ SIMPLE_EIP_7904 = [
     "ECADD",
     "ECRECOVER",
 ]
-
 VARIABLE_EIP_7904 = [
     "KECCAK256",
     "BLAKE2F",

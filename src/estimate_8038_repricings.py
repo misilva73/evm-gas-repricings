@@ -20,10 +20,13 @@ from reports import generate_repricings_report, generate_runtime_report
 PARAMS = [
     "new",
     "cold",
-    # "update"
+    # "update",
+    # "code_size"
 ]
 
-PARAM_MULTIPLIERS = {}
+PARAM_MULTIPLIERS = {
+    "code_size": 1 / 32.0,  # per word (32 bytes)
+}
 
 
 if __name__ == "__main__":
@@ -63,7 +66,7 @@ if __name__ == "__main__":
         gas_bench_df=gas_bench_df,
         out_dir=out_dir,
         params=PARAMS,
-        variable_operations=["SSTORE", "SLOAD"],
+        variable_operations=operation_types.STATEFUL + operation_types.CALL,
     )
     generate_repricings_report(
         start_date=start_date,
