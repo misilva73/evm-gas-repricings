@@ -7,7 +7,7 @@ from typing import List
 from sqlalchemy import create_engine
 
 sys.path.append(str(Path(__file__).parent))
-from operation_gas_costs import fusaka_dict
+from operation_gas_costs import get_fusaka_dict
 
 
 opcodes_file_name = Path(__file__).parent.joinpath("opcodes_in_test_name.txt")
@@ -26,6 +26,7 @@ def extract_param_values(params_str: str, param_name: str):
 
 def get_current_gas_cost(opcode: str, param: str) -> int | None:
     """Map opcode and parameter to current gas cost from fusaka_dict"""
+    fusaka_dict = get_fusaka_dict()
     # Handle parameter-based costs
     # 8038 repricings
     if param == "new":
@@ -34,6 +35,8 @@ def get_current_gas_cost(opcode: str, param: str) -> int | None:
         return fusaka_dict.get(f"{opcode}_COLD", None)
     elif param == "update":
         return fusaka_dict.get(f"{opcode}_UPDATE", None)
+    elif param == "code_size":
+        return fusaka_dict.get(f"{opcode}_SIZE", None)
     # 7904 repricings
     elif param == "num_rounds":
         return fusaka_dict.get(f"{opcode}_ROUNDS", None)
