@@ -75,7 +75,7 @@ End of April:
   - [ ] [Maria Silva] EIP-7904
   - [ ] [Maria Silva] EIP-8038
   - [ ] [Ben Adams] EIP-2708
-  - [ ] [Jochem Brouwer] EIP-8037
+  - [ ] [Jochem Brouwer] EIP-8037 ([branch from fradamt](https://github.com/ethereum/execution-specs/compare/eips/amsterdam/eip-8037...fradamt:execution-specs:eip-8037-amsterdam))
   - [ ] [Toni Wahrstätter] EIP-7976 + EIP-7981 ([PR](https://github.com/ethereum/execution-specs/pull/2133))
 - [ ] [Maria Silva] Estimate how much gas each byte of calldata should cost
   - [ ] How can we translate bytes into propagation time?
