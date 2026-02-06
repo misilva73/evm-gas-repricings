@@ -45,6 +45,7 @@ End of April:
   - [x] EIP-7904
   - [ ] EIP-8038
   - [ ] EIP-2708
+- [ ] [Louis Tsai] Make benchmark tests BAL-compatible
 
 ### Security and community outreach
 
