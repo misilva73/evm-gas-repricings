@@ -85,8 +85,7 @@ End of April:
 
 - [ ] [Toni Wahrstätter] Implement BAL optimizations in all the major clients
   - [ ] State writes: parallel state root calculation
-    - Missing clients:
+    - Missing clients: Erigon and Reth
   - [ ] State reads: batch reads
-    - Missing clients:
-  - [ ] Compute: parallel execution
-    - Missing clients:
+    - Missing clients: Erigon and Reth
+  - [X] Compute: parallel execution
