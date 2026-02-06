@@ -28,17 +28,20 @@ End of April:
 - we have done an external security review with preliminary numbers
 - we need to have everything ready for interop
 
-## Current workstreams - gals for end of Feb
+## Current workstreams - goals for end of Feb
 
 ### Benchmarking
 
-- [ ] [Jochem Brouwer + Louis Tsai] Review tests:
+- [ ] [Louis Tsai] Review tests:
   - [ ] Why are repricing tests for `ECPAIRING`, `ECRECOVER`, `KECCAK256`, and `SMOD` leading to cost decreases?
   - [ ] Do we have all the cases in the ETH transfer tests for EIP-2780?
   - [ ] Do we have all the configurations for EIP-8038?
+    - [`SSTORE` + `SLOAD` PR](https://github.com/ethereum/execution-specs/pull/1774)
+    - [Account query PR](https://github.com/ethereum/execution-specs/pull/2138)
+    - [State stubs PR](https://github.com/ethereum/execution-specs/pull/2141)
 - [ ] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
 - [ ] [Rafael Matias] Finish Benchmarkoor and run stateful and compute benchmarks
-- [ ] [Maria Silva] Run emprical analysis to derive preliminary numbers:
+- [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers:
   - [x] EIP-7904
   - [ ] EIP-8038
   - [ ] EIP-2708
@@ -49,7 +52,6 @@ End of April:
   - [ ] EIP-7904 with preliminary numbers
   - [ ] EIP-8038 with preliminary numbers
   - [ ] EIP-2708 with preliminary numbers
-  - [ ] EIP-8037
 - [ ] [Butta] Update repricings website with current numbers
 - [ ] [Butta] Do a broad community outreach to ask for feedback
 - [ ] [Butta] Contact affected entities from backward compatibility analysis
@@ -60,20 +62,19 @@ End of April:
   - [X] Operations to reprice in EIP-7904
   - [X] Preliminary numbers for EIP-7904
   - [ ] Preliminary numbers for EIP-8038
-- [ ] [Maria Silva + ?] Resolve 8037 open questions:
+- [ ] Resolve 8037 open questions:
   - [ ] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
-  - [ ] Which stake growth rate (and cost increase) to target?
-  - [ ] Which rounding base for `cost_per_byte` to use?
-  - [ ] How to split the `CREATE` costs?
-  - [ ] How to deal with tx receipts? What should cumulative gas be?
-  - [ ] Is the design compatible with BALs?
+  - [ ] [Maria Silva] Which stake growth rate (and cost increase) to target?
+  - [ ] [Maria Silva] Which rounding base for `cost_per_byte` to use?
+  - [ ] [Jochem Brouwer] How to split the `CREATE` costs?
+  - [ ] [Jochem Brouwer] Is the design compatible with BALs?
   - [ ] `TX_MAX_GAS_LIMIT` enforcement: clarify that we want to enforce that max(intrinsic_regular_gas, calldata_floor_gas_cost) < `TX_MAX_GAS_LIMIT`, and leave `TX_MAS_GAS_LIMIT` - intrinsic_regular_gas available during execution. And what to do with the call data floor cost?
-  - [ ] What about refunds, shouldn’t that be discounted from state gas? And how to integrate it with EIP-7778?
+  - [ ] [Jochem Brouwer] Make sure the block output is consistent with EIP-7778 and gas accounting the receipts. What should cumulative gas be?
 - [ ] Create specs:
   - [ ] [Maria Silva] EIP-7904
   - [ ] [Maria Silva] EIP-8038
   - [ ] [Ben Adams] EIP-2708
-  - [ ] [?] EIP-8037
+  - [ ] [Jochem Brouwer] EIP-8037
   - [ ] [Toni Wahrstätter] EIP-7976 + EIP-7981 ([PR](https://github.com/ethereum/execution-specs/pull/2133))
 - [ ] [Maria Silva] Estimate how much gas each byte of calldata should cost
   - [ ] How can we translate bytes into propagation time?
