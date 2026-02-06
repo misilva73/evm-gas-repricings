@@ -36,7 +36,7 @@ End of April:
   - [ ] Why are repricing tests for `ECPAIRING`, `ECRECOVER`, `KECCAK256`, and `SMOD` leading to cost decreases?
   - [ ] Do we have all the cases in the ETH transfer tests for EIP-2780?
   - [ ] Do we have all the configurations for EIP-8038?
-    - [`SSTORE` + `SLOAD` PR](https://github.com/ethereum/execution-specs/pull/1774)
+    - [`SSTORE` + `SLOAD` PR](https://github.com/ethereum/execution-specs/pull/2147) -> still missing the storage-size dimension
     - [Account query PR](https://github.com/ethereum/execution-specs/pull/2138)
     - [State stubs PR](https://github.com/ethereum/execution-specs/pull/2141)
 - [ ] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
@@ -62,6 +62,7 @@ End of April:
   - [X] Operations to reprice in EIP-7904
   - [X] Preliminary numbers for EIP-7904
   - [ ] Preliminary numbers for EIP-8038
+  - [ ] Align 8037 with new spec
 - [ ] Resolve 8037 open questions:
   - [ ] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
   - [ ] [Maria Silva] Which stake growth rate (and cost increase) to target?
@@ -89,3 +90,8 @@ End of April:
   - [ ] State reads: batch reads
     - Missing clients: Erigon and Reth
   - [X] Compute: parallel execution
+
+## Implementation trakers
+
+- [8037](https://github.com/ethereum/execution-specs/issues/2040)
+- [8038](https://github.com/ethereum/execution-specs/issues/1941)
