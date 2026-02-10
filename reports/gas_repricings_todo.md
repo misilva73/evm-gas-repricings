@@ -35,6 +35,7 @@ End of April:
 - [ ] [Louis Tsai] Review tests:
   - [ ] Why are repricing tests for `ECPAIRING`, `ECRECOVER`, `KECCAK256`, and `SMOD` leading to cost decreases?
   - [ ] Do we have all the cases in the ETH transfer tests for EIP-2780?
+    - [ETH transfers PR](https://github.com/ethereum/execution-specs/pull/2171)
   - [ ] Do we have all the configurations for EIP-8038?
     - [`SSTORE` + `SLOAD` PR](https://github.com/ethereum/execution-specs/pull/2147) -> Merged!
     - Storage size configuration -> No PR yet
@@ -45,7 +46,7 @@ End of April:
 - [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers:
   - [x] EIP-7904
   - [ ] EIP-8038
-  - [ ] EIP-2708
+  - [ ] EIP-2780
 - [ ] [Louis Tsai] Make benchmark tests BAL-compatible
 
 ### Security and community outreach
@@ -53,7 +54,7 @@ End of April:
 - [ ] [Carl Beekhuizen] Run backward compatibility analysis
   - [ ] EIP-7904 with preliminary numbers
   - [ ] EIP-8038 with preliminary numbers
-  - [ ] EIP-2708 with preliminary numbers
+  - [ ] EIP-2780 with preliminary numbers
 - [ ] [Butta] Update repricings website with current numbers
 - [ ] [Butta] Do a broad community outreach to ask for feedback
 - [ ] [Butta] Contact affected entities from backward compatibility analysis
@@ -64,12 +65,13 @@ End of April:
   - [X] Operations to reprice in EIP-7904
   - [X] Preliminary numbers for EIP-7904
   - [ ] Preliminary numbers for EIP-8038
-  - [X] Align 8037 with new spec
-- [ ] Resolve 8037 open questions:
+  - [X] Align EIP-8037 with new spec
+  - [ ] Add [comments from spencer](https://github.com/ethereum/EIPs/pull/11292) to EIP-8037
+- [ ] Resolve EIP-8037 open questions:
   - [ ] [Maria Silva] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
   - [ ] [Maria Silva] Which stake growth rate (and cost increase) to target?
   - [X] [Maria Silva] Which rounding base for `cost_per_byte` to use?
-  - [ ] [Jochem Brouwer + Spencer] How to split the `CREATE` costs? This should be consistent with EIP-8038.
+  - [X] [Jochem Brouwer + Spencer] How to split the `CREATE` costs? This should be consistent with EIP-8038.
   - [ ] [Jochem Brouwer + Spencer] Is the design compatible with BALs?
   - [X] `TX_MAX_GAS_LIMIT` enforcement: clarify that we want to enforce that max(intrinsic_regular_gas, calldata_floor_gas_cost) < `TX_MAX_GAS_LIMIT`, and leave `TX_MAS_GAS_LIMIT` - intrinsic_regular_gas available during execution. And what to do with the call data floor cost?
   - [X] [Jochem Brouwer + Spencer] Make sure the block output is consistent with EIP-7778 and gas accounting the receipts. What should cumulative gas be?
