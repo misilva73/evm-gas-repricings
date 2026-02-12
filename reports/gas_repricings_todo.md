@@ -64,7 +64,7 @@ End of April:
 - [ ] [Maria Silva] Update EIPs
   - [X] Operations to reprice in EIP-7904
   - [X] Preliminary numbers for EIP-7904
-  - [ ] Preliminary numbers for EIP-8038
+  - [ ] Preliminary numbers for EIP-8038 + BAL data cost
   - [X] Align EIP-8037 with new spec
   - [ ] Add [comments from spencer](https://github.com/ethereum/EIPs/pull/11292) to EIP-8037
 - [ ] Resolve EIP-8037 open questions:
