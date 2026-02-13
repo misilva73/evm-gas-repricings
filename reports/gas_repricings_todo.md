@@ -55,7 +55,7 @@ End of April:
   - [ ] EIP-7904 with preliminary numbers
   - [ ] EIP-8038 with preliminary numbers
   - [ ] EIP-2780 with preliminary numbers
-- [ ] [Butta] Update repricings website with current numbers
+- [X] [Butta] Update repricings website with current numbers
 - [ ] [Butta] Do a broad community outreach to ask for feedback
 - [ ] [Butta] Contact affected entities from backward compatibility analysis
 
@@ -77,11 +77,15 @@ End of April:
   - [X] [Jochem Brouwer + Spencer] Make sure the block output is consistent with EIP-7778 and gas accounting the receipts. What should cumulative gas be?
 - [ ] Create specs + devnet test:
   - [7904](https://github.com/ethereum/execution-specs/issues/1879)
+    - [spec + basic tests](https://github.com/ethereum/execution-specs/pull/2175)
   - [8038](https://github.com/ethereum/execution-specs/issues/1941)
   - [2780](https://github.com/ethereum/execution-specs/issues/1940)
   - [7976](https://github.com/ethereum/execution-specs/issues/1942)
+    - [spec](https://github.com/ethereum/execution-specs/pull/2159)
   - [7981](https://github.com/ethereum/execution-specs/issues/1943)
+    - [spec + tests](https://github.com/ethereum/execution-specs/pull/2144)
   - [8037](https://github.com/ethereum/execution-specs/issues/2040)
+    - [spec + tests](https://github.com/ethereum/execution-specs/pull/2181)
 - [ ] [Maria Silva] Estimate how much gas each byte of calldata should cost
   - [ ] How can we translate bytes into propagation time?
     - Check [block-propagation-size](https://observatory.ethp2p.dev/latest/block-propagation-size) and [data](https://observatory.ethp2p.dev/data)
@@ -91,7 +95,8 @@ End of April:
 
 - [ ] [Toni Wahrstätter] Implement BAL optimizations in all the major clients
   - [ ] State writes: parallel state root calculation
-    - Missing clients: Erigon and Reth
+    - Missing clients: Nethermind, Erigon and Reth
   - [ ] State reads: batch reads
+    - Missing clients: Nethermind, Erigon and Reth
+  - [ ] Compute: parallel execution
     - Missing clients: Erigon and Reth
-  - [X] Compute: parallel execution
