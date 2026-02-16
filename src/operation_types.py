@@ -16,7 +16,7 @@ SIMPLE_COMPUTE = [
     "CODESIZE",
     "COINBASE",
     "DIV",
-    "DIFFICULTY",
+    "PREVRANDAO",
     "DUP1",
     "DUP2",
     "DUP3",

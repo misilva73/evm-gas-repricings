@@ -32,3 +32,7 @@ test_ecrecover
 test_point_evaluation
 test_blake2f
 test_blake2f_benchmark
+test_blobhash
+test_jump_benchmark
+test_clz_same
+test_p256verify

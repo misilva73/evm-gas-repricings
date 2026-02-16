@@ -53,9 +53,18 @@ if __name__ == "__main__":
     user = secrets_dict["gas_bench_username"]
     password = secrets_dict["gas_bench_password"]
     # Query raw data and save
-    gas_bench_df = process_gas_bench_data(user, password, start_date)
+    compute_gas_bench_df, compute_trace_df = process_gas_bench_data(
+        user, password, start_date, "compute_perf_devnet_2"
+    )
+    state_gas_bench_df, state_trace_df = process_gas_bench_data(
+        user, password, start_date, "stateful_perf_devnet_2"
+    )
+    gas_bench_df = pd.concat(
+        [compute_gas_bench_df, state_gas_bench_df], ignore_index=True
+    )
     outfile = os.path.join(out_dir, "gas_bench_data.csv")
     gas_bench_df.to_csv(outfile, index=False)
+    trace_df = pd.concat([compute_trace_df, state_trace_df], ignore_index=True)
     # Run estimations and generate reports
     generate_runtime_report(
         start_date=start_date,
