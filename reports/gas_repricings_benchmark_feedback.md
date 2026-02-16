@@ -12,7 +12,7 @@ The data was collected from the `repricings2` table in the `perfnet.core.netherm
 
 We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/7ff30240fa5215715a046273cece2da3e9262281/src/estimate_opcode_run_times.py) to query the raw data and estimate the run times. [This notebook](https://github.com/misilva73/evm-gas-repricings/blob/7ff30240fa5215715a046273cece2da3e9262281/notebooks/3.2-gas_bench_opcode_times_eda_v2.ipynb) contains an exploratory analysis of the raw data and the estimated run times.
 
-### Key takeaways
+### Key findings
 
 - 25% of benchmarks resulted in a total run time of 0ms, which indicates some error in the run. This was observed in 10 different runs, ranging across different opcodes and clients. These zero-runs are not consistent, i.e., all opcodes with zero run times also have other runs with non-zero run times.
 - Precompiles, logs and a couple of compute operations don't have any benchmarks with non-zero run times. The full list of missing operations is in the collapsible section below.
@@ -121,7 +121,7 @@ The data was collected from the `repricings_new` table in the `perfnet.core.neth
 
 We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/eb73fd639801376123813d491a6f521550ac657c/src/estimate_opcode_run_times.py) to query the raw data and estimate the run times. [This notebook](https://github.com/misilva73/evm-gas-repricings/blob/eb73fd639801376123813d491a6f521550ac657c/notebooks/3.2-gas_bench_opcode_times_eda_v2.ipynb) contains an exploratory analysis of the raw data and the estimated run times.
 
-### Key takeaways
+### Key findings
 
 - Zero-runs have mostly disappeared, occurring only in 3 runs of the `test_sha256_fixed_size` test.
 - We now have a wider set of opcodes and precompiles, with only 16 compute opcodes and precompiles missing. The full list of missing operations is in the collapsible section below.
@@ -174,7 +174,7 @@ The data was collected from the `repricings_new` table in the `perfnet.core.neth
 
 We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/1ab681788c602b5d810f1e232322dbae58cbb6e9/src/estimate_7904_repricings.py) to query the raw data and estimate the run times. [This notebook](https://github.com/misilva73/evm-gas-repricings/blob/1ab681788c602b5d810f1e232322dbae58cbb6e9/notebooks/1.7-7904_runtimes_eda.ipynb) contains an exploratory analysis of the raw data and the estimated run times.
 
-### Key takeaways
+### Key findings
 
 - `ECPAIRING` seems to have a bug in the opcode count column, where the value there is not matching the test description. As expected, this is causing weird results in the model.
 - Erigon is missing data for `BLAKE2F`, `BLS12_G1ADD`, `BLS12_G2ADD`, `ECADD`, `ECPAIRING`, `ECRECOVER`, and `POINT_EVALUATION`.
@@ -202,7 +202,7 @@ The data was collected from the `repricings_new` table in the `perfnet.core.neth
 
 We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/ac045c7ecd7edc6e889e90e539bee644fe532e6a/src/estimate_8038_repricings.py) to query the raw data, estimate the run times and compute the new gas costs. The new gas costs as only focussed on `SSTORE` and `SLOAD` as the other operations did not yet have the needed configurations. The script outputs can be found in this [folder](https://github.com/misilva73/evm-gas-repricings/tree/ac045c7ecd7edc6e889e90e539bee644fe532e6a/reports/eip-8038/runtime_estimation/2026-01-26_2026-02-02).
 
-### Key takeaways
+### Key findings
 
 - Tests for `EXTCODECOPY` and `SELFDESTRUCT` are missing.
 - None of the configs have information on the storage size and state size. We need state size for all stateful operations and the storage size for all stateful operations except `BALANCE`.
@@ -218,3 +218,16 @@ We used [this script](https://github.com/misilva73/evm-gas-repricings/blob/ac045
 - [ ] Add storage size configuration info to the DB and check if all the correct configs are being run.
 - [ ] Add missing configurations for `EXTCODE*` and `*CALL` operations.
 - [ ] Run `SSTORE` cold test for more opcode ranges.
+
+## 16-02-2026
+
+This is the new run that introduces both stateful runs and uses the new Osaka fork. This was a major difference in the tests and infra. We still only have data for 3 clients - besu, geth and nethermind.
+
+### Key findings
+
+- The tracing metadata does not process precompiles. This means that we don't have the opcode count for precompiles. For now, I am assuming that the number of `STATICCALL` is the `opcount` for precompiles.
+- In the compute database, I am not finding the `test_account_query` and `test_unchunkified_bytecode` tests from this [PR](https://github.com/ethereum/execution-specs/pull/2138). This means we are missing the configs for `EXTCODE*`, `*CALL`, and `BALANCE` opcodes.
+- From the stateful database, I am excluding some tests as they don't seem relevant for repricings. Is this correct? Here is the excluded tests:
+  - `test_mixed_sload_sstore`, `test_sstore_erc20_approve`, `test_sload_empty_erc20_balanceof`, `test_storage_sload_same_key_benchmark`
+- Labels in DB do not give any information on which state is being run on (i.e., mainnet vs. bloatnet)
+- `SSTORE` is showing an extremely good performance, leading to a severe cost reduction -> we need to check why
