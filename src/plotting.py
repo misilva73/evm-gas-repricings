@@ -272,13 +272,15 @@ def create_and_save_nnls_bootstrap_diagnostic(
     for i, feature_name in enumerate(feature_names):
         ax = axes[i]
         # Plot histogram of bootstrap coefficients
-        ax.hist(
-            bootstrap_coefs[:, i],
-            bins=50,
-            alpha=0.7,
-            edgecolor="black",
-            color="skyblue",
-        )
+        unique_samples = len(np.unique(bootstrap_coefs[:, i]))
+        if len(np.unique(bootstrap_coefs[:, i])) > 1:
+            ax.hist(
+                bootstrap_coefs[:, i],
+                bins=min(50, int(unique_samples/2)),
+                alpha=0.7,
+                edgecolor="black",
+                color="skyblue",
+            )
         # Add vertical lines for actual coefficient and CI bounds
         ax.axvline(
             coefficients[i],

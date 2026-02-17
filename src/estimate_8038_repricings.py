@@ -52,33 +52,48 @@ if __name__ == "__main__":
         secrets_dict = json.load(file)
     user = secrets_dict["gas_bench_username"]
     password = secrets_dict["gas_bench_password"]
-    # Query raw data and save
-    compute_gas_bench_df, compute_trace_df = process_gas_bench_data(
-        user, password, start_date, "compute_perf_devnet_2",
-    )
-    state_gas_bench_df, state_trace_df = process_gas_bench_data(
-        user, password, start_date, "stateful_perf_devnet_2",
-    )
-    gas_bench_df = pd.concat([compute_gas_bench_df, state_gas_bench_df], ignore_index=True)
-    outfile = os.path.join(out_dir, "gas_bench_data.csv")
-    gas_bench_df.to_csv(outfile, index=False)
-    trace_df = pd.concat([compute_trace_df, state_trace_df], ignore_index=True)
-    # Run estimations and generate reports
-    generate_runtime_report(
-        start_date=start_date,
-        end_date=run_time.strftime("%Y-%m-%d"),
-        eip_number=8038,
-        gas_bench_df=gas_bench_df,
-        out_dir=out_dir,
-        params=PARAMS,
-        variable_operations=operation_types.STATEFUL + operation_types.CALL,
-    )
-    generate_repricings_report(
-        start_date=start_date,
-        end_date=run_time.strftime("%Y-%m-%d"),
-        out_dir=out_dir,
-        anchor_rate=anchor_rate,
-        eip_number=8038,
-        params=PARAMS,
-        params_multipliers=PARAM_MULTIPLIERS,
-    )
+    # Query raw data and save - bloatnet + mainnet
+    for db_type in ["perf_devnet_2", "mainnet"]:
+        # Query raw data and save
+        compute_gas_bench_df, compute_trace_df = process_gas_bench_data(
+            user,
+            password,
+            start_date,
+            "compute_" + db_type,
+        )
+        state_gas_bench_df, state_trace_df = process_gas_bench_data(
+            user,
+            password,
+            start_date,
+            "stateful_" + db_type,
+        )
+        gas_bench_df = pd.concat(
+            [compute_gas_bench_df, state_gas_bench_df], ignore_index=True
+        )
+        outfile = os.path.join(out_dir, f"gas_bench_data_{db_type}.csv")
+        gas_bench_df.to_csv(outfile, index=False)
+        trace_df = pd.concat([compute_trace_df, state_trace_df], ignore_index=True)
+        # Run estimations and generate reports
+        generate_runtime_report(
+            start_date=start_date,
+            end_date=run_time.strftime("%Y-%m-%d"),
+            eip_number=8038,
+            gas_bench_df=gas_bench_df,
+            out_dir=out_dir,
+            params=PARAMS,
+            variable_operations=[
+                "SSTORE",
+                "SLOAD",
+            ],  # operation_types.STATEFUL + operation_types.CALL,
+            file_name_ending=f"_{db_type}",
+        )
+        generate_repricings_report(
+            start_date=start_date,
+            end_date=run_time.strftime("%Y-%m-%d"),
+            out_dir=out_dir,
+            anchor_rate=anchor_rate,
+            eip_number=8038,
+            params=PARAMS,
+            params_multipliers=PARAM_MULTIPLIERS,
+            file_name_ending=f"_{db_type}",
+        )
