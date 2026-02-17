@@ -77,18 +77,18 @@ We also plot some diagnostic graphs for each operation and client combination to
 ==============================================================================
                            NNLS Regression Results                            
 ==============================================================================
-Dep. Variable:          run_duration_ms              R-squared:          0.257
-Model:                  NNLS                    Adj. R-squared:          0.251
-No. Observations:       510                               RMSE:         188.20
-Df Residuals:           505                                MAE:         111.36
+Dep. Variable:          run_duration_ms              R-squared:          0.234
+Model:                  NNLS                    Adj. R-squared:          0.228
+No. Observations:       520                               RMSE:         189.29
+Df Residuals:           515                                MAE:         111.40
 Df Model:               4      
 ==============================================================================
                       coef     std err     P-value      [0.025      0.975]
 ------------------------------------------------------------------------------
-         const    101.7976      7.0792       0.000     88.1705    115.0500
-       opcount      0.0044      0.0007       0.000      0.0028      0.0056
+         const    101.8025      7.5558       0.000     86.9434    115.8896
+       opcount      0.0040      0.0007       0.000      0.0024      0.0053
            new      0.0000      0.0000       1.000      0.0000      0.0000
-          cold      0.0004      0.0009       0.378      0.0000      0.0028
+          cold      0.0004      0.0008       0.379      0.0000      0.0026
         update      0.0000      0.0000       1.000      0.0000      0.0000
 ==============================================================================
 Notes: Non-negative least squares with bootstrap inference (1000 iterations)
@@ -109,17 +109,17 @@ Notes: Non-negative least squares with bootstrap inference (1000 iterations)
 ==============================================================================
                            NNLS Regression Results                            
 ==============================================================================
-Dep. Variable:          run_duration_ms              R-squared:          0.122
-Model:                  NNLS                    Adj. R-squared:          0.114
-No. Observations:       430                               RMSE:           6.32
-Df Residuals:           425                                MAE:           2.37
+Dep. Variable:          run_duration_ms              R-squared:          0.196
+Model:                  NNLS                    Adj. R-squared:          0.189
+No. Observations:       440                               RMSE:           8.16
+Df Residuals:           435                                MAE:           3.37
 Df Model:               4      
 ==============================================================================
                       coef     std err     P-value      [0.025      0.975]
 ------------------------------------------------------------------------------
-         const     47.9795      0.2380       0.000     47.4961     48.4090
-       opcount      0.0002      0.0001       0.004      0.0000      0.0005
-           new      0.0033      0.0032       0.315      0.0000      0.0100
+         const     48.4785      0.3147       0.000     47.8770     49.1053
+       opcount      0.0002      0.0001       0.000      0.0001      0.0005
+           new      0.0048      0.0029       0.138      0.0000      0.0099
           cold      0.0000      0.0000       1.000      0.0000      0.0000
         update      0.0000      0.0000       1.000      0.0000      0.0000
 ==============================================================================
@@ -141,17 +141,17 @@ Notes: Non-negative least squares with bootstrap inference (1000 iterations)
 ==============================================================================
                            NNLS Regression Results                            
 ==============================================================================
-Dep. Variable:          run_duration_ms              R-squared:          0.245
-Model:                  NNLS                    Adj. R-squared:          0.239
-No. Observations:       510                               RMSE:          30.92
-Df Residuals:           505                                MAE:          18.34
+Dep. Variable:          run_duration_ms              R-squared:          0.236
+Model:                  NNLS                    Adj. R-squared:          0.230
+No. Observations:       520                               RMSE:          30.91
+Df Residuals:           515                                MAE:          18.60
 Df Model:               4      
 ==============================================================================
                       coef     std err     P-value      [0.025      0.975]
 ------------------------------------------------------------------------------
-         const     57.0168      1.2057       0.000     54.6883     59.4072
-       opcount      0.0008      0.0001       0.000      0.0006      0.0011
-           new      0.0000      0.0002       1.000      0.0000      0.0008
+         const     57.3619      1.2716       0.000     54.9277     59.6652
+       opcount      0.0007      0.0001       0.000      0.0006      0.0010
+           new      0.0000      0.0003       1.000      0.0000      0.0011
           cold      0.0000      0.0000       1.000      0.0000      0.0000
         update      0.0000      0.0000       1.000      0.0000      0.0000
 ==============================================================================
@@ -164,102 +164,6 @@ Notes: Non-negative least squares with bootstrap inference (1000 iterations)
 <img src="./figs/SSTORE_nethermind_diagnostics.png" alt="SSTORE_nethermind_diagnostics" width="600"/>
 
 <img src="./figs/SSTORE_nethermind_bootstrap.png" alt="SSTORE_nethermind_bootstrap" width="600"/>
-
-
-## besu_repricings_stateful_mainnet
-
-
-```python
-==============================================================================
-                           NNLS Regression Results                            
-==============================================================================
-Dep. Variable:          run_duration_ms              R-squared:          0.000
-Model:                  NNLS                    Adj. R-squared:         -0.800
-No. Observations:       10                                RMSE:           0.00
-Df Residuals:           5                                  MAE:           0.00
-Df Model:               4      
-==============================================================================
-                      coef     std err     P-value      [0.025      0.975]
-------------------------------------------------------------------------------
-         const    101.2576      0.0000       0.000    101.2576    101.2576
-       opcount      0.0000      0.0000       1.000      0.0000      0.0000
-           new      0.0000      0.0000       1.000      0.0000      0.0000
-          cold      0.0000      0.0000       1.000      0.0000      0.0000
-        update      0.0000      0.0000       1.000      0.0000      0.0000
-==============================================================================
-Notes: Non-negative least squares with bootstrap inference (1000 iterations)
-==============================================================================
-```
-
-<img src="./figs/SSTORE_besu_repricings_stateful_mainnet_regression.png" alt="SSTORE_besu_repricings_stateful_mainnet_regression" width="600"/>
-
-<img src="./figs/SSTORE_besu_repricings_stateful_mainnet_diagnostics.png" alt="SSTORE_besu_repricings_stateful_mainnet_diagnostics" width="600"/>
-
-<img src="./figs/SSTORE_besu_repricings_stateful_mainnet_bootstrap.png" alt="SSTORE_besu_repricings_stateful_mainnet_bootstrap" width="600"/>
-
-
-## geth_repricings_stateful_mainnet
-
-
-```python
-==============================================================================
-                           NNLS Regression Results                            
-==============================================================================
-Dep. Variable:          run_duration_ms              R-squared:          0.900
-Model:                  NNLS                    Adj. R-squared:          0.820
-No. Observations:       10                                RMSE:           0.00
-Df Residuals:           5                                  MAE:           0.00
-Df Model:               4      
-==============================================================================
-                      coef     std err     P-value      [0.025      0.975]
-------------------------------------------------------------------------------
-         const     89.9567      0.0000       0.000     89.9567     89.9567
-       opcount      0.0000      0.0000       1.000      0.0000      0.0000
-           new      0.0000      0.0000       1.000      0.0000      0.0000
-          cold      0.0000      0.0000       1.000      0.0000      0.0000
-        update      0.0000      0.0000       1.000      0.0000      0.0000
-==============================================================================
-Notes: Non-negative least squares with bootstrap inference (1000 iterations)
-==============================================================================
-```
-
-<img src="./figs/SSTORE_geth_repricings_stateful_mainnet_regression.png" alt="SSTORE_geth_repricings_stateful_mainnet_regression" width="600"/>
-
-<img src="./figs/SSTORE_geth_repricings_stateful_mainnet_diagnostics.png" alt="SSTORE_geth_repricings_stateful_mainnet_diagnostics" width="600"/>
-
-<img src="./figs/SSTORE_geth_repricings_stateful_mainnet_bootstrap.png" alt="SSTORE_geth_repricings_stateful_mainnet_bootstrap" width="600"/>
-
-
-## nethermind_repricings_stateful_mainnet
-
-
-```python
-==============================================================================
-                           NNLS Regression Results                            
-==============================================================================
-Dep. Variable:          run_duration_ms              R-squared:          0.000
-Model:                  NNLS                    Adj. R-squared:         -0.800
-No. Observations:       10                                RMSE:           0.00
-Df Residuals:           5                                  MAE:           0.00
-Df Model:               4      
-==============================================================================
-                      coef     std err     P-value      [0.025      0.975]
-------------------------------------------------------------------------------
-         const     83.6014      0.0000       0.000     83.6014     83.6014
-       opcount      0.0000      0.0000       1.000      0.0000      0.0000
-           new      0.0000      0.0000       1.000      0.0000      0.0000
-          cold      0.0000      0.0000       1.000      0.0000      0.0000
-        update      0.0000      0.0000       1.000      0.0000      0.0000
-==============================================================================
-Notes: Non-negative least squares with bootstrap inference (1000 iterations)
-==============================================================================
-```
-
-<img src="./figs/SSTORE_nethermind_repricings_stateful_mainnet_regression.png" alt="SSTORE_nethermind_repricings_stateful_mainnet_regression" width="600"/>
-
-<img src="./figs/SSTORE_nethermind_repricings_stateful_mainnet_diagnostics.png" alt="SSTORE_nethermind_repricings_stateful_mainnet_diagnostics" width="600"/>
-
-<img src="./figs/SSTORE_nethermind_repricings_stateful_mainnet_bootstrap.png" alt="SSTORE_nethermind_repricings_stateful_mainnet_bootstrap" width="600"/>
 
 
 # SLOAD
@@ -353,15 +257,3 @@ Notes: Non-negative least squares with bootstrap inference (1000 iterations)
 
 <img src="./figs/SLOAD_nethermind_bootstrap.png" alt="SLOAD_nethermind_bootstrap" width="600"/>
 
-
-## besu_repricings_stateful_mainnet
-
-NNLS model did not run... Error: No valid data remaining after dropping NaN values
-
-## geth_repricings_stateful_mainnet
-
-NNLS model did not run... Error: No valid data remaining after dropping NaN values
-
-## nethermind_repricings_stateful_mainnet
-
-NNLS model did not run... Error: No valid data remaining after dropping NaN values

@@ -74,6 +74,9 @@ def process_gas_bench_data(
     """
     engine = create_engine(gas_bench_db_url)
     df = pd.read_sql(query_str, con=engine)
+    # Fix client names
+    df["client_name"] = df["client_name"].str.replace("_repricings_stateful_mainnet", "")
+    # Process title column
     df = process_test_title_col(df)
     # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
     df = df[df["test_params"] != "bn128_add_infinities"]

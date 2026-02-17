@@ -61,13 +61,13 @@ The following plot shows the new gas costs (rounded) for each operation paramete
 The following parameters had a poor model fit:
 
 
-- SSTORE - cold - nethermind_repricings_stateful_mainnet, nethermind, geth_repricings_stateful_mainnet, besu_repricings_stateful_mainnet, besu, geth
+- SSTORE - cold - nethermind, besu, geth
 
-- SSTORE - new - nethermind_repricings_stateful_mainnet, nethermind, geth_repricings_stateful_mainnet, besu_repricings_stateful_mainnet, besu, geth
+- SSTORE - new - nethermind, besu, geth
 
-- SSTORE - slope - nethermind_repricings_stateful_mainnet, nethermind, geth_repricings_stateful_mainnet, besu_repricings_stateful_mainnet, besu, geth
+- SSTORE - slope - nethermind, besu, geth
 
-- SSTORE - update - nethermind_repricings_stateful_mainnet, nethermind, geth_repricings_stateful_mainnet, besu_repricings_stateful_mainnet, besu, geth
+- SSTORE - update - nethermind, besu, geth
 
 
 
@@ -76,3 +76,5 @@ The following operations have no estimation for the following clients:
 
 
 - SLOAD: erigon, reth
+
+- SSTORE: erigon, reth

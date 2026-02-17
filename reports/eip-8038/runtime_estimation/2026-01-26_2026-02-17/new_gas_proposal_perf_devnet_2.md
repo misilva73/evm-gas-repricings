@@ -62,11 +62,11 @@ The following plot shows the new gas costs (rounded) for each operation paramete
 The following parameters had a poor model fit:
 
 
-- SSTORE - cold - besu, nethermind, geth
+- SSTORE - cold - nethermind, besu, geth
 
-- SSTORE - new - besu, nethermind, geth
+- SSTORE - new - nethermind, besu, geth
 
-- SSTORE - update - besu, nethermind, geth
+- SSTORE - update - nethermind, besu, geth
 
 
 
