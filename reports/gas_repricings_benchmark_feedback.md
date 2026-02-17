@@ -229,5 +229,5 @@ This is the new run that introduces both stateful runs and uses the new Osaka fo
 - In the compute database, I am not finding the `test_account_query` and `test_unchunkified_bytecode` tests from this [PR](https://github.com/ethereum/execution-specs/pull/2138). This means we are missing the configs for `EXTCODE*`, `*CALL`, and `BALANCE` opcodes.
 - From the stateful database, I am excluding some tests as they don't seem relevant for repricings. Is this correct? Here is the excluded tests:
   - `test_mixed_sload_sstore`, `test_sstore_erc20_approve`, `test_sload_empty_erc20_balanceof`, `test_storage_sload_same_key_benchmark`
+- The metadata for `stateful_perf_devnet_2` and `stateful_mainnet` have an empty opcount of `SLOAD` for the test `test_storage_sload_benchmark`. I think something is not right with either the test or the metadata collection. This is also happening for a couple of the tests from `test_sstore_variants`
 - Labels in DB do not give any information on which state is being run on (i.e., mainnet vs. bloatnet)
-- `SSTORE` is showing an extremely good performance, leading to a severe cost reduction -> we need to check why
