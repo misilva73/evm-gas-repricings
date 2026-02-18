@@ -54,10 +54,10 @@ if __name__ == "__main__":
     password = secrets_dict["gas_bench_password"]
     # Query raw data and save
     compute_gas_bench_df, compute_trace_df = process_gas_bench_data(
-        user, password, start_date, "compute_perf_devnet_2"
+        user, password, start_date, "compute_mainnet"
     )
     state_gas_bench_df, state_trace_df = process_gas_bench_data(
-        user, password, start_date, "stateful_perf_devnet_2"
+        user, password, start_date, "stateful_mainnet"
     )
     gas_bench_df = pd.concat(
         [compute_gas_bench_df, state_gas_bench_df], ignore_index=True

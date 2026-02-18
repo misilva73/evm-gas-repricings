@@ -99,6 +99,103 @@ def find_equilibrium_base_fee_burst(
     return b_star
 
 
+def find_equilibrium_base_fee_asymmetric_max(
+    m: float,
+    n: float,
+    eps_s: float,
+    eps_b: float,
+    b_0: float,
+    state_share_0: float,
+    w_s: float = 1.0,
+    w_r: float = 1.0,
+) -> float:
+    """
+    Find equilibrium base fee b* for the asymmetric max aggregation function
+    using a closed-form solution.
+
+    Equilibrium condition:
+        max(w_s * state_share_0 * m^(1-eps_s) * r^(-eps_s),
+            w_r * (1-state_share_0) * r^(-eps_b)) = n
+    """
+    # Candidate 1: State-limited equilibrium
+    # w_s * state_share_0 * m^(1-eps_s) * r^(-eps_s) = n
+    # r_state = (w_s * state_share_0 * m^(1-eps_s) / n)^(1/eps_s)
+    try:
+        r_state = ((w_s * state_share_0 * (m ** (1 - eps_s))) / n) ** (1 / eps_s)
+    except (OverflowError, ZeroDivisionError):
+        print(
+            f"Warning: No valid solution for r_state found for m={m}, eps_s={eps_s}, eps_b={eps_b}, n={n}"
+        )
+        r_state = 0.0
+    # Candidate 2: Burst-limited equilibrium
+    # w_r * (1-state_share_0) * r^(-eps_b) = n
+    # r_burst = (w_r * (1-state_share_0) / n)^(1/eps_b)
+    try:
+        r_burst = ((w_r * (1 - state_share_0)) / n) ** (1 / eps_b)
+    except (OverflowError, ZeroDivisionError):
+        print(
+            f"Warning: No valid solution for r_burst found for m={m}, eps_s={eps_s}, eps_b={eps_b}, n={n}"
+        )
+        r_burst = 0.0
+    r_star = max(r_state, r_burst)
+    return b_0 * r_star
+
+
+def equilibrium_equation_asymmetric_euclidean(
+    r: float,
+    m: float,
+    n: float,
+    eps_s: float,
+    eps_b: float,
+    state_share_0: float,
+    w_s: float = 1.0,
+    w_r: float = 1.0,
+) -> float:
+    """
+    Equilibrium condition for asymmetric Euclidean aggregation:
+    sqrt((w_s * state_share_0 * m^(1-eps_s) * r^(-eps_s))^2
+       + (w_r * (1-state_share_0) * r^(-eps_b))^2) = n
+    """
+    term_s = w_s * state_share_0 * (m ** (1 - eps_s)) * (r ** (-eps_s))
+    term_b = w_r * (1 - state_share_0) * (r ** (-eps_b))
+    return (term_s**2 + term_b**2) ** 0.5 - n
+
+
+def find_equilibrium_base_fee_asymmetric_euclidean(
+    m: float,
+    n: float,
+    eps_s: float,
+    eps_b: float,
+    b_0: float,
+    state_share_0: float,
+    w_s: float = 1.0,
+    w_r: float = 1.0,
+) -> float:
+    """
+    Find equilibrium base fee b* for the asymmetric Euclidean aggregation
+    function using Brent's method on interval [0.005, 1.0].
+
+    Equilibrium condition:
+        sqrt((w_s * state_gas)^2 + (w_r * regular_gas)^2) = n
+    """
+
+    def eq(r):
+        return equilibrium_equation_asymmetric_euclidean(
+            r, m, n, eps_s, eps_b, state_share_0, w_s, w_r
+        )
+
+    f_low = eq(0.005)
+    f_high = eq(1.0)
+    if f_low * f_high < 0:
+        r_star = brentq(eq, 0.005, 1.0, xtol=1e-8)
+        return b_0 * r_star
+    else:
+        print(
+            f"Warning: No valid root found for asymmetric_euclidean m={m}, eps_s={eps_s}, eps_b={eps_b}, n={n}"
+        )
+        return 0.0
+
+
 def compute_equilibrium_stats(b_star, m, n, eps_s, eps_b, G_0, b_0, S_0, state_share_0):
     """
     Compute equilibrium statistics given a base fee b* and parameters.

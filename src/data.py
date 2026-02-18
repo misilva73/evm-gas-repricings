@@ -75,7 +75,9 @@ def process_gas_bench_data(
     engine = create_engine(gas_bench_db_url)
     df = pd.read_sql(query_str, con=engine)
     # Fix client names
-    df["client_name"] = df["client_name"].str.replace("_repricings_stateful_mainnet", "")
+    df["client_name"] = df["client_name"].str.replace(
+        "_repricings_stateful_mainnet", ""
+    )
     # Process title column
     df = process_test_title_col(df)
     # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
@@ -86,6 +88,7 @@ def process_gas_bench_data(
     # Query trace data
     trace_df = process_test_trace_data(user, password, db_name, opcodes_sample)
     df = add_opcount_col(df, trace_df)
+    # df = df[~df["test_name"].str.contains("test_storage_access")]
     return df, trace_df
 
 
@@ -94,17 +97,6 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
     # Process test file and name
     df["test_file"] = df["test_title"].str.split(".py").str[0]
     df["test_name"] = df["test_title"].str.split(".py__").str[1].str.split("[").str[0]
-    # Excluding some bloatnet tests not relevant for repricings
-    df = df[
-        ~df["test_name"].isin(
-            [
-                "test_mixed_sload_sstore",
-                "test_sstore_erc20_approve",
-                "test_sload_empty_erc20_balanceof",
-                "test_storage_sload_same_key_benchmark",
-            ]
-        )
-    ]
     # Process opcode name
     df["test_opcode"] = np.where(
         df["test_name"].isin(OPCODES_IN_TEST_NAME_LIST),
@@ -125,8 +117,9 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
         df["test_name"] == "test_sstore_variants", "SSTORE", df["test_opcode"]
     )
     # Process params
-    df["test_params"] = (
-        df["test_title"]
+    bench_mask = df["test_title"].str.contains("benchmark_test-")
+    df.loc[bench_mask, "test_params"] = (
+        df.loc[bench_mask, "test_title"]
         .str.split("[")
         .str[1]
         .str.split("]")
@@ -134,8 +127,18 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
         .str.split("benchmark_test-")
         .str[1]
     )
-    df["block_limit_million"] = (
-        df["test_params"]
+    engine_mask = df["test_title"].str.contains("_engine_x-")
+    df.loc[engine_mask, "test_params"] = (
+        df.loc[engine_mask, "test_title"]
+        .str.split("[")
+        .str[1]
+        .str.split("]")
+        .str[0]
+        .str.split("_engine_x-")
+        .str[1]
+    )
+    df.loc[bench_mask, "block_limit_million"] = (
+        df.loc[bench_mask, "test_params"]
         .str.split("benchmark_")
         .str[1]
         .str.split("-")
@@ -279,7 +282,7 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def process_test_trace_data(
-    user: str, password: str, db_name: str, opcodes_sample: List[str]
+    user: str, password: str, db_name: str, opcodes_sample: List[str] = None
 ) -> pd.DataFrame:
     gas_bench_db_url = (
         f"postgresql://{user}:{password}@perfnet.core.nethermind.dev:5432/monitoring"
@@ -292,9 +295,9 @@ def process_test_trace_data(
     """
     engine = create_engine(gas_bench_db_url)
     trace_df = pd.read_sql(trace_query_str, con=engine)
-    trace_df = process_test_title_col(trace_df)
     traces_expanded = pd.json_normalize(trace_df["traces"])
     trace_df = pd.concat([trace_df.drop(columns=["traces"]), traces_expanded], axis=1)
+    trace_df = process_test_title_col(trace_df)
     if opcodes_sample is not None:
         trace_df = trace_df[trace_df["test_opcode"].isin(opcodes_sample)]
     return trace_df
