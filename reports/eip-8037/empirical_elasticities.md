@@ -4,9 +4,9 @@
 
 ## Introduction
 
-This report is a follow-up to our previous analysis of [different aggregation functions for EIP-8037 under different elasticity regimes](https://ethresear.ch/t/analysis-of-different-aggregation-functions-for-eip-8037-under-different-elasticity-regimes/24033). That analysis used an **independent isoelastic demand model** where state and burst resources had separate, independent demand curves. However, empirical analysis of recent Ethereum data reveals a different pattern: state and burst resources appear to be **substitutes competing for fixed block capacity** rather than independent demands.
+This report is a follow-up to our previous analysis of [different aggregation functions for EIP-8037 under different elasticity regimes](https://ethresear.ch/t/analysis-of-different-aggregation-functions-for-eip-8037-under-different-elasticity-regimes/24033). That analysis used an **independent isoelastic demand model** where state and burst resources had separate, independent demand curves. However, measuring these elasticities empirically is not feasible because due to the EIP-1559 mechanism, the demand for state and burst resources behave as **substitutes competing for fixed block capacity** rather than independent demands.
 
-This report **empirically measures the price elasticity** of aggregate demand and the allocation between state creation versus burst resources. Our findings suggest a **capacity-constrained demand model** better describes Ethereum user behavior than the independent demand model.
+We solve this by **empirically measuring the price elasticity** of aggregate demand and the allocation between state creation versus burst resources. Using a **capacity-constrained demand model** better describes Ethereum's past user behavior. Then, we derive the individual elasticities from the estimated capacity-constrained demand model.
 
 Our analysis uses daily data from January 2025 to January 2026, a period that includes three major gas limit increases (30M → 36M → 45M → 60M). This unique dataset allows us to observe how both aggregate demand and resource allocation respond to price changes in both the short run (daily variations) and during major capacity shocks (gas limit increases).
 
@@ -16,17 +16,17 @@ Our empirical analysis reveals:
 
 1. **Strong substitution between state and burst resources**: The correlation between state gas and burst gas is approximately -0.99, indicating they compete for fixed block capacity rather than varying independently.
 
-2. **Low aggregate demand elasticity**: When the gas limit increased and base fees dropped, total gas usage increased proportionally to fill the new capacity. The long-run aggregate demand elasticity is ε_agg ≈ 0.0066 from daily data, and 0.175 ± 0.093 from gas limit increase events, both indicating relatively inelastic aggregate demand.
+2. **Low aggregate demand elasticity**: When the gas limit increased and base fees dropped, total gas usage increased proportionally to fill the new capacity. The long-run aggregate demand elasticity is $\varepsilon_\text{agg} \approx 0.0066$ from daily data, and 0.175 ± 0.093 from gas limit increase events, both indicating relatively inelastic aggregate demand.
 
 3. **Moderate state share elasticity**: The share of gas devoted to state creation responds to price changes with long-run elasticity η ≈ 0.43 from daily data. When state becomes relatively more expensive, users substitute toward burst resources. However, event-based estimates show high variance (η ≈ 0.019 ± 0.261), highlighting uncertainty in user responses to large price shocks.
 
-4. **Capacity-constrained behavior**: Block utilization remained stable at ~50% after each gas limit increase, consistent with the EIP-1559 mechanism that adjusts the base fee to target 50% block utilization.
+4. **State demand is moderately price-elastic while burst demand is nearly inelastic**: Converting the ε_agg and η to the corresponding prices elasticities for state and burst resources, estimate that $\varepsilon_s \approx 0.4$–$0.6$ and $\varepsilon_b \approx 0.0$–$0.2$
 
 In the following sections, we present the empirical evidence for the capacity-constrained model and detail our methodology for measuring both aggregate demand elasticity and state share elasticity.
 
 ## Data and Preprocessing
 
-Our empirical analysis uses daily Ethereum mainnet data spanning from January 1, 2025 to January 31, 2026 (approximately 395 observations). The dataset includes block-level metrics (gas used, gas limit, base fee) and state growth metrics (storage slots created, accounts created, code size). All blockchain data was extracted from [Xatu's dataset](https://ethpandaops.io/data/xatu/). The analysis period includes three major gas limit increases (30M → 36M on Feb 4; 36M → 45M on Jul 21; 45M → 60M on Nov 25), providing natural experiments to observe demand responses to capacity and price changes.
+Our empirical analysis uses daily Ethereum mainnet data spanning from January 1, 2025 to January 31, 2026 (396 calendar days; 395 observations after differencing). The dataset includes block-level metrics (gas used, gas limit, base fee) and state growth metrics (storage slots created, accounts created, code size). All blockchain data was extracted from [Xatu's dataset](https://ethpandaops.io/data/xatu/). The analysis period includes three major gas limit increases (30M → 36M on Feb 4; 36M → 45M on Jul 21; 45M → 60M on Nov 25), providing natural experiments to observe demand responses to capacity and price changes.
 
 Raw block-level data was aggregated to daily observations. We estimated the gas used for state creation by multiplying the net bytes added to state by account, storage slots and contract code by their respective gas costs (25000 gas per 112 byte account, 20000 gas per 32 byte slot and 200 gas per 1 byte of contract code). The gas used by burst resources was assumed as the residual.
 
@@ -103,7 +103,7 @@ The model accounts for both immediate (contemporaneous) and lagged effects of pr
 
 - **Cumulative aggregate elasticity**: ε_agg = 0.0049 (95% CI: [0.0008, 0.0090])
 - **Long-run aggregate elasticity**: ε_agg = 0.0066
-- **Statistical significance**: t = -2.35, p = 0.0195
+- **Statistical significance**: The underlying regression coefficient on log(price) has t = -2.35, p = 0.0195 (negative because higher prices reduce gas usage; ε_agg is reported as the absolute value)
 - **Model diagnostics**: No evidence of residual autocorrelation (Ljung-Box p = 0.98)
 
 **Interpretation**: A 1% increase in the base fee is associated with a 0.007% decrease in total gas usage in the long run. This indicates **highly inelastic aggregate demand**.
@@ -147,7 +147,7 @@ $$\log\left(\frac{\alpha_s}{1 - \alpha_s}\right) = \log(\kappa^{-1}) - \eta \cdo
 
 - **Cumulative share elasticity**: η = 0.9687 (95% CI: [0.6413, 1.2961])
 - **Long-run share elasticity**: η = 0.4295
-- **Statistical significance**: t = -5.82, p < 0.001
+- **Statistical significance**: The underlying regression coefficient on log(price) has t = -5.82, p < 0.001 (negative because higher prices shift the log-odds toward burst; η is reported as the absolute value)
 - **Model has residual autocorrelation** (may be due to gas limit increase structural breaks)
 
 **Interpretation**: The state share has moderate elasticity (η ≈ 0.43). When the base fee increases by 1%, the odds of choosing state over burst decrease by approximately 0.43%. This confirms that **users substitute between state and burst** based on prices.
@@ -169,4 +169,69 @@ Note that we used the median values of the base fee and the state share odds for
 | 45M → 60M | +33% | -84.5% | +38.2% | 0.174 |
 | **Mean** | - | - | - | **0.019 ± 0.261** |
 
-**Interpretation**: The event-based estimates have high variance. One of the intervals saw a negative implied elasticity, meaning that during that interval the share of gas used for state creation decreased. This highlights the uncertainty around how users will respond to changes in the prices of the various resources.
+**Interpretation**: The event-based estimates have high variance. For the 36M→45M interval, the negative implied η means the state share odds moved in the **same direction** as price (both decreased), which is opposite to the substitution story predicted by the other estimates. When the base fee fell by 55%, users allocated *less* to state rather than more, contradicting the positive η found in daily data. This anomalous event highlights the uncertainty around how users will respond to large price shocks, and suggests that factors beyond simple price substitution (e.g., shifts in application mix or behavioral changes) may dominate during certain periods.
+
+## Reparametrization from (ε_agg, η) to (ε_s, ε_b)
+
+The capacity-constrained model estimates two reduced-form parameters: the aggregate elasticity $\varepsilon_{\text{agg}}$ and the share elasticity $\eta$. In this section we show how to recover the structural elasticities $\varepsilon_s$ and $\varepsilon_b$ from the independent isoelastic demand model used in our [previous analysis](https://ethresear.ch/t/analysis-of-different-aggregation-functions-for-eip-8037-under-different-elasticity-regimes/24033).
+
+### Derivation
+
+Recall the independent isoelastic demand model:
+
+$$S^*(p) = A_s \cdot p^{-\varepsilon_s}, \qquad B^*(p) = A_b \cdot p^{-\varepsilon_b}$$
+
+where $S^*$ and $B^*$ are the latent (unconstrained) demands for state and burst resources. Define the total latent demand $D^*(p) = S^*(p) + B^*(p)$ and the state share $q = S^*/D^*$.
+
+**Aggregate elasticity as a share-weighted average.** The aggregate elasticity is defined as:
+
+$$\varepsilon_{\text{agg}} = -\frac{d \ln D^*}{d \ln p}$$
+
+By the chain rule, $\frac{d \ln D^*}{d \ln p} = \frac{1}{D^*}\frac{d D^*}{d \ln p}$. Differentiating $D^* = S^* + B^*$ with respect to $\ln p$:
+
+$$\frac{d \ln D^*}{d \ln p} = \frac{1}{D^*}\left(\frac{d S^*}{d \ln p} + \frac{d B^*}{d \ln p}\right) = \frac{-\varepsilon_s \cdot S^* - \varepsilon_b \cdot B^*}{D^*}$$
+
+Therefore:
+
+$$\varepsilon_{\text{agg}} = \varepsilon_s \cdot \frac{S^*}{D^*} + \varepsilon_b \cdot \frac{B^*}{D^*} = \varepsilon_s \cdot q + \varepsilon_b \cdot (1 - q) \tag{1}$$
+
+That is, the aggregate elasticity is the share-weighted average of the two structural elasticities.
+
+**Share elasticity as a difference.** Taking the log-odds of the state share:
+
+$$\ln\left(\frac{q}{1-q}\right) = \ln\left(\frac{S^*}{B^*}\right) = \ln\left(\frac{A_s}{A_b}\right) - (\varepsilon_s - \varepsilon_b) \cdot \ln p$$
+
+The slope with respect to $\ln p$ is $-(\varepsilon_s - \varepsilon_b)$, which matches the definition of the share elasticity $\eta$ from the capacity-constrained model:
+
+$$\eta = \varepsilon_s - \varepsilon_b \tag{2}$$
+
+### Recovery formulas
+
+Solving the system of equations (1) and (2) for $\varepsilon_s$ and $\varepsilon_b$:
+
+From (2): $\varepsilon_s = \varepsilon_b + \eta$. Substituting into (1):
+
+$$\varepsilon_{\text{agg}} = (\varepsilon_b + \eta) \cdot q + \varepsilon_b \cdot (1 - q) = \varepsilon_b + q \cdot \eta$$
+
+Therefore:
+
+$$\boxed{\varepsilon_b = \varepsilon_{\text{agg}} - q_0 \cdot \eta}$$
+
+$$\boxed{\varepsilon_s = \varepsilon_{\text{agg}} + (1 - q_0) \cdot \eta}$$
+
+where $q_0$ is the baseline state share (≈ 0.23 from our data).
+
+### Numerical estimates
+
+Using $q_0 = 0.23$ and combining our estimates from the previous sections:
+
+| Scenario | $\varepsilon_{\text{agg}}$ | $\eta$ | $\varepsilon_s$ | $\varepsilon_b$ |
+| -------- | ------------------------- | ------ | --------------- | --------------- |
+| Event ε_agg + long-run η | 0.175 | 0.43 | 0.51 | 0.08 |
+| Event ε_agg + cumulative η | 0.175 | 0.97 | 0.92 | -0.05 |
+| Low ε_agg + long-run η | 0.10 | 0.43 | 0.43 | 0.00 |
+| High ε_agg + long-run η | 0.28 | 0.43 | 0.61 | 0.18 |
+
+The cumulative $\eta = 0.97$ pushes $\varepsilon_b$ slightly negative, which is implausible — it would imply that burst demand increases with price. The long-run $\eta \approx 0.43$ yields more plausible results across the range of aggregate elasticity estimates.
+
+Note that the central estimates below use the **event-based** $\varepsilon_{\text{agg}} \approx 0.10$–$0.28$, not the daily long-run estimate of 0.007. The daily ARDL elasticity captures marginal day-to-day noise responses, while the event-based estimate captures the equilibrium demand response to large structural capacity shifts — which is the more relevant quantity for evaluating repricing scenarios under EIP-8037. 
