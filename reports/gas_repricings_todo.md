@@ -56,7 +56,7 @@ End of April:
   - [ ] EIP-8038 with preliminary numbers
   - [ ] EIP-2780 with preliminary numbers
 - [X] [Butta] Update repricings website with current numbers
-- [ ] [Butta] Do a broad community outreach to ask for feedback
+- [X] [Butta] Do a broad community outreach to ask for feedback
 - [ ] [Butta] Contact affected entities from backward compatibility analysis
 
 ### EIP and spec
@@ -66,7 +66,7 @@ End of April:
   - [X] Preliminary numbers for EIP-7904
   - [ ] Preliminary numbers for EIP-8038 + BAL data cost
   - [X] Align EIP-8037 with new spec
-  - [ ] Add [comments from spencer](https://github.com/ethereum/EIPs/pull/11292) to EIP-8037
+  - [X] Add [comments from spencer](https://github.com/ethereum/EIPs/pull/11292) to EIP-8037
 - [ ] Resolve EIP-8037 open questions:
   - [ ] [Maria Silva] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
   - [ ] [Maria Silva] Which stake growth rate (and cost increase) to target?
@@ -86,17 +86,15 @@ End of April:
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2144)
   - [8037](https://github.com/ethereum/execution-specs/issues/2040)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2181)
-- [ ] [Maria Silva] Estimate how much gas each byte of calldata should cost
-  - [ ] How can we translate bytes into propagation time?
-    - Check [block-propagation-size](https://observatory.ethp2p.dev/latest/block-propagation-size) and [data](https://observatory.ethp2p.dev/data)
-  - [ ] How much time relative to execution will we have after ePBS?
+- [X] [Maria Silva] Estimate how much gas each byte of calldata should cost
+  - After discussing with Toni, we agree that the 64/64 is enough to deal with worst cases. Let's make this simple for now.
 
 ### Devnet integration
 
 - [ ] [Toni Wahrstätter] Implement BAL optimizations in all the major clients
   - [ ] State writes: parallel state root calculation
-    - Missing clients: Nethermind, Erigon and Reth
+    - Missing clients: Erigon and Reth
   - [ ] State reads: batch reads
     - Missing clients: Nethermind, Erigon and Reth
   - [ ] Compute: parallel execution
-    - Missing clients: Erigon and Reth
+    - Missing clients: Nethermind
