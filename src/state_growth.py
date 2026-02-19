@@ -20,17 +20,18 @@ def find_equilibrium_base_fee_sum(
 ) -> float:
     """
     Find equilibrium base fee b* for the sum aggregation function using
-    Brent's method on interval [0.005, 1.0]
+    Brent's method.
     """
 
     def eq(r):
         return equilibrium_equation_sum(r, m, n, eps_s, eps_b, state_share_0)
 
     # Check that function has opposite signs at endpoints
-    f_low = eq(0.005)
-    f_high = eq(1.0)
+    r_lo, r_hi = 1e-8, 1e4
+    f_low = eq(r_lo)
+    f_high = eq(r_hi)
     if f_low * f_high < 0:  # opposite signs = root exists
-        r_star = brentq(eq, 0.005, 1.0, xtol=1e-8)
+        r_star = brentq(eq, r_lo, r_hi, xtol=1e-8)
         return b_0 * r_star
     else:
         print(
@@ -173,7 +174,7 @@ def find_equilibrium_base_fee_asymmetric_euclidean(
 ) -> float:
     """
     Find equilibrium base fee b* for the asymmetric Euclidean aggregation
-    function using Brent's method on interval [0.005, 1.0].
+    function using Brent's method.
 
     Equilibrium condition:
         sqrt((w_s * state_gas)^2 + (w_r * regular_gas)^2) = n
@@ -184,10 +185,11 @@ def find_equilibrium_base_fee_asymmetric_euclidean(
             r, m, n, eps_s, eps_b, state_share_0, w_s, w_r
         )
 
-    f_low = eq(0.005)
-    f_high = eq(1.0)
+    r_lo, r_hi = 1e-8, 1e4
+    f_low = eq(r_lo)
+    f_high = eq(r_hi)
     if f_low * f_high < 0:
-        r_star = brentq(eq, 0.005, 1.0, xtol=1e-8)
+        r_star = brentq(eq, r_lo, r_hi, xtol=1e-8)
         return b_0 * r_star
     else:
         print(
@@ -212,7 +214,7 @@ def compute_equilibrium_stats(b_star, m, n, eps_s, eps_b, G_0, b_0, S_0, state_s
             "A_s": None,
             "A_b": None,
             "S_star": None,
-            "B_star": None,
+            "burst_throughput_s": None,
             "gas_used_state": None,
             "gas_used_burst": None,
             "gas_used_total": None,
