@@ -52,7 +52,7 @@ Previous analyses evaluated fixed parameter combinations. Here, we adopt a **gri
 
 $$\max_{\varepsilon_s, \varepsilon_b} \text{StateGrowth}(m, w_s, \text{agg}, \varepsilon_s, \varepsilon_b) \leq 100 \text{ GiB/yr}$$
 
-1. **Optimal configuration**: Among robustly feasible configurations, the optimal is the one with the **highest median throughput gain** across all elasticity pairs:
+4. **Optimal configuration**: Among robustly feasible configurations, the optimal is the one with the **highest median throughput gain** across all elasticity pairs:
 
 $$\max_{(m, w_s, \text{agg}) \in \text{feasible}} \; \text{median}_{\varepsilon_s, \varepsilon_b} \; \text{ThroughputGain}(m, w_s, \text{agg}, \varepsilon_s, \varepsilon_b)$$
 
@@ -93,9 +93,7 @@ The plots below show the distribution of throughput gains across all 25 elastici
 **Key observations:**
 
 1. **Asymmetric functions achieve the highest throughput gains** (1.39x median) by enabling higher repricing multipliers (m=45 vs m=25-30). A lower state weight ($w_s = 0.6$) reduces the influence of state on pricing, allowing a higher $m$ before state growth exceeds the cap.
-
 2. **The throughput differences are small**: only ~0.1x separates the best (asymmetric max) from the worst (sum). This reflects the dominant effect of the inelastic burst demand.
-
 3. **Sum and max achieve comparable state growth control with smaller repricing multipliers** (m=25-30 vs m=45), meaning less disruption to current state pricing. The asymmetric functions require higher $m$ to compensate for the reduced state weight, trading a gentler effective price increase for a modest throughput advantage.
 
 ### Feasibility landscape
@@ -155,9 +153,6 @@ Across the board, higher burst price elasticity and lower state price elasticity
 This analysis narrows the design space for EIP-8037 by using empirically estimated elasticities and a robust optimization approach. The main findings are:
 
 1. **Low burst elasticity limits throughput gains.** Across all aggregation functions, the median throughput gain is only 1.3x-1.4x - well below the 5x gas limit increase. This is driven by the empirical finding that burst demand is nearly inelastic ($\varepsilon_b \approx 0$-$0.2$). With inelastic demand, lower prices from increased capacity do not translate into proportionally higher usage.
-
 2. **Asymmetric functions offer marginal improvements.** The asymmetric max and asymmetric Euclidean functions require higher repricing multipliers (m=45) to achieve the same state growth rate by reducing the weight of state in the base fee update. They also yield ~0.1x more throughput than sum or max. Whether this marginal gain justifies the added complexity is a design choice.
-
 3. **All functions can meet the 100 GiB/year state growth constraint.** The constraint is achievable with repricing multipliers of m=25 (sum), m=30 (max), or m=45 (asymmetric functions with $w_s = 0.6$).
-
 4. **Effective state prices increase moderately (1.6x-2.3x).** This is substantially less than the raw repricing multiplier because the equilibrium base fee drops. The asymmetric functions achieve the gentlest effective state price increase.
