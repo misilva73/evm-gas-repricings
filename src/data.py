@@ -88,7 +88,6 @@ def process_gas_bench_data(
     # Query trace data
     trace_df = process_test_trace_data(user, password, db_name, opcodes_sample)
     df = add_opcount_col(df, trace_df)
-    # df = df[~df["test_name"].str.contains("test_storage_access")]
     return df, trace_df
 
 

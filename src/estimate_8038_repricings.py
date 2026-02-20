@@ -67,6 +67,17 @@ if __name__ == "__main__":
             start_date,
             "stateful_" + db_type,
         )
+        # Excluding some bloatnet tests not relevant for repricings
+        state_gas_bench_df = state_gas_bench_df[
+            ~state_gas_bench_df["test_name"].isin(
+                [
+                    "test_mixed_sload_sstore",
+                    "test_sstore_erc20_approve",
+                    "test_sload_empty_erc20_balanceof",
+                    "test_storage_sload_same_key_benchmark",
+                ]
+            )
+        ]
         gas_bench_df = pd.concat(
             [compute_gas_bench_df, state_gas_bench_df], ignore_index=True
         )

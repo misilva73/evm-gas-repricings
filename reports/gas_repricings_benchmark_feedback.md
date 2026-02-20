@@ -229,5 +229,61 @@ This is the new run that introduces both stateful runs and uses the new Osaka fo
 - In the compute database, I am not finding the `test_account_query` and `test_unchunkified_bytecode` tests from this [PR](https://github.com/ethereum/execution-specs/pull/2138). This means we are missing the configs for `EXTCODE*`, `*CALL`, and `BALANCE` opcodes.
 - From the stateful database, I am excluding some tests as they don't seem relevant for repricings. Is this correct? Here is the excluded tests:
   - `test_mixed_sload_sstore`, `test_sstore_erc20_approve`, `test_sload_empty_erc20_balanceof`, `test_storage_sload_same_key_benchmark`
-- The metadata for `stateful_perf_devnet_2` and `stateful_mainnet` have an empty opcount of `SLOAD` for the test `test_storage_sload_benchmark`. I think something is not right with either the test or the metadata collection. This is also happening for a couple of the tests from `test_sstore_variants`
-- Labels in DB do not give any information on which state is being run on (i.e., mainnet vs. bloatnet)
+- Found issues with `test_storage_sload_benchmark`, `test_sstore_variants` and the `test_storage_access` tests for `SSTORE`. More info in the deep dive below.
+
+### ToDo's
+
+- [ ] Regenerate tests for the tests in this [PR](https://github.com/ethereum/execution-specs/pull/2138) and collect data.
+- [ ] Decide whether to use `test_storage_access` or whether to exclude them and focus on `test_storage_sload_benchmark` and `test_sstore_variants`.
+- [ ] Fix the `cold`/`warm` variant in `test_storage_sload_benchmark` and `test_sstore_variants` — the benchmarks do not actually vary the cold-access cost.
+- [ ] Fix the `new`/`existent` variant in `test_sstore_variants` - the benchmarks do not actually vary the new account cost.
+- [ ] Fix or replace `test_storage_access` for SSTORE** — current opcounts (6–54) are too low to produce meaningful regressions
+- [ ] Investigate why Nethermind contains more outliers — extreme runtime spikes at low opcounts degrade `SSTORE` model fits
+- [ ] Investigate why Geth `SLOAD` test have less data — 500 rows from 20 timestamps is thin compared to 1,100 rows for besu/nethermind
+
+#### SLOAD deep dive
+
+| Test | Cold/Warm Differentiation | Notes |
+|---|---|---|
+| `test_storage_access` | **Works**: 20.58x opcount ratio (expected ~21x) | Implied gas/op: warm=102, cold=2,105 |
+| `test_storage_sload_benchmark` | **Broken**: 1.05x ratio | warm/cold produce nearly identical opcounts |
+
+**`test_storage_sload_benchmark` issues:**
+
+- The `access_warm` flag has no effect on opcounts — cold and warm variants are indistinguishable
+- Geth cold=1 runtime is completely flat (std of means = 0.32ms across all opcounts), suggesting the cold access path is cached or short-circuited
+- Model R² is near zero for besu (0.001) and nethermind (0.002); geth achieves R²=0.71 only because `test_storage_access` contributes meaningful variation
+
+**`test_storage_access` works correctly for SLOAD:**
+
+- Provides clear cold/warm separation with expected ~21x opcount ratio
+- Runtime scales with opcount for all three clients
+- Devnet cross-validation confirms the same 20.58x ratio, ruling out machine-specific effects
+
+#### SSTORE deep dive
+
+| Test | Cold/Warm Differentiation | Notes |
+|---|---|---|
+| `test_sstore_variants` | **`cold` broken** (1.10x ratio), **`update` works** (2x–10x) | `new` param has no opcount effect |
+| `test_storage_access` | **Broken**: all variants have identical opcounts (6–54) | Implied gas/op ~5.6M — far too low opcount to be useful |
+
+**`test_sstore_variants` details:**
+
+- The `update` parameter produces meaningfully different opcounts: `update=0` yields ~147k max ops vs `update=1` at ~62k (update=0, new=0) or ~14k (update=1, new=1)
+- The `cold` parameter is broken: cold_0/cold_1 opcounts differ by only ~10%, same issue as the SLOAD benchmark
+- The `new` parameter has no independent effect on opcounts (new=0 and new=1 produce identical opcounts within each update/cold combination)
+- Per-variant regressions confirm that different variants do have different slopes, so parameter effects on runtime exist — they're just not captured by the cold flag
+- Model R² is good for geth (0.98) and decent for besu (0.80), but poor for nethermind (0.18) due to extreme outliers
+
+**`test_storage_access` is unusable for SSTORE:**
+
+- Opcounts are extremely low (6–54) across all parameter combinations
+- No differentiation between cold/warm or new/existing variants
+
+#### Client-specific issues
+
+| Issue | Affected | Evidence |
+|---|---|---|
+| Nethermind outliers | SSTORE | Runtimes up to ~3,500ms at low opcounts (system noise) |
+| Geth data scarcity | SLOAD | Only 500 rows (20 ingestion timestamps) vs 1,100 for other clients |
+| `cold` flag ineffective | Both SLOAD benchmark + SSTORE variants | All model `cold` coefficients are 0 or near-zero with p-values = 1.0 |
