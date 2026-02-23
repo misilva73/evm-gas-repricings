@@ -2,7 +2,7 @@
 
 #### Maria Silva, February 2026
 
-This report is a follow-up to our analyses of [aggregation functions under different elasticity regimes](https://ethresear.ch/t/analysis-of-different-aggregation-functions-for-eip-8037-under-different-elasticity-regimes/24033) and [empirical price elasticities](empirical_elasticities.md). Those studies identified the key trade-off between throughput and state growth and estimated the empirical elasticity ranges. Here, we combine both to find the optimal aggregation function and repricing multiplier for EIP-8037.
+This report is a follow-up to our analyses of [aggregation functions under different elasticity regimes](https://ethresear.ch/t/analysis-of-different-aggregation-functions-for-eip-8037-under-different-elasticity-regimes/24033) and [the empirical estimation of price elasticities](https://ethresear.ch/t/empirical-analysis-of-price-elasticities-for-ethereum-state-and-burst-resources/24166). Those analysis identified the key trade-off between throughput and state growth and estimated the empirical elasticity ranges. Here, we combine both to find the optimal aggregation function and repricing multiplier for EIP-8037.
 
 We introduce two new **asymmetric** aggregation functions that generalize the existing max function by adding a tunable state weight $w_s$. They were originally [proposed by Anders](https://ethresear.ch/t/two-resource-metered-gas-equations-for-eip-8037/23849#p-57868-h-5-asymmetric-targetlimit-ratios-8). We then search over the full parameter space $(m, w_s, \text{agg})$ to find the configuration that **maximizes throughput** while keeping **state growth below 100 GiB/year** for all elasticity pairs in the empirically estimated range.
 
@@ -19,7 +19,7 @@ The analysis can be reproduced by running this [notebook](https://github.com/mis
 
 Our [first report](https://ethresear.ch/t/analysis-of-different-aggregation-functions-for-eip-8037-under-different-elasticity-regimes/24033) analyzed three aggregation functions (sum, max, burst) across a wide grid of elasticities ($\varepsilon_s, \varepsilon_b \in [0.1, 1.5]$) and two fixed repricing multipliers (m=10 and m=18). That analysis showed a fundamental trade-off between throughput and state growth, and recommended empirical measurement of elasticities to choose between functions.
 
-Our [second report](empirical_elasticities.md) estimated those elasticities using daily Ethereum mainnet data and three gas limit increase events from 2025. The central result was that **state demand is moderately elastic** ($\varepsilon_s \approx 0.3$-$0.6$) while **burst demand is nearly inelastic** ($\varepsilon_b \approx 0.0$-$0.2$).
+Our [second report](https://ethresear.ch/t/empirical-analysis-of-price-elasticities-for-ethereum-state-and-burst-resources/24166) estimated those elasticities using daily Ethereum mainnet data and three gas limit increase events from 2025. The central result was that **state demand is moderately elastic** ($\varepsilon_s \approx 0.3$-$0.6$) while **burst demand is nearly inelastic** ($\varepsilon_b \approx 0.0$-$0.2$).
 
 This report builds on both: we use the empirical elasticity ranges to narrow the analysis and jointly optimize the aggregation function, repricing multiplier, and (for the new asymmetric functions) the state weight.
 
