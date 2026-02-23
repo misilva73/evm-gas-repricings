@@ -11,7 +11,7 @@
 
 **Notes:**
 
-- The `test_storage_access_warm` with the `WRITE_SAME_VALUE` config writes 0 -> 0 many times. This is not the same as writing the same value to an existent slot (e.g., 1 -> 1). In this case, the slot 0 was never set, so it doesn't exist in the storage trie. The client may short-circuit — it sees the slot is absent (default zero) and the new value is also zero, so there's nothing to do.
+- The `test_storage_access_warm_benchmark` and `test_storage_access_cold_benchmark` with the `WRITE_SAME_VALUE` config writes 0 -> 0 many times. This is not the same as writing the same value to an existent slot (e.g., 1 -> 1). In this case, the slot 0 was never set, so it doesn't exist in the storage trie. The client may short-circuit — it sees the slot is absent (default zero) and the new value is also zero, so there's nothing to do.
 
 ## Stateful bloatnet — single opcode — `tests/benchmark/stateful/bloatnet/test_single_opcode.py`
 
@@ -55,23 +55,27 @@
 | `test_storage_access_cold_benchmark` | Cold | Just created | New |
 | `test_storage_access_warm_benchmark` | Warm | Just created | New |
 | `test_sload_empty_erc20_balanceof` | Cold | **Varies** (`token_name`) | New |
-| `test_storage_sload_benchmark` | Cold (`access_warm`) ² | Just created | **Varies** (`storage_keys_pre_set`) |
-| `test_storage_sload_same_key_benchmark` | Warm | Just created | **Varies** (`storage_keys_pre_set`) |
+| `test_storage_sload_benchmark` | Depends on `storage_keys_pre_set`³ | Just created | **Varies** (`storage_keys_pre_set`)³ |
+| `test_storage_sload_same_key_benchmark` | Warm | Just created | **Varies** (`storage_keys_pre_set`)³ |
 
 ### SSTORE
 
-| Test | Cold/Warm | Storage Size | New/Existing Slot | Same/Different Value | Extra |
-|------|-----------|--------------|-------------------|----------------------|-------|
-| `test_storage_access_cold_benchmark` | Cold | Just created | New | **Varies** (`storage_action`) | |
-| `test_storage_access_warm_benchmark` | Warm | Just created | New | **Varies** (`storage_action`) | |
-| `test_sstore_erc20_approve` | Cold | **Varies** (`token_name`) | New | Different (0→nonzero) | |
-| `test_sstore_variants` | Cold (`access_warm`) ² | Just created | **Varies** (`initial_value`) | **Varies** (`write_value`) | **Pre-read** varies (`sloads_before_sstore`) |
+| Test | Cold/Warm | Storage Size | New/Existing Slot | Same/Different Value |
+|------|-----------|--------------|-------------------|----------------------|
+| `test_storage_access_cold_benchmark` | Cold | Just created | New | 0→0; 0→diff |
+| `test_storage_access_warm_benchmark` | Warm | Just created | New | 0→0⁴; 0→diff |
+| `test_sstore_erc20_approve` | Cold | **Varies** (`token_name`) | New | 0→diff |
+| `test_sstore_variants` | Depends on `initial_value`³ | Just created | **Varies** (`initial_value`) | **Varies** (`write_value`) |
 
 ### Notes
 
 **¹** `test_storage_access_warm` warms the slot via an initial SLOAD before looping. With `WRITE_SAME_VALUE`, this produces 0→0 repeatedly on a never-set slot — clients may short-circuit this as a no-op, so it does not measure the same thing as writing an existing nonzero value back to itself (nz→same).
 
 **²** `access_warm` uses access lists to pre-warm slots. Clients may not actually pre-fetch these slots, so cold and warm configs could yield identical runtimes. Thus, for now, we should only use the cold version of these tests.
+
+**³** `storage_keys_pre_set=True` pre-populates the storage slots before the benchmark, which also warms them. As a result, this variant will always measure warm access regardless of the `access_warm` setting. the same happens with the `initial_value` different from 0 in `test_sstore_variants`.
+
+**⁴** There is a [PR](https://github.com/ethereum/execution-specs/pull/2255) aiming to fix `test_storage_access_warm_benchmark`, so it does 1→1 instead of 0→0.
 
 ### Coverage gaps
 

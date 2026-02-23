@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 
 sys.path.append(str(Path(__file__).parent))
 from operation_gas_costs import get_fusaka_dict
-from operation_types import PRECOMPILES
+from operation_types import PRECOMPILES, CALL, STATEFUL
 
 
 opcodes_file_name = Path(__file__).parent.joinpath("opcodes_in_test_name.txt")
@@ -78,10 +78,22 @@ def process_gas_bench_data(
     df["client_name"] = df["client_name"].str.replace(
         "_repricings_stateful_mainnet", ""
     )
+    df["client_name"] = df["client_name"].str.replace("_repricings_compute_mainnet", "")
     # Process title column
     df = process_test_title_col(df)
     # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
     df = df[df["test_params"] != "bn128_add_infinities"]
+    # Filter the access_warm_True in test_sstore_variants and test_storage_sload_benchmark
+    df = df[
+        ~(
+            (
+                df["test_name"].isin(
+                    ["test_sstore_variants", "test_storage_sload_benchmark"]
+                )
+            )
+            & (df["test_title"].str.contains("access_warm_True"))
+        )
+    ]
     # filter opcodes in sample
     if opcodes_sample is not None:
         df = df[df["test_opcode"].isin(opcodes_sample)]
@@ -109,12 +121,6 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
         df.loc[mask, "test_title"].str.split("opcode_").str[1].str.split("-").str[0]
     )
     df["test_opcode"] = df["test_opcode"].str.split("]").str[0]
-    df["test_opcode"] = np.where(
-        df["test_name"] == "test_storage_sload_benchmark", "SLOAD", df["test_opcode"]
-    )
-    df["test_opcode"] = np.where(
-        df["test_name"] == "test_sstore_variants", "SSTORE", df["test_opcode"]
-    )
     # Process params
     bench_mask = df["test_title"].str.contains("benchmark_test-")
     df.loc[bench_mask, "test_params"] = (
@@ -126,14 +132,14 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
         .str.split("benchmark_test-")
         .str[1]
     )
-    engine_mask = df["test_title"].str.contains("_engine_x-")
+    engine_mask = df["test_title"].str.contains("blockchain_test-")
     df.loc[engine_mask, "test_params"] = (
         df.loc[engine_mask, "test_title"]
         .str.split("[")
         .str[1]
         .str.split("]")
         .str[0]
-        .str.split("_engine_x-")
+        .str.split("blockchain_test-")
         .str[1]
     )
     df.loc[bench_mask, "block_limit_million"] = (
@@ -152,8 +158,7 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
                 [
                     item
                     for item in x
-                    if item[:6]
-                    not in ["opcode", "opcoun", "", "benchm", "storag", "sloads"]
+                    if item[:6] not in ["opcode", "opcoun", "", "benchm"]
                 ]
                 if isinstance(x, list)
                 else []
@@ -199,17 +204,6 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
         "BLS12_PAIRING_CHECK",
         df["test_opcode"],
     )
-    # Format SSTORE and SLOAD
-    df["test_opcode"] = np.where(
-        df["test_name"].str.contains("test_storage_access"),
-        df["test_params"].str.split(" ").str[0].str.upper(),
-        df["test_opcode"],
-    )
-    df["test_opcode"] = np.where(
-        df["test_opcode"].str.contains("SSTORE_"),
-        df["test_opcode"].str.split("_").str[0],
-        df["test_opcode"],
-    )
     # Fixed misnamed operations
     df["test_opcode"] = np.where(
         df["test_opcode"] == "JUMPDESTS", "JUMPDEST", df["test_opcode"]
@@ -232,51 +226,164 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
     df["test_opcode"] = np.where(
         df["test_opcode"] == "BLS12_FP_TO_G2", "BLS12_MAP_FP2_TO_G2", df["test_opcode"]
     )
-    # Cold/warm param addition
-    df["extra_test_params"] = np.where(
+    df = process_storage_params(df)
+    df = process_account_params(df)
+    return df
+
+
+def process_storage_params(prev_df: pd.DataFrame) -> pd.DataFrame:
+    df = prev_df.copy()
+    # Set test_opcode for bloatnet storage tests not handled by process_test_title_col
+    df["test_opcode"] = np.where(
+        df["test_name"] == "test_storage_sload_benchmark", "SLOAD", df["test_opcode"]
+    )
+    df["test_opcode"] = np.where(
+        df["test_name"] == "test_storage_sload_same_key_benchmark",
+        "SLOAD",
+        df["test_opcode"],
+    )
+    df["test_opcode"] = np.where(
         df["test_name"].str.contains("test_storage_access"),
-        df["test_name"].apply(lambda x: "-cold_1" if "cold" in x else "-cold_0"),
-        "",
+        df["test_params"].str.split(" ").str[0].str.upper(),
+        df["test_opcode"],
     )
-    df["test_params"] = df["test_params"] + df["extra_test_params"]
-    # cold/warm for stateful configs
-    df["test_params"] = df["test_params"].str.replace("access_warm_True", "cold_0")
-    df["test_params"] = df["test_params"].str.replace("access_warm_False", "cold_1")
-    # New slot param addition
-    df["extra_test_params"] = np.where(
-        (df["test_opcode"] == "SSTORE")
-        & (df["test_name"].str.contains("test_storage_access")),
-        df["test_params"].apply(
-            lambda x: "-new_1-update_1" if "new" in x else "-new_0-update_1"
-        ),
-        "",
+    df["test_opcode"] = np.where(
+        df["test_opcode"].str.contains("SSTORE_"),
+        df["test_opcode"].str.split("_").str[0],
+        df["test_opcode"],
     )
-    df["test_params"] = df["test_params"] + df["extra_test_params"]
-    df = df.drop(columns=["extra_test_params"])
-    # new slot for stateful configs
-    df["test_params"] = df["test_params"].str.replace("zero_to_zero", "new_1-update_0")
-    df["test_params"] = df["test_params"].str.replace(
-        "zero_to_nonzero", "new_1-update_1"
+    # Initialize intermediate columns as NaN
+    storage_mask = df["test_opcode"].isin(["SLOAD", "SSTORE"])
+    for col in ["_cold", "_new", "_update", "_pre_read"]:
+        df[col] = np.nan
+    df["_storage_size"] = pd.Series(np.nan, index=df.index, dtype="object")
+    # --- 1. test_storage_access_cold_benchmark / test_storage_access_warm_benchmark ---
+    access_mask = df["test_name"].str.contains("test_storage_access", na=False)
+    df.loc[access_mask, "_cold"] = np.where(
+        df.loc[access_mask, "test_name"].str.contains("cold"), 1, 0
     )
-    df["test_params"] = df["test_params"].str.replace(
-        "nonzero_to_diff", "new_0-update_1"
+    df.loc[access_mask, "_new"] = 1  # always new slots
+    df.loc[access_mask, "_storage_size"] = 0.0  # always zero storage
+    # "SSTORE_same" / "SSTORE same value" → update 0; "SSTORE_new" / "SSTORE new value" → update 1
+    sstore_access = access_mask & (df["test_opcode"] == "SSTORE")
+    df.loc[sstore_access, "_update"] = np.where(
+        df.loc[sstore_access, "test_title"].str.contains("same", case=False), 0, 1
     )
-    df["test_params"] = df["test_params"].str.replace(
-        "nonzero_to_same", "new_0-update_0"
+    # --- 2. test_sload_empty_erc20_balanceof ---
+    erc20_sload = df["test_name"] == "test_sload_empty_erc20_balanceof"
+    df.loc[erc20_sload, "_cold"] = 1
+    df.loc[erc20_sload, "_new"] = 1
+    _token_to_int = {"IMT": 0.001, "USDC": 1.0, "XEN": 9.0, "30GB_ERC20": 30.0}
+    df.loc[erc20_sload, "_storage_size"] = (
+        df.loc[erc20_sload, "test_title"]
+        .str.extract(r"token_name_(\w+)", expand=False)
+        .map(_token_to_int)
     )
-    # Remove sload and sstore from test params
-    df["test_params"] = (
-        df["test_params"]
-        .str.split("-")
-        .apply(
-            lambda x: (
-                [item for item in x if item[:5] not in ["SSTOR", "SLOAD"]]
-                if isinstance(x, list)
-                else []
+    # --- 3. test_sstore_erc20_approve ---
+    erc20_sstore = df["test_name"] == "test_sstore_erc20_approve"
+    df.loc[erc20_sstore, "_cold"] = 1
+    df.loc[erc20_sstore, "_new"] = 1
+    df.loc[erc20_sstore, "_update"] = 1
+    df.loc[erc20_sstore, "_storage_size"] = (
+        df.loc[erc20_sstore, "test_title"]
+        .str.extract(r"token_name_(\w+)", expand=False)
+        .map(_token_to_int)
+    )
+    # --- 4. test_sstore_variants --- (this one will be filtered...)
+    variants = df["test_name"] == "test_sstore_variants"
+    df.loc[variants, "_cold"] = np.where(
+        df.loc[variants, "test_title"].str.contains("sloads_before_sstore_True"), 0, 1
+    )
+    # nonzero_to_* → existing slot (0); zero_to_* → new slot (1)
+    df.loc[variants, "_new"] = np.where(
+        df.loc[variants, "test_title"].str.contains("nonzero_to_"), 0, 1
+    )
+    # to_zero / to_same → no value change (0); to_nonzero / to_diff → value changes (1)
+    df.loc[variants, "_update"] = np.where(
+        df.loc[variants, "test_title"].str.contains("to_zero|to_same", regex=True), 0, 1
+    )
+    df.loc[variants, "_pre_read"] = np.where(
+        df.loc[variants, "test_title"].str.contains("sloads_before_sstore_True"), 1, 0
+    )
+    # --- 5. test_storage_sload_benchmark --- (this one will be filtered...)
+    sload_bench = df["test_name"] == "test_storage_sload_benchmark"
+    df.loc[sload_bench, "_cold"] = np.where(
+        df.loc[sload_bench, "test_title"].str.contains("access_warm_True"), 0, 1
+    )
+    df.loc[sload_bench, "_new"] = np.where(
+        df.loc[sload_bench, "test_title"].str.contains("storage_keys_pre_set_True"),
+        0,
+        1,
+    )
+    # --- 6. test_storage_sload_same_key_benchmark ---
+    same_key = df["test_name"] == "test_storage_sload_same_key_benchmark"
+    df.loc[same_key, "_cold"] = 0  # always warm
+    df.loc[same_key, "_new"] = np.where(
+        df.loc[same_key, "test_title"].str.contains("storage_keys_pre_set_True"), 0, 1
+    )
+    df.loc[same_key, "_storage_size"] = 0.0  # always zero storage
+    # --- Build test_params column ---
+    df.loc[storage_mask, "test_params"] = df.loc[storage_mask].apply(
+        _build_params, axis=1
+    )
+    # Drop intermediate columns
+    df = df.drop(columns=["_cold", "_new", "_update", "_storage_size", "_pre_read"])
+    return df
+
+
+def _build_params(row):
+    parts = []
+    for field in ["_cold", "_new", "_update", "_storage_size", "_pre_read"]:
+        val = row[field]
+        if pd.notna(val):
+            name = field.lstrip("_")
+            if isinstance(val, float) and val == int(val):
+                val = int(val)
+            parts.append(f"{name}_{val}")
+    return "-".join(parts) if parts else np.nan
+
+
+def _remove_constant_params(params_str: str, constant_params: set) -> str:
+    parts = params_str.split("-")
+    filtered = [p for p in parts if p.rsplit("_", 1)[0] not in constant_params]
+    return "-".join(filtered) if filtered else np.nan
+
+
+def process_account_params(prev_df: pd.DataFrame) -> pd.DataFrame:
+    df = prev_df.copy()
+    account_opcodes = set(CALL + STATEFUL).difference(set(["SSTORE", "SLOAD"]))
+    # warm / cold
+    df["test_params"] = np.where(
+        df["test_opcode"].isin(account_opcodes),
+        df["test_params"].str.replace("access_warm_True", "cold_0"),
+        df["test_params"],
+    )
+    df["test_params"] = np.where(
+        df["test_opcode"].isin(account_opcodes),
+        df["test_params"].str.replace("access_warm_False", "cold_1"),
+        df["test_params"],
+    )
+    # Remove parameters that don't vary per opcode
+    account_mask = df["test_opcode"].isin(account_opcodes)
+    for opcode in df.loc[account_mask, "test_opcode"].unique():
+        op_mask = df["test_opcode"] == opcode
+        unique_params = df.loc[op_mask, "test_params"].dropna().unique()
+        # Collect all values for each param name
+        all_parts = {}
+        for params_str in unique_params:
+            for part in params_str.split("-"):
+                name_value = part.rsplit("_", 1)
+                if len(name_value) == 2:
+                    name, value = name_value
+                    all_parts.setdefault(name, set()).add(value)
+        # Find params where only one value exists across all configs
+        constant_params = {name for name, values in all_parts.items() if len(values) == 1}
+        if constant_params:
+            df.loc[op_mask, "test_params"] = df.loc[op_mask, "test_params"].apply(
+                lambda x, cp=constant_params: (
+                    _remove_constant_params(x, cp) if pd.notna(x) else x
+                )
             )
-        )
-        .apply(lambda x: "-".join(x) if isinstance(x, list) else np.nan)
-    )
     return df
 
 

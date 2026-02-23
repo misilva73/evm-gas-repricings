@@ -36,3 +36,6 @@ test_blobhash
 test_jump_benchmark
 test_clz_same
 test_p256verify
+test_sload_empty_erc20_balanceof
+test_sstore_erc20_approve
+test_sstore_variants
