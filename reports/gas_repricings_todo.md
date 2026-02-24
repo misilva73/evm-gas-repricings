@@ -2,31 +2,28 @@
 
 ## Rollout milestones
 
-Middle of February:
-
-- we have preliminary numbers for all EIPs
-- we have a preliminary backward compatibility analysis
-
 End of February:
 
-- we have all BAL optimizations in client branches
-- we can benchmark state and compute operations with BALs
-- we can input gas changes into client branches and run benchmarks
-- we have execution specs for all EIPs (final for EIP-8037, with possible number changes for all the others)
-- we have reached out to all affected entities to collect their feedback on initial numbers
+- 🔴 we have preliminary numbers for all EIPs (missing for 8038)
+- 🔴 we have a preliminary backward compatibility analysis (missing for 8038)
+- ⚪ we have all BAL optimizations in client branches
+- ⚪ we can benchmark state and compute operations with BALs
+- ⚪ we can input gas changes into client branches and run benchmarks
+- 🟡 we have execution specs for all EIPs (final for EIP-8037, with possible number changes for all the others)
+- 🟢 we have reached out to all affected entities to collect their feedback on initial numbers
 
 End of March:
 
-- we have benchmarks for BAL worst-case blocks
-- we have a BAL + repricings devnet, and we start testing
-- we have reached out to all affected entities to collect their feedback on final numbers
-- we have done an internal security review with preliminary numbers
+- ⚪ we have benchmarks for BAL worst-case blocks
+- ⚪ we have a BAL + repricings devnet, and we start testing
+- ⚪ we have reached out to all affected entities to collect their feedback on final numbers
+- ⚪ we have done an internal security review with preliminary numbers
 
 End of April:
 
-- we have collected community feedback on the final numbers
-- we have done an external security review with preliminary numbers
-- we need to have everything ready for interop
+- ⚪ we have collected community feedback on the final numbers
+- ⚪ we have done an external security review with preliminary numbers
+- ⚪ we need to have everything ready for interop
 
 ## Current workstreams - goals for end of Feb
 
@@ -37,10 +34,6 @@ End of April:
   - [ ] Do we have all the cases in the ETH transfer tests for EIP-2780?
     - [ETH transfers PR](https://github.com/ethereum/execution-specs/pull/2171)
   - [ ] Do we have all the configurations for EIP-8038?
-    - [`SSTORE` + `SLOAD` PR](https://github.com/ethereum/execution-specs/pull/2147) -> Merged!
-    - Storage size configuration -> No PR yet
-    - [Account query PR](https://github.com/ethereum/execution-specs/pull/2138) -> Merged!
-    - [State stubs PR](https://github.com/ethereum/execution-specs/pull/2141) -> Merged!
 - [ ] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
 - [ ] [Rafael Matias] Finish Benchmarkoor and run stateful and compute benchmarks
 - [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers:
@@ -67,19 +60,19 @@ End of April:
   - [ ] Preliminary numbers for EIP-8038 + BAL data cost
   - [X] Align EIP-8037 with new spec
   - [X] Add [comments from spencer](https://github.com/ethereum/EIPs/pull/11292) to EIP-8037
-- [ ] Resolve EIP-8037 open questions:
-  - [ ] [Maria Silva] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
-  - [ ] [Maria Silva] Which stake growth rate (and cost increase) to target?
+- [X] Resolve EIP-8037 open questions:
+  - [X] [Maria Silva] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
+  - [X] [Maria Silva] Which stake growth rate (and cost increase) to target?
   - [X] [Maria Silva] Which rounding base for `cost_per_byte` to use?
   - [X] [Jochem Brouwer + Spencer] How to split the `CREATE` costs? This should be consistent with EIP-8038.
-  - [ ] [Jochem Brouwer + Spencer] Is the design compatible with BALs?
   - [X] `TX_MAX_GAS_LIMIT` enforcement: clarify that we want to enforce that max(intrinsic_regular_gas, calldata_floor_gas_cost) < `TX_MAX_GAS_LIMIT`, and leave `TX_MAS_GAS_LIMIT` - intrinsic_regular_gas available during execution. And what to do with the call data floor cost?
   - [X] [Jochem Brouwer + Spencer] Make sure the block output is consistent with EIP-7778 and gas accounting the receipts. What should cumulative gas be?
-- [ ] Create specs + devnet test:
+- [ ] Create specs + devnet tests:
   - [7904](https://github.com/ethereum/execution-specs/issues/1879)
-    - [spec + basic tests](https://github.com/ethereum/execution-specs/pull/2175)
+    - [spec + tests](https://github.com/ethereum/execution-specs/pull/2175)
   - [8038](https://github.com/ethereum/execution-specs/issues/1941)
   - [2780](https://github.com/ethereum/execution-specs/issues/1940)
+    - [spec + tests](https://github.com/ethereum/execution-specs/pull/2175)
   - [7976](https://github.com/ethereum/execution-specs/issues/1942)
     - [spec](https://github.com/ethereum/execution-specs/pull/2159)
   - [7981](https://github.com/ethereum/execution-specs/issues/1943)
