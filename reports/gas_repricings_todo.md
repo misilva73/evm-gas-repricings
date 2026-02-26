@@ -6,10 +6,10 @@ End of February:
 
 - 🔴 we have preliminary numbers for all EIPs (missing for 8038)
 - 🔴 we have a preliminary backward compatibility analysis (missing for 8038)
-- ⚪ we have all BAL optimizations in client branches
-- ⚪ we can benchmark state and compute operations with BALs
+- 🟡 we have all BAL optimizations in client branches
+- 🟢 we can benchmark state and compute operations with BALs
 - ⚪ we can input gas changes into client branches and run benchmarks
-- 🟡 we have execution specs for all EIPs (final for EIP-8037, with possible number changes for all the others)
+- 🔴 we have execution specs for all EIPs (missing for 8038 and 7904)
 - 🟢 we have reached out to all affected entities to collect their feedback on initial numbers
 
 End of March:
@@ -68,16 +68,16 @@ End of April:
   - [X] `TX_MAX_GAS_LIMIT` enforcement: clarify that we want to enforce that max(intrinsic_regular_gas, calldata_floor_gas_cost) < `TX_MAX_GAS_LIMIT`, and leave `TX_MAS_GAS_LIMIT` - intrinsic_regular_gas available during execution. And what to do with the call data floor cost?
   - [X] [Jochem Brouwer + Spencer] Make sure the block output is consistent with EIP-7778 and gas accounting the receipts. What should cumulative gas be?
 - [ ] Create specs + devnet tests:
-  - [7904](https://github.com/ethereum/execution-specs/issues/1879)
+  - [ ] [7904](https://github.com/ethereum/execution-specs/issues/1879)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2175)
-  - [8038](https://github.com/ethereum/execution-specs/issues/1941)
-  - [2780](https://github.com/ethereum/execution-specs/issues/1940)
+  - [ ] [8038](https://github.com/ethereum/execution-specs/issues/1941)
+  - [ ] [2780](https://github.com/ethereum/execution-specs/issues/1940)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2175)
-  - [7976](https://github.com/ethereum/execution-specs/issues/1942)
+  - [X] [7976](https://github.com/ethereum/execution-specs/issues/1942)
     - [spec](https://github.com/ethereum/execution-specs/pull/2159)
-  - [7981](https://github.com/ethereum/execution-specs/issues/1943)
+  - [X] [7981](https://github.com/ethereum/execution-specs/issues/1943)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2144)
-  - [8037](https://github.com/ethereum/execution-specs/issues/2040)
+  - [ ] [8037](https://github.com/ethereum/execution-specs/issues/2040)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2181)
 - [X] [Maria Silva] Estimate how much gas each byte of calldata should cost
   - After discussing with Toni, we agree that the 64/64 is enough to deal with worst cases. Let's make this simple for now.
