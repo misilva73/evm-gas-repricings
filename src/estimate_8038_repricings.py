@@ -87,8 +87,20 @@ if __name__ == "__main__":
             )
         ]
         gas_bench_df = gas_bench_df[
-            ~((gas_bench_df["test_opcode"] == "SLOAD")
-            & (gas_bench_df["test_name"] == "test_storage_access_warm_benchmark"))
+            ~(
+                (gas_bench_df["test_opcode"] == "SLOAD")
+                & (gas_bench_df["test_name"] == "test_storage_access_warm_benchmark")
+            )
+        ]
+        df = df[
+            ~(
+                (
+                    df["test_name"].isin(
+                        ["test_sstore_variants", "test_storage_sload_benchmark"]
+                    )
+                )
+                & (df["test_title"].str.contains("access_warm_True"))
+            )
         ]
         outfile = os.path.join(out_dir, f"gas_bench_data.csv")
         gas_bench_df.to_csv(outfile, index=False)

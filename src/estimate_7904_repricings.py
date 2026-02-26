@@ -62,6 +62,16 @@ if __name__ == "__main__":
     gas_bench_df = pd.concat(
         [compute_gas_bench_df, state_gas_bench_df], ignore_index=True
     )
+    # Filter ADDMOD and MULMOD fast tests
+    gas_bench_df = gas_bench_df[
+        ~(
+            (gas_bench_df["test_opcode"].isin(["ADDMOD", "MULMOD"]))
+            & (gas_bench_df["test_name"] == "test_arithmetic")
+        )
+    ]
+    # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
+    gas_bench_df = gas_bench_df[gas_bench_df["test_params"] != "bn128_add_infinities"]
+    # Save data
     outfile = os.path.join(out_dir, "gas_bench_data.csv")
     gas_bench_df.to_csv(outfile, index=False)
     trace_df = pd.concat([compute_trace_df, state_trace_df], ignore_index=True)

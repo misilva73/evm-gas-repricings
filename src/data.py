@@ -81,25 +81,12 @@ def process_gas_bench_data(
     df["client_name"] = df["client_name"].str.replace("_repricings_compute_mainnet", "")
     # Process title column
     df = process_test_title_col(df)
-    # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
-    df = df[df["test_params"] != "bn128_add_infinities"]
-    # Filter the access_warm_True in test_sstore_variants and test_storage_sload_benchmark
-    df = df[
-        ~(
-            (
-                df["test_name"].isin(
-                    ["test_sstore_variants", "test_storage_sload_benchmark"]
-                )
-            )
-            & (df["test_title"].str.contains("access_warm_True"))
-        )
-    ]
     # filter opcodes in sample
     if opcodes_sample is not None:
         df = df[df["test_opcode"].isin(opcodes_sample)]
     # Query trace data
     trace_df = process_test_trace_data(user, password, db_name, opcodes_sample)
-    df = add_opcount_col(df, trace_df)
+    df = df.merge(trace_df[["test_title", "opcount"]], on="test_title", how="left")
     return df, trace_df
 
 
@@ -377,7 +364,9 @@ def process_account_params(prev_df: pd.DataFrame) -> pd.DataFrame:
                     name, value = name_value
                     all_parts.setdefault(name, set()).add(value)
         # Find params where only one value exists across all configs
-        constant_params = {name for name, values in all_parts.items() if len(values) == 1}
+        constant_params = {
+            name for name, values in all_parts.items() if len(values) == 1
+        }
         if constant_params:
             df.loc[op_mask, "test_params"] = df.loc[op_mask, "test_params"].apply(
                 lambda x, cp=constant_params: (
@@ -404,14 +393,15 @@ def process_test_trace_data(
     traces_expanded = pd.json_normalize(trace_df["traces"])
     trace_df = pd.concat([trace_df.drop(columns=["traces"]), traces_expanded], axis=1)
     trace_df = process_test_title_col(trace_df)
+    trace_df = add_opcount_col(trace_df)
     if opcodes_sample is not None:
         trace_df = trace_df[trace_df["test_opcode"].isin(opcodes_sample)]
     return trace_df
 
 
-def add_opcount_col(df: pd.DataFrame, trace_df: pd.DataFrame) -> pd.DataFrame:
-    temp_trace_df = trace_df.copy()
-    temp_trace_df["opcount"] = temp_trace_df.apply(
+def add_opcount_col(trace_df: pd.DataFrame) -> pd.DataFrame:
+    new_trace_df = trace_df.copy()
+    new_trace_df["opcount"] = new_trace_df.apply(
         lambda row: (
             row["STATICCALL"]
             if row["test_opcode"] in PRECOMPILES
@@ -419,6 +409,4 @@ def add_opcount_col(df: pd.DataFrame, trace_df: pd.DataFrame) -> pd.DataFrame:
         ),
         axis=1,
     )
-    temp_trace_df = temp_trace_df[["test_title", "opcount"]]
-    new_df = df.merge(temp_trace_df, on="test_title", how="left")
-    return new_df
+    return new_trace_df

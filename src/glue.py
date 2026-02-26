@@ -11,21 +11,23 @@ from data import process_test_trace_data
 def get_glue_opcodes_by_test(
     user: str,
     password: str,
-    start_date: str,
+    db_name: str,
     opcodes_sample: List[str],
     eps: float = 0.05,
 ) -> Dict[str, Dict[str, float]]:
-    df = process_test_trace_data(user, password, start_date, opcodes_sample)
+    df = process_test_trace_data(user, password, db_name, opcodes_sample)
     # Compute pct diffs
     sorted_df = df.sort_values(
         by=["test_file", "test_name", "test_opcode", "test_params", "opcount"]
     )
     grouping_cols = ["test_file", "test_name", "test_opcode", "test_params"]
     opcode_cols = df.drop(
-        columns=grouping_cols + ["test_title", "opcount"]
+        columns=grouping_cols + ["test_title", "opcount", "block_limit_million"]
     ).columns.tolist()
     pct_diff_df = (
-        sorted_df.drop(columns=["test_title"]).groupby(grouping_cols).pct_change()
+        sorted_df.drop(columns=["test_title", "block_limit_million"])
+        .groupby(grouping_cols)
+        .pct_change()
     )
     pct_diff_df = pd.concat([sorted_df[grouping_cols], pct_diff_df], axis=1)
     # Compute glue_opcodes_by_test dict based on glie opcodes with the same diffs as the test opcode
