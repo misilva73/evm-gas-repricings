@@ -8,7 +8,7 @@ End of February:
 - 🔴 we have a preliminary backward compatibility analysis (missing for 8038)
 - 🟡 we have all BAL optimizations in client branches
 - 🟢 we can benchmark state and compute operations with BALs
-- ⚪ we can input gas changes into client branches and run benchmarks
+- 🟡 we can input gas changes into client branches and run benchmarks
 - 🔴 we have execution specs for all EIPs (missing for 8038 and 7904)
 - 🟢 we have reached out to all affected entities to collect their feedback on initial numbers
 
@@ -29,13 +29,16 @@ End of April:
 
 ### Benchmarking
 
-- [ ] [Louis Tsai] Review tests:
-  - [ ] Why are repricing tests for `ECPAIRING`, `ECRECOVER`, `KECCAK256`, and `SMOD` leading to cost decreases?
-  - [ ] Do we have all the cases in the ETH transfer tests for EIP-2780?
-    - [ETH transfers PR](https://github.com/ethereum/execution-specs/pull/2171)
-  - [ ] Do we have all the configurations for EIP-8038?
-- [ ] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
-- [ ] [Rafael Matias] Finish Benchmarkoor and run stateful and compute benchmarks
+- [ ] [Louis Tsai + Jochem Brouwer] Missing tests/configs:
+  - [ ] `test_mod` not appearing in Kamil's data -> are we missing a flag?
+  - [ ] Missing configs for storage access operations ([PR](https://github.com/ethereum/execution-specs/pull/2327))
+  - [ ] Missing configs for account access operations (no PR yet)
+  - [ ] Bloat new ERC20 contracts and deterministic addresses
+  - [ ] Investigate caching issue with `test_alt_bn128_benchmark` and `test_ecrecover`.
+    - The inputs are repeated, so for clients that cache results, the run-time will be much faster than a real ecPairing calculation without cache. I think we may need to update this test to vary the inputs
+- [X] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
+- [X] [Rafael Matias] Finish Benchmarkoor and run stateful and compute benchmarks
+- [ ] [Rafael Matias] Make data from Benchmarkoor SQL-queryable
 - [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers:
   - [x] EIP-7904
   - [ ] EIP-8038
