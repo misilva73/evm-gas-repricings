@@ -17,18 +17,27 @@ from nnls import fit_NNLS_without_low_diff_runs
 
 
 def estimate_run_time_for_simple_operation(
-    gas_bench_df: pd.DataFrame, opcode: str, md_file: MdUtils, out_dir: str
+    gas_bench_df: pd.DataFrame,
+    opcode: str,
+    md_file: MdUtils,
+    out_dir: str,
+    group_by: List[str] = ["client_name", "test_name"],
 ) -> List[dict[str, Any]]:
     md_file.new_header(level=1, title=opcode)
-    clients = gas_bench_df["client_name"].unique().tolist()
+    opcode_df = gas_bench_df[gas_bench_df["test_opcode"] == opcode]
     out_list = []
-    for client in clients:
-        md_file.new_header(level=2, title=f"{client}")
-        # filter data and extract variables
-        op_df = gas_bench_df[
-            (gas_bench_df["client_name"] == client)
-            & (gas_bench_df["test_opcode"] == opcode)
-        ]
+    last_values = [None] * len(group_by)
+    for group_values, op_df in opcode_df.groupby(group_by):
+        if not isinstance(group_values, tuple):
+            group_values = (group_values,)
+        # Write markdown headers only when a group level changes
+        for i, val in enumerate(group_values):
+            if val != last_values[i]:
+                md_file.new_header(level=i + 2, title=f"{val}")
+                last_values[i] = val
+                for j in range(i + 1, len(group_by)):
+                    last_values[j] = None
+        plot_label = f"{opcode}_{'_'.join(str(v) for v in group_values)}"
         try:
             # Fit linear regression model using NNLS
             result = fit_NNLS_without_low_diff_runs(op_df, ["opcount"])
@@ -40,7 +49,7 @@ def estimate_run_time_for_simple_operation(
         slope = result.params["opcount"]
         out_dict = {
             "opcode": opcode,
-            "client": client,
+            **{col: val for col, val in zip(group_by, group_values)},
             "nobs": result.nobs,
             "intercept": intercept,
             "intercept_pvalue": result.pvalues["const"],
@@ -58,19 +67,23 @@ def estimate_run_time_for_simple_operation(
         md_file.new_line("```")
         # Create and save plots
         create_and_save_1dim_nnls_regression_plot(
-            op_df, result, opcode, client, out_dir
+            op_df, result, opcode, group_values[0], out_dir, label=plot_label
         )
-        create_and_save_nnls_diagnostic_plots(result, opcode, client, out_dir)
-        create_and_save_nnls_bootstrap_diagnostic(result, opcode, client, out_dir)
+        create_and_save_nnls_diagnostic_plots(
+            result, opcode, group_values[0], out_dir, label=plot_label
+        )
+        create_and_save_nnls_bootstrap_diagnostic(
+            result, opcode, group_values[0], out_dir, label=plot_label
+        )
         # Add plots to markdown
         md_file.new_paragraph(
-            f'<img src="./figs/{opcode}_{client}_regression.png" alt="{opcode}_{client}_regression" width="600"/>'
+            f'<img src="./figs/{plot_label}_regression.png" alt="{plot_label}_regression" width="600"/>'
         )
         md_file.new_paragraph(
-            f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
+            f'<img src="./figs/{plot_label}_diagnostics.png" alt="{plot_label}_diagnostics" width="600"/>'
         )
         md_file.new_paragraph(
-            f'<img src="./figs/{opcode}_{client}_bootstrap.png" alt="{opcode}_{client}_bootstrap" width="600"/>'
+            f'<img src="./figs/{plot_label}_bootstrap.png" alt="{plot_label}_bootstrap" width="600"/>'
         )
         md_file.new_paragraph("")
     return out_list
@@ -82,22 +95,28 @@ def estimate_run_time_for_non_simple_operation(
     md_file: MdUtils,
     out_dir: str,
     params: List[str],
+    group_by: List[str] = ["client_name", "test_name"],
 ) -> List[dict[str, Any]]:
     md_file.new_header(level=1, title=opcode)
-    clients = gas_bench_df["client_name"].unique().tolist()
+    opcode_df = gas_bench_df[gas_bench_df["test_opcode"] == opcode]
+    # Process opcode parameters
+    for param in params:
+        opcode_df[param] = opcode_df["test_params"].apply(
+            lambda x: extract_param_values(x, param)
+        )
     out_list = []
-    for client in clients:
-        md_file.new_header(level=2, title=f"{client}")
-        # Filter data and extract variables
-        op_df = gas_bench_df[
-            (gas_bench_df["client_name"] == client)
-            & (gas_bench_df["test_opcode"] == opcode)
-        ]
-        # Process opcode parameters
-        for param in params:
-            op_df[param] = op_df["test_params"].apply(
-                lambda x: extract_param_values(x, param)
-            )
+    last_values = [None] * len(group_by)
+    for group_values, op_df in opcode_df.groupby(group_by):
+        if not isinstance(group_values, tuple):
+            group_values = (group_values,)
+        # Write markdown headers only when a group level changes
+        for i, val in enumerate(group_values):
+            if val != last_values[i]:
+                md_file.new_header(level=i + 2, title=f"{val}")
+                last_values[i] = val
+                for j in range(i + 1, len(group_by)):
+                    last_values[j] = None
+        plot_label = f"{opcode}_{'_'.join(str(v) for v in group_values)}"
         # Get feature matrix
         na_counts = op_df[params].isna().sum()
         extra_features = na_counts[na_counts != len(op_df)].index.to_list()
@@ -119,7 +138,7 @@ def estimate_run_time_for_non_simple_operation(
         slope = result.params["opcount"]
         out_dict = {
             "opcode": opcode,
-            "client": client,
+            **{col: val for col, val in zip(group_by, group_values)},
             "nobs": result.nobs,
             "intercept": intercept,
             "intercept_pvalue": result.pvalues["const"],
@@ -143,19 +162,23 @@ def estimate_run_time_for_non_simple_operation(
         md_file.new_line("```")
         # Create and save plots
         create_and_save_multidim_nnls_regression_plot(
-            op_df, result, opcode, client, out_dir, features
+            op_df, result, opcode, group_values[0], out_dir, features, label=plot_label
         )
-        create_and_save_nnls_diagnostic_plots(result, opcode, client, out_dir)
-        create_and_save_nnls_bootstrap_diagnostic(result, opcode, client, out_dir)
+        create_and_save_nnls_diagnostic_plots(
+            result, opcode, group_values[0], out_dir, label=plot_label
+        )
+        create_and_save_nnls_bootstrap_diagnostic(
+            result, opcode, group_values[0], out_dir, label=plot_label
+        )
         # Add plots to markdown
         md_file.new_paragraph(
-            f'<img src="./figs/{opcode}_{client}_regression.png" alt="{opcode}_{client}_regression" width="600"/>'
+            f'<img src="./figs/{plot_label}_regression.png" alt="{plot_label}_regression" width="600"/>'
         )
         md_file.new_paragraph(
-            f'<img src="./figs/{opcode}_{client}_diagnostics.png" alt="{opcode}_{client}_diagnostics" width="600"/>'
+            f'<img src="./figs/{plot_label}_diagnostics.png" alt="{plot_label}_diagnostics" width="600"/>'
         )
         md_file.new_paragraph(
-            f'<img src="./figs/{opcode}_{client}_bootstrap.png" alt="{opcode}_{client}_bootstrap" width="600"/>'
+            f'<img src="./figs/{plot_label}_bootstrap.png" alt="{plot_label}_bootstrap" width="600"/>'
         )
         md_file.new_paragraph("")
     return out_list

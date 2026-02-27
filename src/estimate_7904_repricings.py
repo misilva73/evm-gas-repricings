@@ -32,7 +32,7 @@ PARAM_MULTIPLIERS = {
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2026-01-15"
+    start_date = "2026-02-27"
     # Anchor rate for repricings
     anchor_rate = 60 * 1e6
     # Directories
@@ -62,10 +62,10 @@ if __name__ == "__main__":
     gas_bench_df = pd.concat(
         [compute_gas_bench_df, state_gas_bench_df], ignore_index=True
     )
-    # Filter ADDMOD and MULMOD fast tests
+    # Filter MOD, SMOD, ADDMOD and MULMOD fast tests
     gas_bench_df = gas_bench_df[
         ~(
-            (gas_bench_df["test_opcode"].isin(["ADDMOD", "MULMOD"]))
+            (gas_bench_df["test_opcode"].isin(["ADDMOD", "MULMOD", "MOD", "SMOD"]))
             & (gas_bench_df["test_name"] == "test_arithmetic")
         )
     ]

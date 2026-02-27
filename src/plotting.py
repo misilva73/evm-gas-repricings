@@ -18,13 +18,13 @@ def create_and_save_new_gas_plot(new_gas_df: pd.DataFrame, out_dir: str) -> None
     plot_df = new_gas_df.sort_values(["opcode", "param"]).reset_index(drop=True)
     # Get unique combinations and clients
     unique_combos = plot_df["opcode_param"].unique()
-    clients = plot_df["client"].unique()
+    clients = plot_df["client_name"].unique()
     # Create color palette
     palette = sns.color_palette("husl", n_colors=len(clients))
     client_colors = dict(zip(clients, palette))
     # Plot each client's data
     for idx, client in enumerate(clients):
-        client_data = plot_df[plot_df["client"] == client].copy()
+        client_data = plot_df[plot_df["client_name"] == client].copy()
         # Create y-positions with slight offsets for each client to avoid overlap
         y_positions = []
         for opcode_param in client_data["opcode_param"]:
@@ -75,6 +75,7 @@ def create_and_save_1dim_nnls_regression_plot(
     opcode: str,
     client: str,
     out_dir: str,
+    label: str = None,
 ) -> None:
     """
     Create and save 1D regression plot for NNLS model.
@@ -105,8 +106,9 @@ def create_and_save_1dim_nnls_regression_plot(
     )
     plt.legend()
     # Save plot
+    file_label = label or f"{opcode}_{client}"
     fig.savefig(
-        os.path.join(out_dir, "figs", f"{opcode}_{client}_regression.png"),
+        os.path.join(out_dir, "figs", f"{file_label}_regression.png"),
         dpi=144,
         bbox_inches="tight",
     )
@@ -120,6 +122,7 @@ def create_and_save_multidim_nnls_regression_plot(
     client: str,
     out_dir: str,
     all_features: List[str],
+    label: str = None,
 ) -> None:
     """
     Create and save multi-dimensional regression plot for NNLS model.
@@ -176,8 +179,9 @@ def create_and_save_multidim_nnls_regression_plot(
         f"Intercept: {intercept:.2f}, Slope: {slope:.2e}"
     )
     # Save plot
+    file_label = label or f"{opcode}_{client}"
     fig.savefig(
-        os.path.join(out_dir, "figs", f"{opcode}_{client}_regression.png"),
+        os.path.join(out_dir, "figs", f"{file_label}_regression.png"),
         dpi=144,
         bbox_inches="tight",
     )
@@ -189,6 +193,7 @@ def create_and_save_nnls_diagnostic_plots(
     opcode: str,
     client: str,
     out_dir: str,
+    label: str = None,
 ) -> None:
     """
     Create and save 2x2 diagnostic plot panel for NNLS model.
@@ -231,8 +236,9 @@ def create_and_save_nnls_diagnostic_plots(
     plt.suptitle(title, fontsize=14, fontweight="bold")
     plt.tight_layout()
     # Save plot
+    file_label = label or f"{opcode}_{client}"
     fig.savefig(
-        os.path.join(out_dir, "figs", f"{opcode}_{client}_diagnostics.png"),
+        os.path.join(out_dir, "figs", f"{file_label}_diagnostics.png"),
         dpi=144,
         bbox_inches="tight",
     )
@@ -244,6 +250,7 @@ def create_and_save_nnls_bootstrap_diagnostic(
     opcode: str,
     client: str,
     out_dir: str,
+    label: str = None,
 ) -> None:
     """
     Create and save bootstrap coefficient distribution plot.
@@ -276,7 +283,7 @@ def create_and_save_nnls_bootstrap_diagnostic(
         if len(np.unique(bootstrap_coefs[:, i])) > 1:
             ax.hist(
                 bootstrap_coefs[:, i],
-                bins=min(50, int(unique_samples/2)),
+                bins=min(50, int(unique_samples / 2)),
                 alpha=0.7,
                 edgecolor="black",
                 color="skyblue",
@@ -310,8 +317,9 @@ def create_and_save_nnls_bootstrap_diagnostic(
     )
     plt.tight_layout()
     # Save plot
+    file_label = label or f"{opcode}_{client}"
     fig.savefig(
-        os.path.join(out_dir, "figs", f"{opcode}_{client}_bootstrap.png"),
+        os.path.join(out_dir, "figs", f"{file_label}_bootstrap.png"),
         dpi=144,
         bbox_inches="tight",
     )

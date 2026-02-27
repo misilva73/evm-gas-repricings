@@ -54,7 +54,7 @@ if __name__ == "__main__":
     user = secrets_dict["gas_bench_username"]
     password = secrets_dict["gas_bench_password"]
     # Query raw data and save - bloatnet + mainnet
-    for db_type in ["mainnet", "perf_devnet_2"]:
+    for db_type in ["mainnet"]:
         out_dir = os.path.join(main_out_dir, db_type)
         os.makedirs(out_dir, exist_ok=True)
         os.makedirs(os.path.join(out_dir, "figs"), exist_ok=True)
@@ -90,16 +90,6 @@ if __name__ == "__main__":
             ~(
                 (gas_bench_df["test_opcode"] == "SLOAD")
                 & (gas_bench_df["test_name"] == "test_storage_access_warm_benchmark")
-            )
-        ]
-        df = df[
-            ~(
-                (
-                    df["test_name"].isin(
-                        ["test_sstore_variants", "test_storage_sload_benchmark"]
-                    )
-                )
-                & (df["test_title"].str.contains("access_warm_True"))
             )
         ]
         outfile = os.path.join(out_dir, f"gas_bench_data.csv")
