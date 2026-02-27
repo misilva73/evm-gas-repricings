@@ -30,46 +30,37 @@ End of April:
 ### Benchmarking
 
 - [ ] [Louis Tsai + Jochem Brouwer] Missing tests/configs:
-  - [ ] `test_mod` not appearing in Kamil's data -> are we missing a flag?
-  - [ ] Missing configs for storage access operations ([PR](https://github.com/ethereum/execution-specs/pull/2327))
-  - [ ] Missing configs for account access operations (no PR yet)
+  - [X] `test_mod` not appearing in Kamil's data -> are we missing a flag?
+  - [X] Missing configs for storage access operations ([PR](https://github.com/ethereum/execution-specs/pull/2327))
+  - [ ] Missing configs for account access operations
+    - [ ] [CREATE2 PR](https://github.com/ethereum/execution-specs/pull/2353)
+    - [ ] EOAs PR
   - [ ] Bloat new ERC20 contracts and deterministic addresses
   - [ ] Investigate caching issue with `test_alt_bn128_benchmark` and `test_ecrecover`.
     - The inputs are repeated, so for clients that cache results, the run-time will be much faster than a real ecPairing calculation without cache. I think we may need to update this test to vary the inputs
-- [X] [Kamil Chodola] Run stateful tests on top on mainnet and bloatnet with Nethermind's tool
-- [X] [Rafael Matias] Finish Benchmarkoor and run stateful and compute benchmarks
 - [ ] [Rafael Matias] Make data from Benchmarkoor SQL-queryable
 - [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers:
-  - [x] EIP-7904
   - [ ] EIP-8038
   - [ ] EIP-2780
-- [ ] [Louis Tsai] Make benchmark tests BAL-compatible
 
 ### Security and community outreach
 
 - [ ] [Carl Beekhuizen] Run backward compatibility analysis
-  - [ ] EIP-7904 with preliminary numbers
   - [ ] EIP-8038 with preliminary numbers
-  - [ ] EIP-2780 with preliminary numbers
-- [X] [Butta] Update repricings website with current numbers
-- [X] [Butta] Do a broad community outreach to ask for feedback
+  - [ ] EIP-7904 with final numbers
+  - [ ] EIP-8038 with final numbers
+  - [ ] EIP-2780 with final numbers
 - [ ] [Butta] Contact affected entities from backward compatibility analysis
+- [ ] [Butta] Contact affected entities from Call data analysis from Toni
+- [ ] [Butta] Contact entities how replied to first survey
 
-### EIP and spec
+### EIPs & Devnet integration
 
 - [ ] [Maria Silva] Update EIPs
-  - [X] Operations to reprice in EIP-7904
-  - [X] Preliminary numbers for EIP-7904
   - [ ] Preliminary numbers for EIP-8038 + BAL data cost
-  - [X] Align EIP-8037 with new spec
-  - [X] Add [comments from spencer](https://github.com/ethereum/EIPs/pull/11292) to EIP-8037
-- [X] Resolve EIP-8037 open questions:
-  - [X] [Maria Silva] Which aggregation function to use to avoid [failure modes](https://ethresear.ch/t/failure-modes-in-eip-8037-and-state-gas-scaling/23975)?
-  - [X] [Maria Silva] Which stake growth rate (and cost increase) to target?
-  - [X] [Maria Silva] Which rounding base for `cost_per_byte` to use?
-  - [X] [Jochem Brouwer + Spencer] How to split the `CREATE` costs? This should be consistent with EIP-8038.
-  - [X] `TX_MAX_GAS_LIMIT` enforcement: clarify that we want to enforce that max(intrinsic_regular_gas, calldata_floor_gas_cost) < `TX_MAX_GAS_LIMIT`, and leave `TX_MAS_GAS_LIMIT` - intrinsic_regular_gas available during execution. And what to do with the call data floor cost?
-  - [X] [Jochem Brouwer + Spencer] Make sure the block output is consistent with EIP-7778 and gas accounting the receipts. What should cumulative gas be?
+  - [ ] Final numbers for 7904
+  - [ ] Final numbers for 8038
+  - [ ] Final numbers for 2780
 - [ ] Create specs + devnet tests:
   - [ ] [7904](https://github.com/ethereum/execution-specs/issues/1879)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2175)
@@ -82,11 +73,6 @@ End of April:
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2144)
   - [ ] [8037](https://github.com/ethereum/execution-specs/issues/2040)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2181)
-- [X] [Maria Silva] Estimate how much gas each byte of calldata should cost
-  - After discussing with Toni, we agree that the 64/64 is enough to deal with worst cases. Let's make this simple for now.
-
-### Devnet integration
-
 - [ ] [Toni Wahrstätter] Implement BAL optimizations in all the major clients
   - [ ] State writes: parallel state root calculation
     - Missing clients: Erigon and Reth
