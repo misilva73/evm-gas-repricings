@@ -131,6 +131,134 @@ We also plot some diagnostic graphs for each operation and client combination to
     md_file.create_md_file()
 
 
+def select_worst_case_estimates(
+    results_df: pd.DataFrame,
+    params: List[str],
+    group_by: List[str],
+    anchor_rate: float,
+    params_multipliers: Dict[str, float],
+) -> tuple:
+    """Select worst-case runtime estimates and compute new gas costs.
+
+    For each (opcode, param, client), selects the worst-case runtime across
+    test configurations. If any configuration has a statistically significant
+    fit (p-value < 0.05), the worst case among significant fits is used.
+    Otherwise, the worst case from all configurations is used.
+
+    Also tracks poor fit models (R² <= 0.5).
+
+    Returns:
+        (new_gas_df, poor_fit_dict) where new_gas_df is a DataFrame with
+        new gas cost estimates and poor_fit_dict maps (opcode, param) tuples
+        to sets of client names with poor fits.
+    """
+    all_params = ["slope"] + params
+    new_gas_df = pd.DataFrame()
+    poor_fit_dict = dict()
+    for param in all_params:
+        if param not in results_df.columns:
+            continue
+        pvalue_col = param + "_pvalue"
+        conf_low_col = param + "_conf_int_low"
+        conf_high_col = param + "_conf_int_high"
+        selected_rows = []
+        for (opcode, client), group_df in results_df.groupby(["opcode", "client_name"]):
+            valid = group_df[group_df[param].notna()]
+            if valid.empty:
+                continue
+            good_fits = valid[valid[pvalue_col] < 0.05]
+            if len(good_fits) > 0:
+                selected = good_fits.loc[good_fits[param].idxmax()]
+            else:
+                selected = valid.loc[valid[param].idxmax()]
+                if (opcode, param) not in poor_fit_dict:
+                    poor_fit_dict[(opcode, param)] = {client}
+                else:
+                    poor_fit_dict[(opcode, param)].add(client)
+            selected_rows.append(selected)
+        if not selected_rows:
+            continue
+        param_df = pd.DataFrame(selected_rows)[
+            ["opcode", param, conf_low_col, conf_high_col] + group_by
+        ]
+        param_df = param_df.rename(
+            columns={
+                param: "runtime_ms",
+                conf_low_col: "conf_int_low",
+                conf_high_col: "conf_int_high",
+            }
+        )
+        multiplier = params_multipliers.get(param, 1.0)
+        param_df["new_gas"] = (anchor_rate * param_df["runtime_ms"] * multiplier) / 1e3
+        param_df["new_gas_rounded"] = np.ceil(param_df["new_gas"])
+        param_df["new_gas_conf_int_low"] = np.ceil(
+            (anchor_rate * param_df["conf_int_low"]) / 1e3
+        )
+        param_df["new_gas_conf_int_high"] = np.ceil(
+            (anchor_rate * param_df["conf_int_high"]) / 1e3
+        )
+        param_df["param"] = "constant" if param == "slope" else param
+        new_gas_df = pd.concat([new_gas_df, param_df], ignore_index=True)
+    # Track poor fitted models (R² <= 0.5)
+    poor_fit_model_df = results_df[(results_df["rsquared"] <= 0.5)][
+        ["opcode", "client_name"]
+    ].dropna()
+    for row in poor_fit_model_df.itertuples():
+        if (row.opcode, "Model") not in poor_fit_dict:
+            poor_fit_dict[(row.opcode, "Model")] = {row.client_name}
+        else:
+            poor_fit_dict[(row.opcode, "Model")].add(row.client_name)
+    return new_gas_df, poor_fit_dict
+
+
+def compute_worst_gas_proposal(new_gas_df: pd.DataFrame) -> pd.DataFrame:
+    """Compute worst-case gas costs across all clients.
+
+    Groups by (opcode, param), takes the max new_gas_rounded per group,
+    adds current gas costs, and computes relative change.
+
+    Returns:
+        DataFrame with columns: opcode, param, new_gas_rounded, current_gas, change.
+    """
+    worst_gas_df = (
+        new_gas_df.groupby(["opcode", "param"])["new_gas_rounded"]
+        .max()
+        .reset_index()
+        .sort_index()
+    )
+    worst_gas_df["current_gas"] = worst_gas_df.apply(
+        lambda row: get_current_gas_cost(row["opcode"], row["param"]), axis=1
+    )
+    worst_gas_df["change"] = (
+        worst_gas_df["new_gas_rounded"] / worst_gas_df["current_gas"] - 1
+    )
+    worst_gas_df["change"] = worst_gas_df["change"].round(2)
+    return worst_gas_df
+
+
+def find_missing_client_estimations(results_df: pd.DataFrame) -> Dict[str, List[str]]:
+    """Find opcodes that are missing estimations for some clients.
+
+    Checks against the expected set of 5 clients (geth, reth, nethermind,
+    besu, erigon) and returns which clients are missing per opcode.
+
+    Returns:
+        Dict mapping opcode -> sorted list of missing client names.
+        Empty dict if all opcodes have all 5 clients.
+    """
+    estimation_by_client = results_df.groupby("opcode")["client_name"].nunique()
+    all_clients = {"geth", "reth", "nethermind", "besu", "erigon"}
+    opcodes_with_missing_clients = estimation_by_client[estimation_by_client < 5].index
+    missing_clients_by_opcode = {}
+    for opcode in opcodes_with_missing_clients:
+        present_clients = set(
+            results_df[results_df["opcode"] == opcode]["client_name"].unique()
+        )
+        missing_clients = all_clients - present_clients
+        missing_clients_by_opcode[opcode] = sorted(missing_clients)
+    return missing_clients_by_opcode
+
+
 def generate_repricings_report(
     start_date: str,
     end_date: str,
@@ -186,90 +314,13 @@ from all configurations is used. Operations with no significant fits are listed 
 in the "Errors and caveats" section.
 """
     )
-    # Load estimation results
+    # Load estimation results and compute new gas costs
     results_df = pd.read_csv(os.path.join(out_dir, f"results.csv"))
-    # Process estimation results and compute new gas costs
-    # For each (opcode, param, client), select worst case across test configs:
-    # - If any configs have p-value < 0.05: take max runtime from those good fits
-    # - Otherwise: take max runtime from all configs (poor fits)
-    all_params = ["slope"] + params
-    new_gas_df = pd.DataFrame()
-    poor_fit_dict = dict()
-    for param in all_params:
-        if param not in results_df.columns:
-            continue
-        pvalue_col = param + "_pvalue"
-        conf_low_col = param + "_conf_int_low"
-        conf_high_col = param + "_conf_int_high"
-        # For each (opcode, client), select the worst case based on p-value
-        selected_rows = []
-        for (opcode, client), group_df in results_df.groupby(["opcode", "client_name"]):
-            valid = group_df[group_df[param].notna()]
-            if valid.empty:
-                continue
-            good_fits = valid[valid[pvalue_col] < 0.05]
-            if len(good_fits) > 0:
-                # Take the one with the largest runtime from good fits
-                selected = good_fits.loc[good_fits[param].idxmax()]
-            else:
-                # No good fits - take the one with the largest runtime
-                selected = valid.loc[valid[param].idxmax()]
-                # Track as poor fit
-                if (opcode, param) not in poor_fit_dict:
-                    poor_fit_dict[(opcode, param)] = {client}
-                else:
-                    poor_fit_dict[(opcode, param)].add(client)
-            selected_rows.append(selected)
-        if not selected_rows:
-            continue
-        param_df = pd.DataFrame(selected_rows)[
-            ["opcode", param, conf_low_col, conf_high_col] + group_by
-        ]
-        param_df = param_df.rename(
-            columns={
-                param: "runtime_ms",
-                conf_low_col: "conf_int_low",
-                conf_high_col: "conf_int_high",
-            }
-        )
-        multiplier = params_multipliers.get(param, 1.0)
-        param_df["new_gas"] = (anchor_rate * param_df["runtime_ms"] * multiplier) / 1e3
-        param_df["new_gas_rounded"] = np.ceil(param_df["new_gas"])
-        param_df["new_gas_conf_int_low"] = np.ceil(
-            (anchor_rate * param_df["conf_int_low"]) / 1e3
-        )
-        param_df["new_gas_conf_int_high"] = np.ceil(
-            (anchor_rate * param_df["conf_int_high"]) / 1e3
-        )
-        param_df["param"] = "constant" if param == "slope" else param
-        new_gas_df = pd.concat([new_gas_df, param_df], ignore_index=True)
-    # Track poor fitted models (R² <= 0.5)
-    poor_fit_model_df = results_df[(results_df["rsquared"] <= 0.5)][
-        ["opcode", "client_name"]
-    ].dropna()
-    for row in poor_fit_model_df.itertuples():
-        if (row.opcode, "Model") not in poor_fit_dict:
-            poor_fit_dict[(row.opcode, "Model")] = {row.client_name}
-        else:
-            poor_fit_dict[(row.opcode, "Model")].add(row.client_name)
-    # Save cost estimation
+    new_gas_df, poor_fit_dict = select_worst_case_estimates(
+        results_df, params, group_by, anchor_rate, params_multipliers
+    )
     new_gas_df.to_csv(os.path.join(out_dir, f"new_gas.csv"), index=False)
-    # Get worse per client
-    worst_gas_df = (
-        new_gas_df.groupby(["opcode", "param"])["new_gas_rounded"]
-        .max()
-        .reset_index()
-        .sort_index()
-    )
-    # Add current gas costs
-    worst_gas_df["current_gas"] = worst_gas_df.apply(
-        lambda row: get_current_gas_cost(row["opcode"], row["param"]), axis=1
-    )
-    # Calculate increase
-    worst_gas_df["change"] = (
-        worst_gas_df["new_gas_rounded"] / worst_gas_df["current_gas"] - 1
-    )
-    worst_gas_df["change"] = worst_gas_df["change"].round(2)
+    worst_gas_df = compute_worst_gas_proposal(new_gas_df)
     # Add worst gas table to markdown report
     md_file.new_header(level=2, title="New gas proposal", add_table_of_contents="n")
     md_file.new_paragraph(
@@ -336,16 +387,7 @@ in the "Errors and caveats" section.
             md_file.new_list([f"{opcode} - {param} - {', '.join(clients)}"])
     md_file.new_paragraph()
     # Add section on clients with missing estimations
-    estimation_by_client = results_df.groupby("opcode")["client_name"].nunique()
-    all_clients = set({"geth", "reth", "nethermind", "besu", "erigon"})
-    opcodes_with_missing_clients = estimation_by_client[estimation_by_client < 5].index
-    missing_clients_by_opcode = {}
-    for opcode in opcodes_with_missing_clients:
-        present_clients = set(
-            results_df[results_df["opcode"] == opcode]["client_name"].unique()
-        )
-        missing_clients = all_clients - present_clients
-        missing_clients_by_opcode[opcode] = sorted(missing_clients)
+    missing_clients_by_opcode = find_missing_client_estimations(results_df)
     if len(missing_clients_by_opcode) == 0:
         md_file.new_paragraph("All operations have estimations for all clients.")
     else:
