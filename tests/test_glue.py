@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -6,7 +7,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 
-from glue import get_glue_opcodes_by_test, generate_glue_opcode_report
+from glue import get_glue_opcodes_by_test, compute_glue_adjustment, generate_glue_opcode_report
 
 
 def _make_trace_df(rows, opcode_cols):
@@ -65,43 +66,28 @@ def _linear_group(
     return rows
 
 
-def _filter_group(
-    result_df, test_file, test_name, test_opcode, test_params, block_limit_million=30
-):
+def _filter_group(result_df, test_file, test_name, test_opcode, test_params):
     """Return rows from result_df matching the given grouping key."""
     mask = (
         (result_df["test_file"] == test_file)
         & (result_df["test_name"] == test_name)
         & (result_df["test_opcode"] == test_opcode)
         & (result_df["test_params"] == test_params)
-        & (result_df["block_limit_million"] == block_limit_million)
     )
     return result_df[mask]
 
 
-def _get_glue_opcodes(
-    result_df, test_file, test_name, test_opcode, test_params, block_limit_million=30
-):
+def _get_glue_opcodes(result_df, test_file, test_name, test_opcode, test_params):
     """Return the set of glue_opcode values for a given group."""
-    group = _filter_group(
-        result_df, test_file, test_name, test_opcode, test_params, block_limit_million
-    )
+    group = _filter_group(result_df, test_file, test_name, test_opcode, test_params)
     return set(group["glue_opcode"].values)
 
 
 def _get_ratio(
-    result_df,
-    test_file,
-    test_name,
-    test_opcode,
-    test_params,
-    glue_opcode,
-    block_limit_million=30,
+    result_df, test_file, test_name, test_opcode, test_params, glue_opcode
 ):
     """Return the ratio value for a specific group + glue_opcode."""
-    group = _filter_group(
-        result_df, test_file, test_name, test_opcode, test_params, block_limit_million
-    )
+    group = _filter_group(result_df, test_file, test_name, test_opcode, test_params)
     row = group[group["glue_opcode"] == glue_opcode]
     assert len(row) == 1, f"Expected 1 row for {glue_opcode}, got {len(row)}"
     return row["ratio"].iloc[0]
@@ -161,6 +147,15 @@ def multi_glue_df():
     opcode_ratios = {"ADD": (0.5, 0), "MUL": (0.3, 0), "SUB": (0, 10)}
     rows = _linear_group("f.py", "test_mg", "PUSH1", "p1", 8, opcode_ratios)
     return _make_trace_df(rows, ["ADD", "MUL", "SUB"])
+
+
+@pytest.fixture
+def low_ratio_df():
+    """ADD scales with opcount but with a very small ratio (0.0004 < 0.0005 threshold).
+    Should be filtered out despite high correlation."""
+    opcode_ratios = {"ADD": (0.0004, 0)}
+    rows = _linear_group("f.py", "test_low_ratio", "PUSH1", "p1", 8, opcode_ratios)
+    return _make_trace_df(rows, ["ADD"])
 
 
 @pytest.fixture
@@ -259,6 +254,11 @@ class TestGetGlueOpcodesByTest:
         assert _get_ratio(result, "f.py", "test_mg", "PUSH1", "p1", "ADD") == pytest.approx(0.5)
         assert _get_ratio(result, "f.py", "test_mg", "PUSH1", "p1", "MUL") == pytest.approx(0.3)
 
+    def test_low_ratio_filtered_out(self, low_ratio_df):
+        """ADD has ratio 0.0004 (< 0.0005 threshold) → filtered out."""
+        result = get_glue_opcodes_by_test(low_ratio_df)
+        assert result.empty
+
     def test_negative_correlation_not_detected(self, negative_corr_df):
         """ADD decreases as opcount grows → negative correlation → not detected."""
         result = get_glue_opcodes_by_test(negative_corr_df)
@@ -293,10 +293,194 @@ class TestGetGlueOpcodesByTest:
 
 
 # ---------------------------------------------------------------------------
-# Tests for generate_glue_opcode_report (currently a no-op)
+# Tests for compute_glue_adjustment
 # ---------------------------------------------------------------------------
 
 
-class TestGenerateGlueOpcodeReport:
-    def test_returns_none(self):
-        assert generate_glue_opcode_report() is None
+def _make_glue_results_df(rows):
+    """Build a DataFrame matching glue_results.csv shape."""
+    return pd.DataFrame(rows)
+
+
+def _make_glue_opcodes_by_test(rows):
+    """Build a DataFrame matching glue_opcodes_by_test.csv shape."""
+    return pd.DataFrame(rows)
+
+
+class TestComputeGlueAdjustment:
+    def test_basic_single_glue_opcode(self):
+        """Single glue opcode -> adjustment = ratio * runtime."""
+        glue_results = _make_glue_results_df(
+            [{"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9}]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_add",
+                    "test_name": "test_add",
+                    "test_opcode": "ADD",
+                    "test_params": "default",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 3.0,
+                }
+            ]
+        )
+        result = compute_glue_adjustment(glue_results, glue_by_test)
+        assert len(result) == 1
+        assert result.iloc[0]["opcode"] == "ADD"
+        assert result.iloc[0]["client_name"] == "geth"
+        assert np.isclose(result.iloc[0]["glue_adjustment"], 3.0 * 0.001)
+
+    def test_multiple_glue_opcodes_summed(self):
+        """Multiple glue opcodes -> adjustment is sum of ratio * runtime."""
+        glue_results = _make_glue_results_df(
+            [
+                {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9},
+                {"client": "geth", "glue_opcode": "CALL", "runtime": 0.005, "p_value": 0.0, "rsquared": 0.9},
+            ]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_add",
+                    "test_name": "test_add",
+                    "test_opcode": "ADD",
+                    "test_params": "default",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 2.0,
+                },
+                {
+                    "test_file": "test_add",
+                    "test_name": "test_add",
+                    "test_opcode": "ADD",
+                    "test_params": "default",
+                    "glue_opcode": "CALL",
+                    "corr": 0.99,
+                    "ratio": 1.0,
+                },
+            ]
+        )
+        result = compute_glue_adjustment(glue_results, glue_by_test)
+        assert len(result) == 1
+        expected = 2.0 * 0.001 + 1.0 * 0.005
+        assert np.isclose(result.iloc[0]["glue_adjustment"], expected)
+
+    def test_averages_ratio_across_test_params(self):
+        """When multiple test_params exist, ratio is averaged."""
+        glue_results = _make_glue_results_df(
+            [{"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9}]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_balance",
+                    "test_name": "test_balance",
+                    "test_opcode": "BALANCE",
+                    "test_params": "cold_0",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 5.0,
+                },
+                {
+                    "test_file": "test_balance",
+                    "test_name": "test_balance",
+                    "test_opcode": "BALANCE",
+                    "test_params": "cold_1",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 3.0,
+                },
+            ]
+        )
+        result = compute_glue_adjustment(glue_results, glue_by_test)
+        assert len(result) == 1
+        # Average ratio = (5.0 + 3.0) / 2 = 4.0
+        expected = 4.0 * 0.001
+        assert np.isclose(result.iloc[0]["glue_adjustment"], expected)
+
+    def test_per_client_adjustment(self):
+        """Different clients get different adjustments based on their glue runtimes."""
+        glue_results = _make_glue_results_df(
+            [
+                {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9},
+                {"client": "reth", "glue_opcode": "PUSH1", "runtime": 0.002, "p_value": 0.0, "rsquared": 0.9},
+            ]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_add",
+                    "test_name": "test_add",
+                    "test_opcode": "ADD",
+                    "test_params": "default",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 3.0,
+                }
+            ]
+        )
+        result = compute_glue_adjustment(glue_results, glue_by_test)
+        assert len(result) == 2
+        geth_row = result[result["client_name"] == "geth"].iloc[0]
+        reth_row = result[result["client_name"] == "reth"].iloc[0]
+        assert np.isclose(geth_row["glue_adjustment"], 3.0 * 0.001)
+        assert np.isclose(reth_row["glue_adjustment"], 3.0 * 0.002)
+
+    def test_excludes_poor_pvalue_glue_opcodes(self):
+        """Glue opcodes with p_value >= 0.05 are excluded from adjustment."""
+        glue_results = _make_glue_results_df(
+            [
+                {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9},
+                {"client": "geth", "glue_opcode": "CALL", "runtime": 0.005, "p_value": 0.10, "rsquared": 0.3},
+            ]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_add",
+                    "test_name": "test_add",
+                    "test_opcode": "ADD",
+                    "test_params": "default",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 2.0,
+                },
+                {
+                    "test_file": "test_add",
+                    "test_name": "test_add",
+                    "test_opcode": "ADD",
+                    "test_params": "default",
+                    "glue_opcode": "CALL",
+                    "corr": 0.99,
+                    "ratio": 1.0,
+                },
+            ]
+        )
+        result = compute_glue_adjustment(glue_results, glue_by_test)
+        assert len(result) == 1
+        # Only PUSH1 (p=0.0) contributes; CALL (p=0.10) is excluded
+        expected = 2.0 * 0.001
+        assert np.isclose(result.iloc[0]["glue_adjustment"], expected)
+
+    def test_no_matching_glue_opcode(self):
+        """When glue opcode has no runtime estimate, it's excluded (inner join)."""
+        glue_results = _make_glue_results_df(
+            [{"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9}]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_add",
+                    "test_name": "test_add",
+                    "test_opcode": "ADD",
+                    "test_params": "default",
+                    "glue_opcode": "UNKNOWN_OP",
+                    "corr": 0.99,
+                    "ratio": 3.0,
+                }
+            ]
+        )
+        result = compute_glue_adjustment(glue_results, glue_by_test)
+        assert len(result) == 0

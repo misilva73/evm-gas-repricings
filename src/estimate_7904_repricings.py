@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).parent))
 import operation_types
 from data import process_gas_bench_data
 from reports import generate_repricings_report, generate_runtime_report
+from glue import generate_glue_opcode_report
 
 
 PARAMS = [
@@ -32,7 +33,7 @@ PARAM_MULTIPLIERS = {
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2026-02-27"
+    start_date = "2026-01-27"
     # Anchor rate for repricings
     anchor_rate = 60 * 1e6
     # Directories
@@ -86,6 +87,16 @@ if __name__ == "__main__":
         simple_operations=operation_types.SIMPLE_EIP_7904,
         variable_operations=operation_types.VARIABLE_EIP_7904,
     )
+    generate_glue_opcode_report(
+        start_date=start_date,
+        end_date=run_time.strftime("%Y-%m-%d"),
+        eip_number=7904,
+        gas_bench_df=gas_bench_df,
+        trace_df=trace_df,
+        out_dir=out_dir,
+        target_opcodes=operation_types.SIMPLE_EIP_7904
+        + operation_types.VARIABLE_EIP_7904,
+    )
     generate_repricings_report(
         start_date=start_date,
         end_date=run_time.strftime("%Y-%m-%d"),
@@ -94,4 +105,6 @@ if __name__ == "__main__":
         eip_number=7904,
         params=PARAMS,
         params_multipliers=PARAM_MULTIPLIERS,
+        target_operations=operation_types.SIMPLE_EIP_7904
+        + operation_types.VARIABLE_EIP_7904,
     )

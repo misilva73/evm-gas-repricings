@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).parent))
 import operation_types
 from data import process_gas_bench_data
 from reports import generate_repricings_report, generate_runtime_report
+from glue import generate_glue_opcode_report
 
 PARAMS = [
     "new",
@@ -105,6 +106,15 @@ if __name__ == "__main__":
             params=PARAMS,
             variable_operations=operation_types.STATEFUL + operation_types.CALL,
         )
+        generate_glue_opcode_report(
+            start_date=start_date,
+            end_date=run_time.strftime("%Y-%m-%d"),
+            eip_number=8038,
+            gas_bench_df=gas_bench_df,
+            trace_df=trace_df,
+            out_dir=out_dir,
+            target_opcodes=operation_types.STATEFUL + operation_types.CALL,
+        )
         generate_repricings_report(
             start_date=start_date,
             end_date=run_time.strftime("%Y-%m-%d"),
@@ -113,4 +123,5 @@ if __name__ == "__main__":
             eip_number=8038,
             params=PARAMS,
             params_multipliers=PARAM_MULTIPLIERS,
+            target_operations=operation_types.STATEFUL + operation_types.CALL,
         )

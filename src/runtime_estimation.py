@@ -112,7 +112,9 @@ def estimate_run_time_for_simple_operation(
     for group_values, op_df in opcode_df.groupby(group_by):
         if not isinstance(group_values, tuple):
             group_values = (group_values,)
-        plot_label = write_group_headers(group_values, last_values, md_file, group_by, opcode)
+        plot_label = write_group_headers(
+            group_values, last_values, md_file, group_by, opcode
+        )
         try:
             result = fit_NNLS_without_low_diff_runs(op_df, ["opcount"])
         except Exception as e:
@@ -164,7 +166,9 @@ def estimate_run_time_for_non_simple_operation(
     for group_values, op_df in opcode_df.groupby(group_by):
         if not isinstance(group_values, tuple):
             group_values = (group_values,)
-        plot_label = write_group_headers(group_values, last_values, md_file, group_by, opcode)
+        plot_label = write_group_headers(
+            group_values, last_values, md_file, group_by, opcode
+        )
         try:
             model_op_df, features = prepare_non_simple_model_data(op_df, params)
             result = fit_NNLS_without_low_diff_runs(model_op_df, features)
@@ -200,4 +204,58 @@ def estimate_run_time_for_non_simple_operation(
             f'<img src="./figs/{plot_label}_bootstrap.png" alt="{plot_label}_bootstrap" width="600"/>'
         )
         md_file.new_paragraph("")
+    return out_list
+
+
+def estimate_run_time_for_glue_opcodes(
+    glue_df: pd.DataFrame,
+    glue_opcodes: List[str],
+    out_dir: str,
+    md_file: MdUtils,
+):
+    # Select relevant parameters - warm CALLs
+    df = glue_df[~(glue_df["test_params"].str.contains("cold_1", na=False))]
+    # fit one model per client on all glue opcodes at the same time
+    out_list = []
+    clients = df["client_name"].unique()
+    for client in clients:
+        md_file.new_header(level=1, title=client)
+        client_df = df[df["client_name"] == client]
+        # Fit model
+        try:
+            features = df.drop(
+                columns=["test_title", "client_name", "test_params", "run_duration_ms"]
+            ).columns.to_list()
+            result = fit_NNLS_without_low_diff_runs(client_df, features)
+        except Exception as e:
+            md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
+            md_file.new_line(f"")
+            continue
+        # Add results to dict
+        for op in glue_opcodes:
+            op_dict = {
+                "client": client,
+                "glue_opcode": op,
+                "nobs": result.nobs,
+                "runtime": result.params[op],
+                "p_value": result.pvalues[op],
+                "rsquared": result.rsquared,
+            }
+            out_list.append(op_dict)
+        # Add outputs in markdown report
+        md_file.new_paragraph("```python")
+        md_file.new_line(str(result.summary()))
+        md_file.new_line("```")
+        # Create and save plots
+        plot_label = "glue_" + client
+        #TODO: Should we have regresion plot for multi opcodes?
+        create_and_save_nnls_diagnostic_plots(
+            result, "glue opcodes", client, out_dir, label=plot_label
+        )
+        # Add plots to markdown
+        md_file.new_paragraph(
+            f'<img src="./figs/{plot_label}_diagnostics.png" alt="{plot_label}_diagnostics" width="600"/>'
+        )
+        md_file.new_paragraph("")
+
     return out_list
