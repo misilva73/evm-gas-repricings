@@ -33,8 +33,8 @@ End of April:
   - [X] `test_mod` not appearing in Kamil's data -> are we missing a flag?
   - [X] Missing configs for storage access operations ([PR](https://github.com/ethereum/execution-specs/pull/2327))
   - [ ] Missing configs for account access operations
-    - [ ] [Create address calculation helper](https://github.com/ethereum/execution-specs/pull/2353)
-    - [ ] [EOA/contract query tests](https://github.com/LouisTsai-Csie/execution-specs/pull/4)
+    - [Create address calculation helper](https://github.com/ethereum/execution-specs/pull/2353)
+    - [EOA/contract query tests](https://github.com/ethereum/execution-specs/pull/2399)
   - [X] Bloat new ERC20 contracts and deterministic addresses
   - [ ] Investigate caching issue with `test_alt_bn128_benchmark` and `test_ecrecover`.
     - The inputs are repeated, so for clients that cache results, the run-time will be much faster than a real ecPairing calculation without cache. I think we may need to update this test to vary the inputs
