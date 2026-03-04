@@ -1,10 +1,14 @@
 import re
 import sys
+import math
+import requests
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import List
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlalchemy import create_engine
+from tqdm import tqdm
 
 sys.path.append(str(Path(__file__).parent))
 from operation_gas_costs import get_fusaka_dict
@@ -52,18 +56,18 @@ def get_current_gas_cost(opcode: str, param: str) -> int | None:
         return None
 
 
-def process_gas_bench_data(
+def _query_gas_bench(
     user: str,
     password: str,
-    start_date: str,
     db_name: str,
-    opcodes_sample: List[str] = None,
+    start_date: str,
 ) -> pd.DataFrame:
+    print("Querying gas benchmark database....")
     gas_bench_db_url = (
         f"postgresql://{user}:{password}@perfnet.core.nethermind.dev:5432/monitoring"
     )
     query_str = f"""
-    SELECT 
+    SELECT
         test_title,
         client_name,
         raw_run_duration_ms AS run_duration_ms,
@@ -74,6 +78,114 @@ def process_gas_bench_data(
     """
     engine = create_engine(gas_bench_db_url)
     df = pd.read_sql(query_str, con=engine)
+    df["ingestion_timestamp"] = pd.to_datetime(df["ingestion_timestamp"])
+    return df
+
+
+def _query_benchmarkoor(
+    bearer_token: str,
+    network: str,
+    test_type: str,
+    start_date: str,
+    page_size: int = 10_000,
+    max_workers: int = 10,
+) -> pd.DataFrame:
+    print("Querying benchmarkoor database....")
+    base_url = "https://benchmarkoor-api.core.ethpandaops.io/api/v1/index/query"
+    session = requests.Session()
+    session.headers.update(
+        {
+            "Authorization": f"Bearer {bearer_token}",
+            "Prefer": "count=exact",
+        }
+    )
+    # Resolve network + test_type to a suite_hash
+    response = session.get(
+        f"{base_url}/suites",
+        params={"discovery_path": "eq.repricings/results", "limit": page_size},
+    )
+    response.raise_for_status()
+    suites_df = pd.DataFrame(response.json()["data"])
+    if suites_df.empty:
+        raise ValueError(f"No suite found for network={network}, test_type={test_type}")
+    parsed = suites_df["name"].str.extract(r"^(.+)-(\d+)-([^-]+)$")
+    suites_df["network"] = parsed[0]
+    suites_df["test_type"] = parsed[2]
+    suites_df["indexed_at"] = pd.to_datetime(suites_df["indexed_at"])
+    suites_df = suites_df.loc[
+        suites_df.groupby(["network", "test_type"])["indexed_at"].idxmax()
+    ]
+    suite_row = suites_df[
+        (suites_df["network"] == network) & (suites_df["test_type"] == test_type)
+    ]
+    if suite_row.empty:
+        raise ValueError(f"No suite found for network={network}, test_type={test_type}")
+    suite_hash = suite_row.iloc[0]["suite_hash"]
+    # Query test stats
+    params = {
+        "select": "test_name,client,test_time_ns,run_start",
+        "test_time_ns": "gt.0",
+        "suite_hash": f"eq.{suite_hash}",
+    }
+    if start_date is not None:
+        start_ts = int(pd.Timestamp(start_date).timestamp())
+        params["run_start"] = f"gt.{start_ts}"
+    response = session.get(f"{base_url}/test_stats", params={**params, "limit": 0})
+    response.raise_for_status()
+    total = response.json()["total"]
+    total_pages = math.ceil(total / page_size)
+
+    def fetch_page(page):
+        paginated_params = {**params, "limit": page_size, "offset": page * page_size}
+        resp = session.get(f"{base_url}/test_stats", params=paginated_params)
+        resp.raise_for_status()
+        return page, resp.json()["data"]
+
+    all_data = [None] * total_pages
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(fetch_page, page): page for page in range(total_pages)
+        }
+        for future in tqdm(
+            as_completed(futures), total=total_pages, desc="Fetching test_stats"
+        ):
+            page, data = future.result()
+            all_data[page] = data
+
+    df = pd.DataFrame([row for page_data in all_data for row in page_data])
+    df["run_duration_ms"] = df["test_time_ns"] / 1_000_000
+    df = df.drop(columns=["test_time_ns"])
+    df = df.rename(
+        columns={
+            "client": "client_name",
+            "test_name": "test_title",
+            "run_start": "ingestion_timestamp",
+        }
+    )
+    df["ingestion_timestamp"] = pd.to_datetime(df["ingestion_timestamp"], unit="s")
+    df["test_title"] = df["test_title"].str.replace(".txt", "")
+    return df
+
+
+def process_gas_bench_data(
+    network: str,
+    test_type: str,
+    start_date: str,
+    source: str = "gas_bench",
+    opcodes_sample: List[str] = None,
+    user: str = None,
+    password: str = None,
+    bearer_token: str = None,
+) -> pd.DataFrame:
+    db_name = f"{test_type}_{network}"
+    if source == "gas_bench":
+        df = _query_gas_bench(user, password, db_name, start_date)
+    elif source == "benchmarkoor":
+        df = _query_benchmarkoor(bearer_token, network, test_type, start_date)
+    else:
+        raise ValueError(
+            f"Unknown source: {source!r}. Must be 'gas_bench' or 'benchmarkoor'."
+        )
     # Fix client names
     df["client_name"] = df["client_name"].str.replace(
         "_repricings_stateful_mainnet", ""
@@ -81,10 +193,10 @@ def process_gas_bench_data(
     df["client_name"] = df["client_name"].str.replace("_repricings_compute_mainnet", "")
     # Process title column
     df = process_test_title_col(df)
-    # filter opcodes in sample
+    # Filter opcodes in sample
     if opcodes_sample is not None:
         df = df[df["test_opcode"].isin(opcodes_sample)]
-    # Query trace data
+    # Query trace data from gas_bench (always)
     trace_df = process_test_trace_data(user, password, db_name, opcodes_sample)
     df = df.merge(trace_df[["test_title", "opcount"]], on="test_title", how="left")
     return df, trace_df

@@ -7,6 +7,8 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 
+from unittest.mock import patch, MagicMock
+
 from data import (
     extract_param_values,
     get_current_gas_cost,
@@ -15,6 +17,8 @@ from data import (
     add_opcount_col,
     _build_params,
     _remove_constant_params,
+    _query_benchmarkoor,
+    process_gas_bench_data,
 )
 
 
@@ -490,3 +494,140 @@ class TestAddOpcountCol:
         )
         result = add_opcount_col(df)
         assert list(result["opcount"]) == [100, 42, 200]
+
+
+# ---------------------------------------------------------------------------
+# Tests for _query_benchmarkoor
+# ---------------------------------------------------------------------------
+
+
+def _make_suites_response(network, test_type, suite_hash):
+    return {
+        "data": [
+            {
+                "name": f"{network}-12345678-{test_type}",
+                "suite_hash": suite_hash,
+                "indexed_at": "2026-01-01T00:00:00Z",
+            }
+        ]
+    }
+
+
+def _make_stats_response(data=None, total=0):
+    return {"data": data or [], "total": total}
+
+
+class TestQueryBenchmarkoor:
+    def _mock_session(self, network, test_type, suite_hash, rows):
+        mock_session = MagicMock()
+        suites_resp = MagicMock()
+        suites_resp.json.return_value = _make_suites_response(network, test_type, suite_hash)
+
+        count_resp = MagicMock()
+        count_resp.json.return_value = _make_stats_response(total=len(rows))
+
+        data_resp = MagicMock()
+        data_resp.json.return_value = _make_stats_response(data=rows, total=len(rows))
+
+        mock_session.get.side_effect = [suites_resp, count_resp, data_resp]
+        return mock_session
+
+    def test_returns_expected_columns(self):
+        rows = [
+            {"test_name": "test_add.py__test_add[fork_Osaka]", "client": "geth", "test_time_ns": 1_000_000, "run_start": 1700000000},
+        ]
+        with patch("requests.Session") as MockSession:
+            MockSession.return_value = self._mock_session("mainnet", "compute", "abc123", rows)
+            df = _query_benchmarkoor("token", "mainnet", "compute", "2026-01-01")
+        assert set(["test_title", "client_name", "run_duration_ms", "ingestion_timestamp"]).issubset(df.columns)
+
+    def test_converts_ns_to_ms(self):
+        rows = [
+            {"test_name": "t", "client": "geth", "test_time_ns": 2_000_000, "run_start": 1700000000},
+        ]
+        with patch("requests.Session") as MockSession:
+            MockSession.return_value = self._mock_session("mainnet", "compute", "abc123", rows)
+            df = _query_benchmarkoor("token", "mainnet", "compute", "2026-01-01")
+        assert df["run_duration_ms"].iloc[0] == pytest.approx(2.0)
+
+    def test_ingestion_timestamp_is_datetime(self):
+        rows = [
+            {"test_name": "t", "client": "geth", "test_time_ns": 1_000_000, "run_start": 1700000000},
+        ]
+        with patch("requests.Session") as MockSession:
+            MockSession.return_value = self._mock_session("mainnet", "compute", "abc123", rows)
+            df = _query_benchmarkoor("token", "mainnet", "compute", "2026-01-01")
+        assert pd.api.types.is_datetime64_any_dtype(df["ingestion_timestamp"])
+
+    def test_raises_on_missing_suite(self):
+        with patch("requests.Session") as MockSession:
+            mock_session = MagicMock()
+            resp = MagicMock()
+            resp.json.return_value = {"data": []}
+            mock_session.get.return_value = resp
+            MockSession.return_value = mock_session
+            with pytest.raises(ValueError, match="No suite found"):
+                _query_benchmarkoor("token", "unknown-net", "compute", "2026-01-01")
+
+
+# ---------------------------------------------------------------------------
+# Tests for process_gas_bench_data routing
+# ---------------------------------------------------------------------------
+
+
+class TestProcessGasBenchData:
+    def _minimal_raw_df(self):
+        return pd.DataFrame({
+            "test_title": ["test_add.py__test_add[fork_Osaka-blockchain_test-opcode_ADD-opcount_100]"],
+            "client_name": ["geth"],
+            "run_duration_ms": [10.0],
+            "ingestion_timestamp": ["2026-01-01"],
+        })
+
+    def test_unknown_source_raises(self):
+        with pytest.raises(ValueError, match="Unknown source"):
+            process_gas_bench_data(network="mainnet", test_type="compute", start_date="2026-01-01", source="invalid")
+
+    def test_gas_bench_source_calls_query_gas_bench(self):
+        raw_df = self._minimal_raw_df()
+        trace_df = pd.DataFrame({"test_title": [], "opcount": []})
+        with patch("data._query_gas_bench", return_value=raw_df) as mock_qgb, \
+             patch("data.process_test_trace_data", return_value=trace_df):
+            df, _ = process_gas_bench_data(
+                network="mainnet", test_type="compute", start_date="2026-01-01",
+                user="u", password="p",
+            )
+        mock_qgb.assert_called_once_with("u", "p", "compute_mainnet", "2026-01-01")
+
+    def test_benchmarkoor_source_calls_query_benchmarkoor(self):
+        raw_df = self._minimal_raw_df()
+        trace_df = pd.DataFrame({"test_title": [], "opcount": []})
+        with patch("data._query_benchmarkoor", return_value=raw_df) as mock_qbm, \
+             patch("data.process_test_trace_data", return_value=trace_df):
+            df, _ = process_gas_bench_data(
+                network="mainnet", test_type="compute", start_date="2026-01-01",
+                source="benchmarkoor", bearer_token="tok", user="u", password="p",
+            )
+        mock_qbm.assert_called_once_with("tok", "mainnet", "compute", "2026-01-01")
+
+    def test_benchmarkoor_still_queries_trace_data(self):
+        raw_df = self._minimal_raw_df()
+        trace_df = pd.DataFrame({"test_title": [], "opcount": []})
+        with patch("data._query_benchmarkoor", return_value=raw_df), \
+             patch("data.process_test_trace_data", return_value=trace_df) as mock_trace:
+            process_gas_bench_data(
+                network="mainnet", test_type="compute", start_date="2026-01-01",
+                source="benchmarkoor", bearer_token="tok", user="u", password="p",
+            )
+        mock_trace.assert_called_once_with("u", "p", "compute_mainnet", None)
+
+    def test_db_name_constructed_correctly(self):
+        raw_df = self._minimal_raw_df()
+        trace_df = pd.DataFrame({"test_title": [], "opcount": []})
+        with patch("data._query_gas_bench", return_value=raw_df) as mock_qgb, \
+             patch("data.process_test_trace_data", return_value=trace_df):
+            process_gas_bench_data(
+                network="perf-devnet-2", test_type="stateful", start_date="2026-01-01",
+                user="u", password="p",
+            )
+        mock_qgb.assert_called_once_with("u", "p", "stateful_perf-devnet-2", "2026-01-01")

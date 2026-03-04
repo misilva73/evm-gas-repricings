@@ -12,6 +12,8 @@ attrs==25.3.0
 babel==2.17.0
 beautifulsoup4==4.13.5
 bleach==6.2.0
+boto3==1.42.53
+botocore==1.42.53
 certifi==2025.8.3
 cffi==1.17.1
 charset-normalizer==3.4.3
@@ -41,12 +43,14 @@ h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
 idna==3.10
+iniconfig==2.3.0
 ipykernel==6.30.1
 ipython==9.4.0
 ipython_pygments_lexers==1.1.1
 isoduration==20.11.0
 jedi==0.19.2
 Jinja2==3.1.6
+jmespath==1.1.0
 joblib==1.5.2
 json5==0.12.1
 jsonpointer==3.0.0
@@ -84,6 +88,7 @@ patsy==1.0.1
 pexpect==4.9.0
 pillow==11.3.0
 platformdirs==4.3.8
+pluggy==1.6.0
 prometheus_client==0.22.1
 prompt_toolkit==3.0.51
 psutil==7.0.0
@@ -91,12 +96,14 @@ psycopg2==2.9.11
 ptyprocess==0.7.0
 pure_eval==0.2.3
 py-ecc==8.0.0
+pyarrow==23.0.1
 pycparser==2.22
 pycryptodome==3.23.0
 pydantic==2.11.7
 pydantic_core==2.33.2
 Pygments==2.19.2
 pyparsing==3.2.3
+pytest==9.0.2
 python-dateutil==2.9.0.post0
 python-json-logger==3.3.0
 pytz==2025.2
@@ -108,6 +115,7 @@ rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rfc3987-syntax==1.1.0
 rpds-py==0.27.0
+s3transfer==0.16.0
 scikit-learn==1.7.2
 scipy==1.16.2
 seaborn==0.13.2

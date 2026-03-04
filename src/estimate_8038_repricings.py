@@ -37,6 +37,8 @@ if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
     start_date = "2026-01-26"
+    # Query source - benchmarkoor or gas_bench
+    query_source = "benchmarkoor"
     # Anchor rate for repricings
     anchor_rate = 60 * 1e6
     # Directories
@@ -47,30 +49,37 @@ if __name__ == "__main__":
         "reports",
         "eip-8038",
         "runtime_estimation",
-        f"{start_date}_{run_time.strftime('%Y-%m-%d')}",
+        f"{start_date}_{run_time.strftime('%Y-%m-%d')}_{query_source}",
     )
     # Secrets for acessing gas bench DB
     with open(os.path.join(repo_dir, "secrets.json"), "r") as file:
         secrets_dict = json.load(file)
     user = secrets_dict["gas_bench_username"]
     password = secrets_dict["gas_bench_password"]
+    bearer_token=secrets_dict["benchmarkoor_bearer_token"]
     # Query raw data and save - bloatnet + mainnet
-    for db_type in ["mainnet"]:
-        out_dir = os.path.join(main_out_dir, db_type)
+    for network in ["mainnet"]:
+        out_dir = os.path.join(main_out_dir, network)
         os.makedirs(out_dir, exist_ok=True)
         os.makedirs(os.path.join(out_dir, "figs"), exist_ok=True)
         # Query raw data and save
         compute_gas_bench_df, compute_trace_df = process_gas_bench_data(
-            user,
-            password,
-            start_date,
-            "compute_" + db_type,
+            network=network,
+            test_type="compute",
+            start_date=start_date,
+            source=query_source,
+            user=user,
+            password=password,
+            bearer_token=bearer_token,
         )
         state_gas_bench_df, state_trace_df = process_gas_bench_data(
-            user,
-            password,
-            start_date,
-            "stateful_" + db_type,
+            network=network,
+            test_type="stateful",
+            start_date=start_date,
+            source=query_source,
+            user=user,
+            password=password,
+            bearer_token=bearer_token,
         )
         gas_bench_df = pd.concat(
             [compute_gas_bench_df, state_gas_bench_df], ignore_index=True
