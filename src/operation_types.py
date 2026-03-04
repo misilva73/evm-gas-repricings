@@ -169,7 +169,6 @@ ALL_OPERATIONS = ALL_OPCODES + PRECOMPILES
 SIMPLE_EIP_7904 = [
     "MULMOD",
     "ADDMOD",
-    "SMOD",
     "MOD",
     "SMOD",
     "DIV",

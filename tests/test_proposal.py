@@ -350,6 +350,32 @@ class TestFindMissingClientEstimations:
         result = find_missing_client_estimations(df)
         assert result == {}
 
+    def test_required_opcode_entirely_absent(self):
+        """An opcode in required_opcodes with no rows in results_df lists all 5 clients."""
+        all_clients = ["geth", "reth", "nethermind", "besu", "erigon"]
+        rows = [{"opcode": "ADD", "client_name": c} for c in all_clients]
+        df = pd.DataFrame(rows)
+        result = find_missing_client_estimations(df, required_opcodes=["MUL"])
+        assert "ADD" not in result
+        assert result["MUL"] == sorted(all_clients)
+
+    def test_required_opcode_already_present(self):
+        """Opcodes in required_opcodes that already appear in results_df are not duplicated."""
+        all_clients = ["geth", "reth", "nethermind", "besu", "erigon"]
+        rows = [{"opcode": "ADD", "client_name": c} for c in all_clients]
+        df = pd.DataFrame(rows)
+        result = find_missing_client_estimations(df, required_opcodes=["ADD"])
+        assert result == {}
+
+    def test_required_opcode_partially_present(self):
+        """An opcode in required_opcodes that has some clients still reports missing ones."""
+        present = ["geth", "reth"]
+        rows = [{"opcode": "ADD", "client_name": c} for c in present]
+        df = pd.DataFrame(rows)
+        result = find_missing_client_estimations(df, required_opcodes=["ADD", "MUL"])
+        assert result["ADD"] == sorted(["besu", "erigon", "nethermind"])
+        assert result["MUL"] == sorted(["besu", "erigon", "geth", "nethermind", "reth"])
+
 
 # ---------------------------------------------------------------------------
 # Tests for select_worst_case_estimates with glue adjustment

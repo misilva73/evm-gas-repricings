@@ -59,7 +59,7 @@ operation run time as a function of the operation count and other operation-spec
 The results are presented below.
 """
     )
-
+    # TODO: update Introduction based on query source - benchmarkoor vs. gas_bench
     md_file.new_header(
         level=1, title="How to Interpret the Results", add_table_of_contents="n"
     )
@@ -287,7 +287,7 @@ in the "Errors and caveats" section.
             md_file.new_list([f"{opcode} - {param} - {', '.join(clients)}"])
     md_file.new_paragraph()
     # Add section on clients with missing estimations
-    missing_clients_by_opcode = find_missing_client_estimations(results_df)
+    missing_clients_by_opcode = find_missing_client_estimations(results_df, target_operations)
     if len(missing_clients_by_opcode) == 0:
         md_file.new_paragraph("All operations have estimations for all clients.")
     else:
