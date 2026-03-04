@@ -151,18 +151,32 @@ with the [Nethermind benchmarking tooling](https://github.com/NethermindEth/gas-
 
 The data includes all the tests for glue operations repriced in EIP-{eip_number} run
 between {start_date} and {end_date}.
-
-For each operation and client, an NNLS linear regression model is fitted to estimate the
-operation run time as a function of the operation count.
-The results are presented below.
 """
     )
+    md_file.new_header(level=2, title="What is a glue opcode?", add_table_of_contents="n")
+    md_file.new_paragraph(
+        f"""
+A **glue opcode** is an opcode whose execution count scales proportionally with the count of
+a target opcode under test. Concretely, an opcode is classified as a glue opcode for a given
+test if its execution count has a Pearson correlation ≥ 0.95 with the target opcode count
+across different test parameter values, and its average count per target opcode execution
+is at least 0.0005. Self-correlations are excluded. This identification is done automatically
+from opcode-level execution traces.
 
-    md_file.new_header(
-        level=1, title="How to Interpret the Results", add_table_of_contents="n"
+The glue opcode set is also expanded transitively: if opcode A is a glue opcode for a target,
+and opcode B is a glue opcode for A, then B is also included. This captures indirect
+dependencies in the benchmark scaffolding.
+
+**Why do glue opcodes matter?**
+
+Because glue opcodes scale with the target opcode count, their runtime is absorbed into the
+slope coefficient when regressing total test execution time on target opcode count. Without
+correction, the slope overestimates the target opcode's per-execution runtime. The glue opcode
+runtimes estimated in this report are used to compute a **glue adjustment** — a correction
+subtracted from each target opcode's slope to remove the contribution of glue opcodes.
+"""
     )
-
-    md_file.new_header(level=2, title="Model Used", add_table_of_contents="n")
+    md_file.new_header(level=2, title="How glue opcode runtimes are estimated?", add_table_of_contents="n")
     md_file.new_paragraph(
         """
 **Non-Negative Least Squares (NNLS) Linear Regression** is used to estimate glue operation runtimes.

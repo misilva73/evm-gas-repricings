@@ -101,6 +101,7 @@ if __name__ == "__main__":
         params=PARAMS,
         simple_operations=operation_types.SIMPLE_EIP_7904,
         variable_operations=operation_types.VARIABLE_EIP_7904,
+        query_source=query_source,
     )
     generate_glue_opcode_report(
         start_date=start_date,

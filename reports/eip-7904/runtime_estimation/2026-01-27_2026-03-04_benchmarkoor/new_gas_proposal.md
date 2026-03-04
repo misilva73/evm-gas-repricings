@@ -69,10 +69,10 @@ The following table shows the new gas cost for all operations and parameters wit
 |BLS12_G1ADD|constant|375|401|0.07|
 |BLS12_G2ADD|constant|600|508|-0.15|
 |DIV|constant|5|10|1.0|
-|ECADD|constant|150|229|0.53|
-|ECPAIRING|constant|45000|29830|-0.34|
-|ECPAIRING|num_pairs|34000|28448|-0.16|
-|ECRECOVER|constant|3000|2993|-0.0|
+|ECADD|constant|150|230|0.53|
+|ECPAIRING|constant|45000|29032|-0.35|
+|ECPAIRING|num_pairs|34000|27743|-0.18|
+|ECRECOVER|constant|3000|2949|-0.02|
 |KECCAK256|constant|30|29|-0.03|
 |KECCAK256|msg_size|6|1|-0.83|
 |MULMOD|constant|8|22|1.75|
@@ -179,7 +179,13 @@ The following parameters had a poor model fit:
 
 
 
-All operations have estimations for all clients.
+The following operations have no estimation for the following clients:
+
+
+- MOD: besu, erigon, geth, nethermind, reth
+
+- SMOD: besu, erigon, geth, nethermind, reth
+
 
 
 

@@ -114,6 +114,7 @@ if __name__ == "__main__":
             out_dir=out_dir,
             params=PARAMS,
             variable_operations=operation_types.STATEFUL + operation_types.CALL,
+            query_source=query_source,
         )
         generate_glue_opcode_report(
             start_date=start_date,
