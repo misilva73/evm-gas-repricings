@@ -38,13 +38,15 @@ End of April:
   - [X] Bloat new ERC20 contracts and deterministic addresses
   - [ ] Investigate caching issue with `test_alt_bn128_benchmark` and `test_ecrecover`.
     - The inputs are repeated, so for clients that cache results, the run-time will be much faster than a real ecPairing calculation without cache. I think we may need to update this test to vary the inputs
-- [ ] [Kamil] Fill stateful tests with new bloatnet snapshots
 - [X] [Rafael Matias] Make data from Benchmarkoor SQL-queryable
 - [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780:
   - [ ] Kamil fills stateful tests with perf-devnet-3 snapshots
   - [ ] Rafael runs new test suite on benchmarkoor
   - [ ] Maria updates the repricings analysis code and run it with new data
   - [ ] Rafael finishes all clients syncing and takes new snapshot
+- [ ] [Louis Tsai] Make tests compatible with Amsterdam so that we can run benchmarks on BAL-optimized clients
+- [ ] [Rafael Matias] Run amsterdam-compatible tests on BAL-optimized clients (both compute and stateful)
+- [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers for EIP-7904, EIP-8038 and EIP-2780
 
 ### Security and community outreach
 
