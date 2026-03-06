@@ -32,16 +32,19 @@ End of April:
 - [ ] [Louis Tsai + Jochem Brouwer] Missing tests/configs:
   - [X] `test_mod` not appearing in Kamil's data -> are we missing a flag?
   - [X] Missing configs for storage access operations ([PR](https://github.com/ethereum/execution-specs/pull/2327))
-  - [ ] Missing configs for account access operations
+  - [X] Missing configs for account access operations
     - [Create address calculation helper](https://github.com/ethereum/execution-specs/pull/2353)
     - [EOA/contract query tests](https://github.com/ethereum/execution-specs/pull/2399)
   - [X] Bloat new ERC20 contracts and deterministic addresses
   - [ ] Investigate caching issue with `test_alt_bn128_benchmark` and `test_ecrecover`.
     - The inputs are repeated, so for clients that cache results, the run-time will be much faster than a real ecPairing calculation without cache. I think we may need to update this test to vary the inputs
-- [ ] [Rafael Matias] Make data from Benchmarkoor SQL-queryable
-- [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers:
-  - [ ] EIP-8038
-  - [ ] EIP-2780
+- [ ] [Kamil] Fill stateful tests with new bloatnet snapshots
+- [X] [Rafael Matias] Make data from Benchmarkoor SQL-queryable
+- [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780:
+  - [ ] Kamil fills stateful tests with perf-devnet-3 snapshots
+  - [ ] Rafael runs new test suite on benchmarkoor
+  - [ ] Maria updates the repricings analysis code and run it with new data
+  - [ ] Rafael finishes all clients syncing and takes new snapshot
 
 ### Security and community outreach
 
@@ -71,7 +74,7 @@ End of April:
     - [spec](https://github.com/ethereum/execution-specs/pull/2159)
   - [X] [7981](https://github.com/ethereum/execution-specs/issues/1943)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2144)
-  - [ ] [8037](https://github.com/ethereum/execution-specs/issues/2040)
+  - [X] [8037](https://github.com/ethereum/execution-specs/issues/2040)
     - [spec + tests](https://github.com/ethereum/execution-specs/pull/2181)
 - [ ] [Toni Wahrstätter] Implement BAL optimizations in all the major clients
   - [ ] State writes: parallel state root calculation
