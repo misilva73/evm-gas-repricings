@@ -13,9 +13,10 @@ from data import (
     extract_param_values,
     get_current_gas_cost,
     process_test_title_col,
+    process_compute_params,
+    process_storage_params,
     process_account_params,
     add_opcount_col,
-    _build_params,
     _remove_constant_params,
     _query_benchmarkoor,
     process_gas_bench_data,
@@ -47,75 +48,91 @@ class TestExtractParamValues:
 
 
 # ---------------------------------------------------------------------------
-# Tests for _build_params
+# Tests for process_compute_params
 # ---------------------------------------------------------------------------
 
 
-class TestBuildParams:
-    def test_all_fields_present(self):
-        row = pd.Series(
-            {
-                "_cold": 1,
-                "_new": 0,
-                "_update": 1,
-                "_storage_size": np.nan,
-                "_pre_read": np.nan,
-            }
-        )
-        result = _build_params(row)
-        assert result == "cold_1-new_0-update_1"
+def _make_compute_df(test_name, test_params, test_opcode):
+    return pd.DataFrame(
+        {"test_name": [test_name], "test_params": [test_params], "test_opcode": [test_opcode]}
+    )
 
-    def test_float_to_int_conversion(self):
-        row = pd.Series(
-            {
-                "_cold": 1.0,
-                "_new": 0.0,
-                "_update": np.nan,
-                "_storage_size": np.nan,
-                "_pre_read": np.nan,
-            }
-        )
-        result = _build_params(row)
-        assert result == "cold_1-new_0"
 
-    def test_float_storage_size_preserved(self):
-        row = pd.Series(
-            {
-                "_cold": np.nan,
-                "_new": np.nan,
-                "_update": np.nan,
-                "_storage_size": 9.0,
-                "_pre_read": np.nan,
-            }
-        )
-        result = _build_params(row)
-        assert result == "storage_size_9"
+class TestProcessComputeParams:
+    def test_ecadd_from_alt_bn128_add(self):
+        df = _make_compute_df("test_alt_bn128", "add-opcount_100", None)
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "ECADD"
 
-    def test_all_nan_returns_nan(self):
-        row = pd.Series(
-            {
-                "_cold": np.nan,
-                "_new": np.nan,
-                "_update": np.nan,
-                "_storage_size": np.nan,
-                "_pre_read": np.nan,
-            }
-        )
-        result = _build_params(row)
-        assert isinstance(result, float) and np.isnan(result)
+    def test_ecmul_from_alt_bn128_mul(self):
+        df = _make_compute_df("test_alt_bn128", "mul-opcount_100", None)
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "ECMUL"
 
-    def test_pre_read_included(self):
-        row = pd.Series(
-            {
-                "_cold": 0,
-                "_new": 1,
-                "_update": 1,
-                "_storage_size": np.nan,
-                "_pre_read": 1,
-            }
-        )
-        result = _build_params(row)
-        assert "pre_read_1" in result
+    def test_ecpairing_from_alt_bn128_benchmark(self):
+        df = _make_compute_df("test_alt_bn128_benchmark", "num_pairs_4", None)
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "ECPAIRING"
+
+    def test_bls12_g1msm(self):
+        df = _make_compute_df("test_bls12_g1_msm", "opcount_100", None)
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "BLS12_G1MSM"
+
+    def test_bls12_g2msm(self):
+        df = _make_compute_df("test_bls12_g2_msm", "opcount_100", None)
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "BLS12_G2MSM"
+
+    def test_bls12_pairing_check(self):
+        df = _make_compute_df("test_bls12_pairing", "opcount_100", None)
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "BLS12_PAIRING_CHECK"
+
+    def test_bls12_381_opcode_from_params(self):
+        df = _make_compute_df("test_bls12_381", "g1add-opcount_100", None)
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "G1ADD"
+
+    def test_keccak_renamed(self):
+        df = _make_compute_df("test_keccak", "opcount_100", "KECCAK")
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "KECCAK256"
+
+    def test_ripemd160_renamed(self):
+        df = _make_compute_df("test_ripemd", "opcount_100", "RIPEMD160")
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "RIPEMD-160"
+
+    def test_sha256_renamed(self):
+        df = _make_compute_df("test_sha256", "opcount_100", "SHA256")
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "SHA2-256"
+
+    def test_jumpdests_renamed(self):
+        df = _make_compute_df("test_jumpdests", "opcount_100", "JUMPDESTS")
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "JUMPDEST"
+
+    def test_point_evaluation_renamed(self):
+        df = _make_compute_df("test_point", "opcount_100", "POINT")
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "POINT_EVALUATION"
+
+    def test_bls12_fp_to_g1_renamed(self):
+        df = _make_compute_df("test_bls", "opcount_100", "BLS12_FP_TO_G1")
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "BLS12_MAP_FP_TO_G1"
+
+    def test_bls12_fp_to_g2_renamed(self):
+        df = _make_compute_df("test_bls", "opcount_100", "BLS12_FP_TO_G2")
+        result = process_compute_params(df)
+        assert result["test_opcode"].iloc[0] == "BLS12_MAP_FP2_TO_G2"
+
+    def test_does_not_modify_input(self):
+        df = _make_compute_df("test_keccak", "opcount_100", "KECCAK")
+        process_compute_params(df)
+        assert df["test_opcode"].iloc[0] == "KECCAK"
 
 
 # ---------------------------------------------------------------------------
@@ -317,51 +334,77 @@ class TestProcessTestTitleCol:
 
 
 # ---------------------------------------------------------------------------
-# Tests for process_storage_params (tested via the full process_test_title_col pipeline)
+# Tests for process_storage_params
 # ---------------------------------------------------------------------------
 
 
+def _make_storage_df(test_name, test_params, test_opcode=None):
+    return pd.DataFrame(
+        {"test_name": [test_name], "test_params": [test_params], "test_opcode": [test_opcode]}
+    )
+
+
 class TestProcessStorageParams:
-    def test_sload_benchmark_cold(self):
-        title = "test_storage_sload_benchmark.py__test_storage_sload_benchmark[fork_Osaka-blockchain_test-access_warm_False-storage_keys_pre_set_True-opcount_100]"
-        result = process_test_title_col(pd.DataFrame({"test_title": [title]}))
+    def test_sload_opcode_set_for_sload_benchmark(self):
+        df = _make_storage_df("test_storage_sload_benchmark", "access_warm_False")
+        result = process_storage_params(df)
         assert result["test_opcode"].iloc[0] == "SLOAD"
-        params = result["test_params"].iloc[0]
-        assert "cold_1" in params
-        assert "new_0" in params
 
-    def test_sload_benchmark_warm(self):
-        title = "test_storage_sload_benchmark.py__test_storage_sload_benchmark[fork_Osaka-blockchain_test-access_warm_True-storage_keys_pre_set_True-opcount_100]"
-        result = process_test_title_col(pd.DataFrame({"test_title": [title]}))
-        params = result["test_params"].iloc[0]
-        assert "cold_0" in params
+    def test_sload_opcode_set_for_sload_same_key(self):
+        df = _make_storage_df("test_storage_sload_same_key_benchmark", "some_param")
+        result = process_storage_params(df)
+        assert result["test_opcode"].iloc[0] == "SLOAD"
 
-    def test_storage_access_cold_sstore_new(self):
-        title = "test_storage_access_cold_benchmark.py__test_storage_access_cold_benchmark[fork_Osaka-blockchain_test-SSTORE new value-opcount_100]"
-        result = process_test_title_col(pd.DataFrame({"test_title": [title]}))
+    def test_sload_opcode_set_for_erc20_balanceof(self):
+        df = _make_storage_df("test_sload_erc20_balanceof", "some_param")
+        result = process_storage_params(df)
+        assert result["test_opcode"].iloc[0] == "SLOAD"
+
+    def test_sstore_opcode_set_for_erc20_mint(self):
+        df = _make_storage_df("test_sstore_erc20_mint", "no_change=False")
+        result = process_storage_params(df)
         assert result["test_opcode"].iloc[0] == "SSTORE"
-        params = result["test_params"].iloc[0]
-        assert "cold_1" in params
-        assert "update_1" in params
 
-    def test_storage_access_cold_sstore_same(self):
-        title = "test_storage_access_cold_benchmark.py__test_storage_access_cold_benchmark[fork_Osaka-blockchain_test-SSTORE same value-opcount_100]"
-        result = process_test_title_col(pd.DataFrame({"test_title": [title]}))
-        params = result["test_params"].iloc[0]
-        assert "update_0" in params
+    def test_sstore_opcode_from_storage_access_params(self):
+        df = _make_storage_df("test_storage_access_cold_benchmark", "SSTORE new value")
+        result = process_storage_params(df)
+        assert result["test_opcode"].iloc[0] == "SSTORE"
 
-    def test_sload_same_key_warm(self):
-        title = "test_storage_sload_same_key_benchmark.py__test_storage_sload_same_key_benchmark[fork_Osaka-blockchain_test-storage_keys_pre_set_True-opcount_100]"
-        result = process_test_title_col(pd.DataFrame({"test_title": [title]}))
-        params = result["test_params"].iloc[0]
-        assert "cold_0" in params
-        assert "new_0" in params
+    def test_sstore_prefix_stripped_from_opcode(self):
+        df = _make_storage_df("test_storage_access_cold_benchmark", "SSTORE_new value", "SSTORE_NEW")
+        result = process_storage_params(df)
+        assert result["test_opcode"].iloc[0] == "SSTORE"
 
-    def test_intermediate_columns_dropped(self):
-        title = "test_storage_sload_benchmark.py__test_storage_sload_benchmark[fork_Osaka-blockchain_test-access_warm_False-storage_keys_pre_set_True-opcount_100]"
-        result = process_test_title_col(pd.DataFrame({"test_title": [title]}))
-        for col in ["_cold", "_new", "_update", "_storage_size", "_pre_read"]:
-            assert col not in result.columns
+    def test_sstore_erc20_mint_no_change_false_maps_to_update_1(self):
+        df = _make_storage_df("test_sstore_erc20_mint", "no_change=False")
+        result = process_storage_params(df)
+        assert "update_1" in result["test_params"].iloc[0]
+
+    def test_sstore_erc20_mint_no_change_true_maps_to_update_0(self):
+        df = _make_storage_df("test_sstore_erc20_mint", "no_change=True")
+        result = process_storage_params(df)
+        assert "update_0" in result["test_params"].iloc[0]
+
+    def test_account_access_value_sent_1_maps_to_update_1(self):
+        df = _make_storage_df("test_account_access", "value_sent=1")
+        result = process_storage_params(df)
+        assert "update_1" in result["test_params"].iloc[0]
+
+    def test_account_access_value_sent_0_maps_to_update_0(self):
+        df = _make_storage_df("test_account_access", "value_sent=0")
+        result = process_storage_params(df)
+        assert "update_0" in result["test_params"].iloc[0]
+
+    def test_cache_strategy_prefix_stripped(self):
+        df = _make_storage_df("test_storage_sload_benchmark", "CacheStrategy.HOT")
+        result = process_storage_params(df)
+        assert "CacheStrategy." not in result["test_params"].iloc[0]
+        assert "HOT" in result["test_params"].iloc[0]
+
+    def test_does_not_modify_input(self):
+        df = _make_storage_df("test_sstore_erc20_mint", "no_change=False")
+        process_storage_params(df)
+        assert df["test_params"].iloc[0] == "no_change=False"
 
 
 # ---------------------------------------------------------------------------
