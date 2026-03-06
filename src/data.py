@@ -266,8 +266,7 @@ def process_test_title_col(prev_df: pd.DataFrame) -> pd.DataFrame:
         .apply(lambda x: "-".join(x) if isinstance(x, list) else np.nan)
     )
     df = process_compute_params(df)
-    df = process_storage_params(df)
-    df = process_account_params(df)
+    df = process_stateful_params(df)
     return df
 
 
@@ -336,7 +335,7 @@ def process_compute_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def process_storage_params(prev_df: pd.DataFrame) -> pd.DataFrame:
+def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     df = prev_df.copy()
     # Set test_opcode for bloatnet storage tests not handled by process_test_title_col
     df["test_opcode"] = np.where(
@@ -366,66 +365,31 @@ def process_storage_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     # Set update param
     sstore_mask = df["test_name"] == "test_sstore_erc20_mint"
     df.loc[sstore_mask, "test_params"] = df.loc[sstore_mask, "test_params"].str.replace(
-        "no_change=False", "update_1"
+        "no_change_False", "update_1"
     )
     df.loc[sstore_mask, "test_params"] = df.loc[sstore_mask, "test_params"].str.replace(
-        "no_change=True", "update_0"
+        "no_change_True", "update_0"
     )
     account_mask = df["test_name"] == "test_account_access"
     df.loc[account_mask, "test_params"] = df.loc[
         account_mask, "test_params"
-    ].str.replace("value_sent=1", "update_1")
+    ].str.replace("value_sent_1", "update_1")
     df.loc[account_mask, "test_params"] = df.loc[
         account_mask, "test_params"
-    ].str.replace("value_sent=0", "update_0")
-    # cleanup cache stategy
-    df["test_params"] = df["test_params"].str.replace("CacheStrategy.", "")
-    return df
-
-
-def _remove_constant_params(params_str: str, constant_params: set) -> str:
-    parts = params_str.split("-")
-    filtered = [p for p in parts if p.rsplit("_", 1)[0] not in constant_params]
-    return "-".join(filtered) if filtered else np.nan
-
-
-def process_account_params(prev_df: pd.DataFrame) -> pd.DataFrame:
-    df = prev_df.copy()
-    account_opcodes = set(CALL + STATEFUL).difference(set(["SSTORE", "SLOAD"]))
-    # warm / cold
-    df["test_params"] = np.where(
-        df["test_opcode"].isin(account_opcodes),
-        df["test_params"].str.replace("access_warm_True", "cold_0"),
-        df["test_params"],
-    )
-    df["test_params"] = np.where(
-        df["test_opcode"].isin(account_opcodes),
-        df["test_params"].str.replace("access_warm_False", "cold_1"),
-        df["test_params"],
-    )
-    # Remove parameters that don't vary per opcode
-    account_mask = df["test_opcode"].isin(account_opcodes)
-    for opcode in df.loc[account_mask, "test_opcode"].unique():
-        op_mask = df["test_opcode"] == opcode
-        unique_params = df.loc[op_mask, "test_params"].dropna().unique()
-        # Collect all values for each param name
-        all_parts = {}
-        for params_str in unique_params:
-            for part in params_str.split("-"):
-                name_value = part.rsplit("_", 1)
-                if len(name_value) == 2:
-                    name, value = name_value
-                    all_parts.setdefault(name, set()).add(value)
-        # Find params where only one value exists across all configs
-        constant_params = {
-            name for name, values in all_parts.items() if len(values) == 1
-        }
-        if constant_params:
-            df.loc[op_mask, "test_params"] = df.loc[op_mask, "test_params"].apply(
-                lambda x, cp=constant_params: (
-                    _remove_constant_params(x, cp) if pd.notna(x) else x
-                )
-            )
+    ].str.replace("value_sent_0", "update_0")
+    # Add new columns and remove from params
+    for new_col in ["cache_strategy", "account_mode", "token_name", "existing_slots"]:
+        df[new_col] = df["test_params"].str.extract(
+            fr"{new_col}.([^-]+)"
+        )
+        df["test_params"] = df["test_params"].str.replace(
+            fr"{new_col}_[^-]+-|-{new_col}_[^-]+|{new_col}_[^-]+",
+            "",
+            regex=True,
+        )
+    # Fix cache strategy and accoount_mode
+    df["cache_strategy"] = df["cache_strategy"].str.replace("CacheStrategy.", "")
+    df["account_mode"] = df["account_mode"].str.replace("AccountMode.", "")
     return df
 
 

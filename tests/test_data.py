@@ -14,10 +14,8 @@ from data import (
     get_current_gas_cost,
     process_test_title_col,
     process_compute_params,
-    process_storage_params,
-    process_account_params,
+    process_stateful_params,
     add_opcount_col,
-    _remove_constant_params,
     _query_benchmarkoor,
     process_gas_bench_data,
 )
@@ -134,28 +132,6 @@ class TestProcessComputeParams:
         process_compute_params(df)
         assert df["test_opcode"].iloc[0] == "KECCAK"
 
-
-# ---------------------------------------------------------------------------
-# Tests for _remove_constant_params
-# ---------------------------------------------------------------------------
-
-
-class TestRemoveConstantParams:
-    def test_removes_constant_params(self):
-        result = _remove_constant_params("cold_1-new_0-update_1", {"new"})
-        assert result == "cold_1-update_1"
-
-    def test_removes_multiple_constants(self):
-        result = _remove_constant_params("cold_1-new_0-update_1", {"new", "update"})
-        assert result == "cold_1"
-
-    def test_all_removed_returns_nan(self):
-        result = _remove_constant_params("cold_1", {"cold"})
-        assert isinstance(result, float) and np.isnan(result)
-
-    def test_no_constants_returns_original(self):
-        result = _remove_constant_params("cold_1-new_0", set())
-        assert result == "cold_1-new_0"
 
 
 # ---------------------------------------------------------------------------
@@ -334,156 +310,102 @@ class TestProcessTestTitleCol:
 
 
 # ---------------------------------------------------------------------------
-# Tests for process_storage_params
+# Tests for process_stateful_params
 # ---------------------------------------------------------------------------
 
 
-def _make_storage_df(test_name, test_params, test_opcode=None):
+def _make_stateful_df(test_name, test_params, test_opcode=None):
     return pd.DataFrame(
         {"test_name": [test_name], "test_params": [test_params], "test_opcode": [test_opcode]}
     )
 
 
-class TestProcessStorageParams:
+class TestProcessStatefulParams:
     def test_sload_opcode_set_for_sload_benchmark(self):
-        df = _make_storage_df("test_storage_sload_benchmark", "access_warm_False")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_storage_sload_benchmark", "cold_1")
+        result = process_stateful_params(df)
         assert result["test_opcode"].iloc[0] == "SLOAD"
 
     def test_sload_opcode_set_for_sload_same_key(self):
-        df = _make_storage_df("test_storage_sload_same_key_benchmark", "some_param")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_storage_sload_same_key_benchmark", "some_param")
+        result = process_stateful_params(df)
         assert result["test_opcode"].iloc[0] == "SLOAD"
 
     def test_sload_opcode_set_for_erc20_balanceof(self):
-        df = _make_storage_df("test_sload_erc20_balanceof", "some_param")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_sload_erc20_balanceof", "some_param")
+        result = process_stateful_params(df)
         assert result["test_opcode"].iloc[0] == "SLOAD"
 
     def test_sstore_opcode_set_for_erc20_mint(self):
-        df = _make_storage_df("test_sstore_erc20_mint", "no_change=False")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_sstore_erc20_mint", "no_change_False")
+        result = process_stateful_params(df)
         assert result["test_opcode"].iloc[0] == "SSTORE"
 
     def test_sstore_opcode_from_storage_access_params(self):
-        df = _make_storage_df("test_storage_access_cold_benchmark", "SSTORE new value")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_storage_access_cold_benchmark", "SSTORE new value")
+        result = process_stateful_params(df)
         assert result["test_opcode"].iloc[0] == "SSTORE"
 
     def test_sstore_prefix_stripped_from_opcode(self):
-        df = _make_storage_df("test_storage_access_cold_benchmark", "SSTORE_new value", "SSTORE_NEW")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_storage_access_cold_benchmark", "SSTORE_new value", "SSTORE_NEW")
+        result = process_stateful_params(df)
         assert result["test_opcode"].iloc[0] == "SSTORE"
 
     def test_sstore_erc20_mint_no_change_false_maps_to_update_1(self):
-        df = _make_storage_df("test_sstore_erc20_mint", "no_change=False")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_sstore_erc20_mint", "no_change_False")
+        result = process_stateful_params(df)
         assert "update_1" in result["test_params"].iloc[0]
 
     def test_sstore_erc20_mint_no_change_true_maps_to_update_0(self):
-        df = _make_storage_df("test_sstore_erc20_mint", "no_change=True")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_sstore_erc20_mint", "no_change_True")
+        result = process_stateful_params(df)
         assert "update_0" in result["test_params"].iloc[0]
 
     def test_account_access_value_sent_1_maps_to_update_1(self):
-        df = _make_storage_df("test_account_access", "value_sent=1")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_account_access", "value_sent_1")
+        result = process_stateful_params(df)
         assert "update_1" in result["test_params"].iloc[0]
 
     def test_account_access_value_sent_0_maps_to_update_0(self):
-        df = _make_storage_df("test_account_access", "value_sent=0")
-        result = process_storage_params(df)
+        df = _make_stateful_df("test_account_access", "value_sent_0")
+        result = process_stateful_params(df)
         assert "update_0" in result["test_params"].iloc[0]
 
-    def test_cache_strategy_prefix_stripped(self):
-        df = _make_storage_df("test_storage_sload_benchmark", "CacheStrategy.HOT")
-        result = process_storage_params(df)
-        assert "CacheStrategy." not in result["test_params"].iloc[0]
-        assert "HOT" in result["test_params"].iloc[0]
+    def test_cache_strategy_extracted_to_column(self):
+        df = _make_stateful_df("test_storage_sload_benchmark", "cache_strategy_CacheStrategy.HOT-cold_1")
+        result = process_stateful_params(df)
+        assert result["cache_strategy"].iloc[0] == "HOT"
+        assert "cache_strategy" not in result["test_params"].iloc[0]
+
+    def test_account_mode_extracted_to_column(self):
+        df = _make_stateful_df("test_account_access", "account_mode_AccountMode.EXISTING-cold_1")
+        result = process_stateful_params(df)
+        assert result["account_mode"].iloc[0] == "EXISTING"
+        assert "account_mode" not in result["test_params"].iloc[0]
+
+    def test_token_name_extracted_to_column(self):
+        df = _make_stateful_df("test_sload_erc20_balanceof", "token_name_USDT-cold_1")
+        result = process_stateful_params(df)
+        assert result["token_name"].iloc[0] == "USDT"
+        assert "token_name" not in result["test_params"].iloc[0]
+
+    def test_existing_slots_extracted_to_column(self):
+        df = _make_stateful_df("test_storage_sload_benchmark", "existing_slots_100-cold_1")
+        result = process_stateful_params(df)
+        assert result["existing_slots"].iloc[0] == "100"
+        assert "existing_slots" not in result["test_params"].iloc[0]
+
+    def test_remaining_params_preserved(self):
+        df = _make_stateful_df("test_storage_sload_benchmark", "cache_strategy_CacheStrategy.HOT-cold_1-new_0")
+        result = process_stateful_params(df)
+        assert "cold_1" in result["test_params"].iloc[0]
+        assert "new_0" in result["test_params"].iloc[0]
 
     def test_does_not_modify_input(self):
-        df = _make_storage_df("test_sstore_erc20_mint", "no_change=False")
-        process_storage_params(df)
-        assert df["test_params"].iloc[0] == "no_change=False"
+        df = _make_stateful_df("test_sstore_erc20_mint", "no_change_False")
+        process_stateful_params(df)
+        assert df["test_params"].iloc[0] == "no_change_False"
 
-
-# ---------------------------------------------------------------------------
-# Tests for process_account_params
-# ---------------------------------------------------------------------------
-
-
-class TestProcessAccountParams:
-    def test_warm_to_cold_0(self):
-        """access_warm_True → cold_0 for account opcodes."""
-        df = pd.DataFrame(
-            {
-                "test_title": ["t1", "t2"],
-                "test_file": ["f", "f"],
-                "test_name": ["test_balance", "test_balance"],
-                "test_opcode": ["BALANCE", "BALANCE"],
-                "test_params": [
-                    "access_warm_True-value_0",
-                    "access_warm_False-value_0",
-                ],
-                "block_limit_million": [30, 30],
-            }
-        )
-        result = process_account_params(df)
-        assert "cold_0" in result["test_params"].iloc[0]
-        assert "access_warm_True" not in result["test_params"].iloc[0]
-
-    def test_cold_to_cold_1(self):
-        """access_warm_False → cold_1 for account opcodes."""
-        df = pd.DataFrame(
-            {
-                "test_title": ["t1", "t2"],
-                "test_file": ["f", "f"],
-                "test_name": ["test_balance", "test_balance"],
-                "test_opcode": ["BALANCE", "BALANCE"],
-                "test_params": [
-                    "access_warm_True-value_0",
-                    "access_warm_False-value_0",
-                ],
-                "block_limit_million": [30, 30],
-            }
-        )
-        result = process_account_params(df)
-        assert "cold_1" in result["test_params"].iloc[1]
-
-    def test_non_account_opcode_unchanged(self):
-        """Non-account opcodes should not have access_warm replaced."""
-        df = pd.DataFrame(
-            {
-                "test_title": ["t"],
-                "test_file": ["f"],
-                "test_name": ["test_add"],
-                "test_opcode": ["ADD"],
-                "test_params": ["access_warm_True-value_0"],
-                "block_limit_million": [30],
-            }
-        )
-        result = process_account_params(df)
-        assert "access_warm_True" in result["test_params"].iloc[0]
-
-    def test_removes_constant_params_across_opcode(self):
-        """Params that don't vary for an opcode should be removed."""
-        df = pd.DataFrame(
-            {
-                "test_title": ["t1", "t2"],
-                "test_file": ["f", "f"],
-                "test_name": ["test_balance", "test_balance"],
-                "test_opcode": ["BALANCE", "BALANCE"],
-                "test_params": [
-                    "cold_0-value_0",
-                    "cold_1-value_0",
-                ],
-                "block_limit_million": [30, 30],
-            }
-        )
-        result = process_account_params(df)
-        # "value" has the same value (0) for both rows → should be removed
-        for val in result["test_params"]:
-            assert "value_0" not in val
 
 
 # ---------------------------------------------------------------------------
