@@ -37,6 +37,7 @@ def generate_runtime_report(
     simple_operations: List[str] = [],
     variable_operations: List[str] = [],
     query_source: str = "gas_bench",
+    group_by: List[str] = ["client_name", "test_name"],
 ) -> None:
     # Start markdown report
     md_file = MdUtils(
@@ -128,7 +129,7 @@ We also plot some diagnostic graphs for each operation and client combination to
         for op in tqdm(simple_operations, desc=f"Estimating simple operations"):
             # Run estimation and add to report
             op_list = estimate_run_time_for_simple_operation(
-                gas_bench_df, op, md_file, out_dir
+                gas_bench_df, op, md_file, out_dir, group_by=group_by
             )
             out_list.extend(op_list)
     # Estimate run times for variable operations
@@ -136,7 +137,7 @@ We also plot some diagnostic graphs for each operation and client combination to
         for op in tqdm(variable_operations, desc=f"Estimating variable operations"):
             # Run estimation and add to report
             opcode_list = estimate_run_time_for_non_simple_operation(
-                gas_bench_df, op, md_file, out_dir, params
+                gas_bench_df, op, md_file, out_dir, params, group_by=group_by
             )
             out_list.extend(opcode_list)
     # Create and save output dataframe

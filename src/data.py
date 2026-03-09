@@ -379,17 +379,33 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     ].str.replace("value_sent_0", "update_0")
     # Add new columns and remove from params
     for new_col in ["cache_strategy", "account_mode", "token_name", "existing_slots"]:
-        df[new_col] = df["test_params"].str.extract(
-            fr"{new_col}.([^-]+)"
-        )
+        df[new_col] = df["test_params"].str.extract(rf"{new_col}.([^-]+)")
         df["test_params"] = df["test_params"].str.replace(
-            fr"{new_col}_[^-]+-|-{new_col}_[^-]+|{new_col}_[^-]+",
+            rf"{new_col}_[^-]+-|-{new_col}_[^-]+|{new_col}_[^-]+",
             "",
             regex=True,
         )
     # Fix cache strategy and accoount_mode
     df["cache_strategy"] = df["cache_strategy"].str.replace("CacheStrategy.", "")
     df["account_mode"] = df["account_mode"].str.replace("AccountMode.", "")
+    # existing_slots for test_storage_sload_same_key_benchmark
+    df["existing_slots"] = np.where(
+        df["test_name"] == "test_storage_sload_same_key_benchmark",
+        np.where(
+            df["test_params"].str.contains("storage_keys_pre_set_True"), True, False
+        ),
+        df["existing_slots"],  # preserve extracted value for other test names
+    )
+    df["test_params"] = np.where(
+        df["test_name"] == "test_storage_sload_same_key_benchmark",
+        df["test_params"].str.replace("storage_keys_pre_set_True", ""),
+        df["test_params"],
+    )
+    df["test_params"] = np.where(
+        df["test_name"] == "test_storage_sload_same_key_benchmark",
+        df["test_params"].str.replace("storage_keys_pre_set_False", ""),
+        df["test_params"],
+    )
     return df
 
 

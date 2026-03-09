@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 
-from glue import get_glue_opcodes_by_test, compute_glue_adjustment, generate_glue_opcode_report
+from glue import get_glue_opcodes_by_test, compute_glue_adjustment, generate_glue_opcode_report, get_all_glue_opcodes_for_target_opcodes
 
 
 def _make_trace_df(rows, opcode_cols):
@@ -66,28 +66,24 @@ def _linear_group(
     return rows
 
 
-def _filter_group(result_df, test_file, test_name, test_opcode, test_params):
+def _filter_group(result_df, test_name, test_opcode):
     """Return rows from result_df matching the given grouping key."""
     mask = (
-        (result_df["test_file"] == test_file)
-        & (result_df["test_name"] == test_name)
+        (result_df["test_name"] == test_name)
         & (result_df["test_opcode"] == test_opcode)
-        & (result_df["test_params"] == test_params)
     )
     return result_df[mask]
 
 
-def _get_glue_opcodes(result_df, test_file, test_name, test_opcode, test_params):
+def _get_glue_opcodes(result_df, test_name, test_opcode):
     """Return the set of glue_opcode values for a given group."""
-    group = _filter_group(result_df, test_file, test_name, test_opcode, test_params)
+    group = _filter_group(result_df, test_name, test_opcode)
     return set(group["glue_opcode"].values)
 
 
-def _get_ratio(
-    result_df, test_file, test_name, test_opcode, test_params, glue_opcode
-):
+def _get_ratio(result_df, test_name, test_opcode, glue_opcode):
     """Return the ratio value for a specific group + glue_opcode."""
-    group = _filter_group(result_df, test_file, test_name, test_opcode, test_params)
+    group = _filter_group(result_df, test_name, test_opcode)
     row = group[group["glue_opcode"] == glue_opcode]
     assert len(row) == 1, f"Expected 1 row for {glue_opcode}, got {len(row)}"
     return row["ratio"].iloc[0]
@@ -187,29 +183,29 @@ class TestGetGlueOpcodesByTest:
     def test_detects_proportional_glue_opcode(self, proportional_df):
         """ADD scales linearly with opcount → detected as glue."""
         result = get_glue_opcodes_by_test(proportional_df)
-        glue_opcodes = _get_glue_opcodes(result, "f.py", "test_a", "PUSH1", "p1")
+        glue_opcodes = _get_glue_opcodes(result, "test_a", "PUSH1")
         assert "ADD" in glue_opcodes
-        ratio = _get_ratio(result, "f.py", "test_a", "PUSH1", "p1", "ADD")
+        ratio = _get_ratio(result, "test_a", "PUSH1", "ADD")
         assert ratio == pytest.approx(0.5)
 
     def test_constant_opcode_not_detected(self, proportional_df):
         """MUL is constant → NOT detected as glue."""
         result = get_glue_opcodes_by_test(proportional_df)
-        glue_opcodes = _get_glue_opcodes(result, "f.py", "test_a", "PUSH1", "p1")
+        glue_opcodes = _get_glue_opcodes(result, "test_a", "PUSH1")
         assert "MUL" not in glue_opcodes
 
     def test_self_opcode_excluded(self, self_opcode_df):
         """test_opcode == ADD → ADD must not appear in result for that test."""
         result = get_glue_opcodes_by_test(self_opcode_df)
-        glue_opcodes = _get_glue_opcodes(result, "f.py", "test_b", "ADD", "p1")
+        glue_opcodes = _get_glue_opcodes(result, "test_b", "ADD")
         assert "ADD" not in glue_opcodes
 
     def test_self_opcode_excluded_but_others_kept(self, self_opcode_df):
         """SUB also scales with opcount → should still be in result."""
         result = get_glue_opcodes_by_test(self_opcode_df)
-        glue_opcodes = _get_glue_opcodes(result, "f.py", "test_b", "ADD", "p1")
+        glue_opcodes = _get_glue_opcodes(result, "test_b", "ADD")
         assert "SUB" in glue_opcodes
-        ratio = _get_ratio(result, "f.py", "test_b", "ADD", "p1", "SUB")
+        ratio = _get_ratio(result, "test_b", "ADD", "SUB")
         assert ratio == pytest.approx(0.3)
 
     def test_below_threshold_returns_empty(self, below_threshold_df):
@@ -225,34 +221,34 @@ class TestGetGlueOpcodesByTest:
     def test_multiple_groups(self, multi_group_df):
         """Two groups: group1 → ADD as glue, group2 → SUB as glue."""
         result = get_glue_opcodes_by_test(multi_group_df)
-        glue1 = _get_glue_opcodes(result, "f.py", "test_e", "PUSH1", "p1")
-        glue2 = _get_glue_opcodes(result, "f.py", "test_f", "PUSH1", "p2")
+        glue1 = _get_glue_opcodes(result, "test_e", "PUSH1")
+        glue2 = _get_glue_opcodes(result, "test_f", "PUSH1")
         assert "ADD" in glue1
         assert "SUB" in glue2
 
     def test_detects_offset_glue_opcode(self, offset_df):
         """ADD = 0.5*opcount + 50 → still detected as glue with ratio 0.5."""
         result = get_glue_opcodes_by_test(offset_df)
-        glue_opcodes = _get_glue_opcodes(result, "f.py", "test_offset", "PUSH1", "p1")
+        glue_opcodes = _get_glue_opcodes(result, "test_offset", "PUSH1")
         assert "ADD" in glue_opcodes
-        ratio = _get_ratio(result, "f.py", "test_offset", "PUSH1", "p1", "ADD")
+        ratio = _get_ratio(result, "test_offset", "PUSH1", "ADD")
         assert ratio == pytest.approx(0.5)
 
     def test_offset_constant_opcode_not_detected(self, offset_df):
         """MUL is constant → NOT detected as glue even with offset fixture."""
         result = get_glue_opcodes_by_test(offset_df)
-        glue_opcodes = _get_glue_opcodes(result, "f.py", "test_offset", "PUSH1", "p1")
+        glue_opcodes = _get_glue_opcodes(result, "test_offset", "PUSH1")
         assert "MUL" not in glue_opcodes
 
     def test_multiple_glue_opcodes_in_same_group(self, multi_glue_df):
         """Both ADD and MUL scale with opcount → both detected as glue."""
         result = get_glue_opcodes_by_test(multi_glue_df)
-        glue_opcodes = _get_glue_opcodes(result, "f.py", "test_mg", "PUSH1", "p1")
+        glue_opcodes = _get_glue_opcodes(result, "test_mg", "PUSH1")
         assert "ADD" in glue_opcodes
         assert "MUL" in glue_opcodes
         assert "SUB" not in glue_opcodes
-        assert _get_ratio(result, "f.py", "test_mg", "PUSH1", "p1", "ADD") == pytest.approx(0.5)
-        assert _get_ratio(result, "f.py", "test_mg", "PUSH1", "p1", "MUL") == pytest.approx(0.3)
+        assert _get_ratio(result, "test_mg", "PUSH1", "ADD") == pytest.approx(0.5)
+        assert _get_ratio(result, "test_mg", "PUSH1", "MUL") == pytest.approx(0.3)
 
     def test_low_ratio_filtered_out(self, low_ratio_df):
         """ADD has ratio 0.0004 (< 0.0005 threshold) → filtered out."""
@@ -273,15 +269,15 @@ class TestGetGlueOpcodesByTest:
     def test_multiple_groups_ratios(self, multi_group_df):
         """Verify ratio values across both groups in multi_group_df."""
         result = get_glue_opcodes_by_test(multi_group_df)
-        ratio1 = _get_ratio(result, "f.py", "test_e", "PUSH1", "p1", "ADD")
-        ratio2 = _get_ratio(result, "f.py", "test_f", "PUSH1", "p2", "SUB")
+        ratio1 = _get_ratio(result, "test_e", "PUSH1", "ADD")
+        ratio2 = _get_ratio(result, "test_f", "PUSH1", "SUB")
         assert ratio1 == pytest.approx(0.5)
         assert ratio2 == pytest.approx(0.3)
 
     def test_custom_eps_tight(self, proportional_df):
         """With very small eps only near-perfect correlations pass."""
         result = get_glue_opcodes_by_test(proportional_df, eps=1e-10)
-        glue_opcodes = _get_glue_opcodes(result, "f.py", "test_a", "PUSH1", "p1")
+        glue_opcodes = _get_glue_opcodes(result, "test_a", "PUSH1")
         assert "ADD" in glue_opcodes
 
     def test_return_type(self, proportional_df):
@@ -290,6 +286,32 @@ class TestGetGlueOpcodesByTest:
         assert "glue_opcode" in result.columns
         assert "corr" in result.columns
         assert "ratio" in result.columns
+
+    def test_glue_group_by_extra_column(self):
+        """glue_group_by includes extra column in grouping; results split per group value."""
+        opcode_ratios = {"ADD": (0.5, 0), "MUL": (0, 10)}
+        df_a = _make_trace_df(
+            _linear_group("f.py", "test_a", "PUSH1", "p1", 8, opcode_ratios),
+            ["ADD", "MUL"],
+        )
+        df_a["client"] = "geth"
+        df_b = _make_trace_df(
+            _linear_group("f.py", "test_a", "PUSH1", "p1", 8, opcode_ratios),
+            ["ADD", "MUL"],
+        )
+        df_b["client"] = "reth"
+        df = pd.concat([df_a, df_b], ignore_index=True)
+        result = get_glue_opcodes_by_test(df, glue_group_by=["client"])
+        assert "client" in result.columns
+        assert "glue_opcode" in result.columns
+        assert "ADD" in result[result["client"] == "geth"]["glue_opcode"].values
+        assert "ADD" in result[result["client"] == "reth"]["glue_opcode"].values
+
+    def test_glue_group_by_default_matches_no_extra_columns(self, proportional_df):
+        """Default glue_group_by=[] produces same result as explicit empty list."""
+        result_default = get_glue_opcodes_by_test(proportional_df)
+        result_explicit = get_glue_opcodes_by_test(proportional_df, glue_group_by=[])
+        assert set(result_default["glue_opcode"]) == set(result_explicit["glue_opcode"])
 
 
 # ---------------------------------------------------------------------------
@@ -484,3 +506,58 @@ class TestComputeGlueAdjustment:
         )
         result = compute_glue_adjustment(glue_results, glue_by_test)
         assert len(result) == 0
+
+
+# ---------------------------------------------------------------------------
+# Tests for get_all_glue_opcodes_for_target_opcodes
+# ---------------------------------------------------------------------------
+
+
+def _make_glue_by_test(*pairs):
+    """Build a minimal glue_opcodes_by_test DataFrame.
+
+    Each pair is (test_opcode, glue_opcode).
+    """
+    return pd.DataFrame(
+        [{"test_opcode": t, "glue_opcode": g} for t, g in pairs]
+    )
+
+
+class TestGetAllGlueOpcodesForTargetOpcodes:
+    def test_basic_returns_direct_glue_opcodes(self):
+        """Direct glue opcodes of a target are returned."""
+        df = _make_glue_by_test(("ADD", "PUSH1"), ("ADD", "CALL"))
+        result = get_all_glue_opcodes_for_target_opcodes(["ADD"], df)
+        assert set(result) == {"PUSH1", "CALL"}
+
+    def test_target_opcode_excluded_from_result(self):
+        """Target opcode is excluded from the returned list even if it appears as a glue opcode."""
+        # ADD is a target; PUSH1's glue includes ADD — ADD must be stripped from result
+        df = _make_glue_by_test(("ADD", "PUSH1"), ("PUSH1", "ADD"))
+        result = get_all_glue_opcodes_for_target_opcodes(["ADD"], df)
+        assert "PUSH1" in result
+        assert "ADD" not in result
+
+    def test_transitive_glue_via_intermediate_target(self):
+        """Transitive expansion works when the intermediate opcode is also a target.
+
+        If ADD has PUSH1 as a glue opcode, and PUSH1 is also a target opcode with
+        DUP1 as its glue, then DUP1 is included when both ADD and PUSH1 are targets.
+        """
+        df = _make_glue_by_test(("ADD", "PUSH1"), ("PUSH1", "DUP1"))
+        result = get_all_glue_opcodes_for_target_opcodes(["ADD", "PUSH1"], df)
+        assert "PUSH1" not in result  # PUSH1 is a target, excluded
+        assert "DUP1" in result
+
+    def test_no_glue_opcodes_returns_empty(self):
+        """When no glue opcodes exist for the target, return empty list."""
+        df = _make_glue_by_test(("MUL", "PUSH1"))
+        result = get_all_glue_opcodes_for_target_opcodes(["ADD"], df)
+        assert result == []
+
+    def test_multiple_targets(self):
+        """Glue opcodes across multiple target opcodes are all included."""
+        df = _make_glue_by_test(("ADD", "PUSH1"), ("MUL", "CALL"))
+        result = get_all_glue_opcodes_for_target_opcodes(["ADD", "MUL"], df)
+        assert "PUSH1" in result
+        assert "CALL" in result

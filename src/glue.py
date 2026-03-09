@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Dict, List
@@ -7,6 +8,7 @@ from mdutils.mdutils import MdUtils
 
 sys.path.append(str(Path(__file__).parent))
 from runtime_estimation import estimate_run_time_for_glue_opcodes
+import operation_types
 
 
 def compute_glue_adjustment(
@@ -69,21 +71,22 @@ def compute_glue_adjustment(
 def get_glue_opcodes_by_test(
     trace_df: pd.DataFrame,
     eps: float = 0.05,
+    glue_group_by: List[str] = [],
 ) -> Dict[str, Dict[str, float]]:
     # Define columns lists
     grouping_cols = [
-        "test_file",
         "test_name",
         "test_opcode",
-        "test_params",
-    ]
-    opcode_cols = trace_df.drop(
-        columns=grouping_cols + ["test_title", "opcount", "block_limit_million"]
-    ).columns.tolist()
-    # filter tests with less than 5 runs (pearson correlation is not reliable)
-    filtered_trace_df = trace_df.groupby(grouping_cols).filter(lambda g: len(g) > 5)
+    ] + glue_group_by
+    opcode_cols = list(
+        set(trace_df.columns.tolist()).intersection(set(operation_types.ALL_OPCODES))
+    )
+    # filter tests with less than 5 different block limits (pearson correlation is not reliable)
+    filtered_trace_df = trace_df.groupby(grouping_cols, dropna=False).filter(
+        lambda g: len(g) > 5
+    )
     # Compute correlation by group
-    grouped = filtered_trace_df.groupby(grouping_cols)
+    grouped = filtered_trace_df.groupby(grouping_cols, dropna=False)
     corrs = grouped.apply(
         lambda g: g[opcode_cols].corrwith(g["opcount"]),
         include_groups=False,
@@ -97,7 +100,7 @@ def get_glue_opcodes_by_test(
     result_df = pd.DataFrame(
         {"corr": corrs.stack(), "ratio": ratios.stack()}
     ).reset_index()
-    result_df = result_df.rename(columns={"level_4": "glue_opcode"})
+    result_df = result_df.rename(columns={f"level_{len(grouping_cols)}": "glue_opcode"})
     # Filter low correlations, self-correlations and low ratios
     result_df = result_df[
         result_df["corr"].notna()
@@ -122,6 +125,7 @@ def get_all_glue_opcodes_for_target_opcodes(
         prev_glue_opcodes = glue_opcodes
         glue_opcodes = list(set(glue_opcodes).union(set(new_glue_opcodes)))
         i += 1
+    glue_opcodes = list(set(glue_opcodes).difference(set(target_opcodes)))
     return glue_opcodes
 
 
@@ -133,6 +137,7 @@ def generate_glue_opcode_report(
     trace_df: pd.DataFrame,
     out_dir: str,
     target_opcodes: List[str],
+    glue_group_by: List[str] = [],
 ) -> None:
     print("Estimating glue operations...")
     # Start markdown report
@@ -153,7 +158,9 @@ The data includes all the tests for glue operations repriced in EIP-{eip_number}
 between {start_date} and {end_date}.
 """
     )
-    md_file.new_header(level=2, title="What is a glue opcode?", add_table_of_contents="n")
+    md_file.new_header(
+        level=2, title="What is a glue opcode?", add_table_of_contents="n"
+    )
     md_file.new_paragraph(
         f"""
 A **glue opcode** is an opcode whose execution count scales proportionally with the count of
@@ -176,7 +183,11 @@ runtimes estimated in this report are used to compute a **glue adjustment** — 
 subtracted from each target opcode's slope to remove the contribution of glue opcodes.
 """
     )
-    md_file.new_header(level=2, title="How glue opcode runtimes are estimated?", add_table_of_contents="n")
+    md_file.new_header(
+        level=2,
+        title="How glue opcode runtimes are estimated?",
+        add_table_of_contents="n",
+    )
     md_file.new_paragraph(
         """
 **Non-Negative Least Squares (NNLS) Linear Regression** is used to estimate glue operation runtimes.
@@ -223,8 +234,12 @@ We also plot some diagnostic graphs for each operation and client combination to
 """
     )
     # Get list of glue opcodes
-    glue_opcodes_by_test = get_glue_opcodes_by_test(trace_df)
-    glue_opcodes_by_test.to_csv(os.path.join(out_dir, f"glue_opcodes_by_test.csv"), index=False)
+    glue_opcodes_by_test = get_glue_opcodes_by_test(
+        trace_df, glue_group_by=glue_group_by
+    )
+    glue_opcodes_by_test.to_csv(
+        os.path.join(out_dir, f"glue_opcodes_by_test.csv"), index=False
+    )
     glue_opcodes = get_all_glue_opcodes_for_target_opcodes(
         target_opcodes, glue_opcodes_by_test
     )
@@ -233,11 +248,11 @@ We also plot some diagnostic graphs for each operation and client combination to
         ["test_title"] + glue_opcodes
     ].fillna(0.0)
     glue_df = gas_bench_df[
-        ["test_title", "client_name", "test_params", "run_duration_ms"]
+        ["test_title", "client_name", "test_params", "run_duration_ms"] + glue_group_by
     ].merge(glue_df, on="test_title", how="inner")
     # Estimate runtime for all opcodes together
     out_list = estimate_run_time_for_glue_opcodes(
-        glue_df, glue_opcodes, out_dir, md_file
+        glue_df, glue_opcodes, out_dir, md_file, glue_group_by
     )
     # Create and save output dataframe
     out_df = pd.DataFrame(out_list)

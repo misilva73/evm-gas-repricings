@@ -107,13 +107,14 @@ def estimate_run_time_for_simple_operation(
 ) -> List[dict[str, Any]]:
     md_file.new_header(level=1, title=opcode)
     opcode_df = gas_bench_df[gas_bench_df["test_opcode"] == opcode]
+    groupby_cols = [col for col in group_by if opcode_df[col].nunique() > 1]
     out_list = []
-    last_values = [None] * len(group_by)
-    for group_values, op_df in opcode_df.groupby(group_by):
+    last_values = [None] * len(groupby_cols)
+    for group_values, op_df in opcode_df.groupby(groupby_cols):
         if not isinstance(group_values, tuple):
             group_values = (group_values,)
         plot_label = write_group_headers(
-            group_values, last_values, md_file, group_by, opcode
+            group_values, last_values, md_file, groupby_cols, opcode
         )
         try:
             result = fit_NNLS_without_low_diff_runs(op_df, ["opcount"])
@@ -121,7 +122,7 @@ def estimate_run_time_for_simple_operation(
             md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")
             continue
-        out_dict = build_result_dict(result, opcode, group_by, group_values)
+        out_dict = build_result_dict(result, opcode, group_by, tuple(op_df[col].iloc[0] for col in group_by))
         out_list.append(out_dict)
         # Add outputs in markdown report
         md_file.new_paragraph("```python")
@@ -161,13 +162,14 @@ def estimate_run_time_for_non_simple_operation(
 ) -> List[dict[str, Any]]:
     md_file.new_header(level=1, title=opcode)
     opcode_df = gas_bench_df[gas_bench_df["test_opcode"] == opcode]
+    groupby_cols = [col for col in group_by if opcode_df[col].nunique() > 1]
     out_list = []
-    last_values = [None] * len(group_by)
-    for group_values, op_df in opcode_df.groupby(group_by):
+    last_values = [None] * len(groupby_cols)
+    for group_values, op_df in opcode_df.groupby(groupby_cols):
         if not isinstance(group_values, tuple):
             group_values = (group_values,)
         plot_label = write_group_headers(
-            group_values, last_values, md_file, group_by, opcode
+            group_values, last_values, md_file, groupby_cols, opcode
         )
         try:
             model_op_df, features = prepare_non_simple_model_data(op_df, params)
@@ -176,7 +178,7 @@ def estimate_run_time_for_non_simple_operation(
             md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
             md_file.new_line(f"")
             continue
-        out_dict = build_result_dict(result, opcode, group_by, group_values)
+        out_dict = build_result_dict(result, opcode, group_by, tuple(op_df[col].iloc[0] for col in group_by))
         add_param_results_to_dict(out_dict, result, params)
         out_list.append(out_dict)
         # Add outputs in markdown report
@@ -212,6 +214,7 @@ def estimate_run_time_for_glue_opcodes(
     glue_opcodes: List[str],
     out_dir: str,
     md_file: MdUtils,
+    glue_group_by: List[str] = [],
 ):
     # Select relevant parameters - warm CALLs
     df = glue_df[~(glue_df["test_params"].str.contains("cold_1", na=False))]
@@ -248,7 +251,7 @@ def estimate_run_time_for_glue_opcodes(
         md_file.new_line("```")
         # Create and save plots
         plot_label = "glue_" + client
-        #TODO: Should we have regresion plot for multi opcodes?
+        # TODO: Should we have regresion plot for multi opcodes?
         create_and_save_nnls_diagnostic_plots(
             result, "glue opcodes", client, out_dir, label=plot_label
         )
