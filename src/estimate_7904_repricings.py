@@ -99,8 +99,7 @@ if __name__ == "__main__":
         gas_bench_df=gas_bench_df,
         out_dir=out_dir,
         params=PARAMS,
-        simple_operations=operation_types.SIMPLE_EIP_7904,
-        variable_operations=operation_types.VARIABLE_EIP_7904,
+        operations=operation_types.SIMPLE_EIP_7904+operation_types.VARIABLE_EIP_7904,
         query_source=query_source,
     )
     generate_glue_opcode_report(

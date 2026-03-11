@@ -6,6 +6,7 @@ from mdutils.mdutils import MdUtils
 
 
 sys.path.append(str(Path(__file__).parent))
+import operation_types
 from plotting import (
     create_and_save_1dim_nnls_regression_plot,
     create_and_save_nnls_diagnostic_plots,
@@ -61,14 +62,26 @@ def write_group_headers(
 ) -> str:
     """Write markdown headers when a group level changes and return the plot label.
 
+    Uses two header levels: level 2 for client_name, level 3 for remaining columns.
     Mutates last_values in place to track which headers have been written.
     """
-    for i, val in enumerate(group_values):
-        if val != last_values[i]:
-            md_file.new_header(level=i + 2, title=f"{val}")
-            last_values[i] = val
-            for j in range(i + 1, len(group_by)):
-                last_values[j] = None
+    # Level 2: client name (first group column)
+    if group_values[0] != last_values[0]:
+        md_file.new_header(level=2, title=f"{group_values[0]}")
+        last_values[0] = group_values[0]
+        for j in range(1, len(group_by)):
+            last_values[j] = None
+    # Level 3: remaining group columns combined
+    if len(group_values) > 1:
+        remaining = group_values[1:]
+        remaining_last = last_values[1:]
+        if any(v != lv for v, lv in zip(remaining, remaining_last)):
+            subtitle = ", ".join(
+                f"{group_by[i+1]}: {group_values[i+1]}" for i in range(len(remaining))
+            )
+            md_file.new_header(level=3, title=subtitle)
+            for j in range(1, len(group_by)):
+                last_values[j] = group_values[j]
     return f"{opcode}_{'_'.join(str(v) for v in group_values)}"
 
 
@@ -88,7 +101,8 @@ def prepare_non_simple_model_data(
             lambda x: extract_param_values(x, param)
         )
     na_counts = op_df[params].isna().sum()
-    extra_features = na_counts[na_counts != len(op_df)].index.to_list()
+    non_all_na = na_counts[na_counts != len(op_df)].index.to_list()
+    extra_features = [p for p in non_all_na if op_df[p].dropna().nunique() > 1]
     features = ["opcount"] + extra_features
     model_op_df = op_df.copy()
     model_op_df[extra_features] = model_op_df[extra_features].astype(float)
@@ -98,61 +112,7 @@ def prepare_non_simple_model_data(
     return model_op_df, features
 
 
-def estimate_run_time_for_simple_operation(
-    gas_bench_df: pd.DataFrame,
-    opcode: str,
-    md_file: MdUtils,
-    out_dir: str,
-    group_by: List[str] = ["client_name", "test_name"],
-) -> List[dict[str, Any]]:
-    md_file.new_header(level=1, title=opcode)
-    opcode_df = gas_bench_df[gas_bench_df["test_opcode"] == opcode]
-    groupby_cols = [col for col in group_by if opcode_df[col].nunique() > 1]
-    out_list = []
-    last_values = [None] * len(groupby_cols)
-    for group_values, op_df in opcode_df.groupby(groupby_cols):
-        if not isinstance(group_values, tuple):
-            group_values = (group_values,)
-        plot_label = write_group_headers(
-            group_values, last_values, md_file, groupby_cols, opcode
-        )
-        try:
-            result = fit_NNLS_without_low_diff_runs(op_df, ["opcount"])
-        except Exception as e:
-            md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
-            md_file.new_line(f"")
-            continue
-        out_dict = build_result_dict(result, opcode, group_by, tuple(op_df[col].iloc[0] for col in group_by))
-        out_list.append(out_dict)
-        # Add outputs in markdown report
-        md_file.new_paragraph("```python")
-        md_file.new_line(str(result.summary()))
-        md_file.new_line("```")
-        # Create and save plots
-        create_and_save_1dim_nnls_regression_plot(
-            op_df, result, opcode, group_values[0], out_dir, label=plot_label
-        )
-        create_and_save_nnls_diagnostic_plots(
-            result, opcode, group_values[0], out_dir, label=plot_label
-        )
-        create_and_save_nnls_bootstrap_diagnostic(
-            result, opcode, group_values[0], out_dir, label=plot_label
-        )
-        # Add plots to markdown
-        md_file.new_paragraph(
-            f'<img src="./figs/{plot_label}_regression.png" alt="{plot_label}_regression" width="600"/>'
-        )
-        md_file.new_paragraph(
-            f'<img src="./figs/{plot_label}_diagnostics.png" alt="{plot_label}_diagnostics" width="600"/>'
-        )
-        md_file.new_paragraph(
-            f'<img src="./figs/{plot_label}_bootstrap.png" alt="{plot_label}_bootstrap" width="600"/>'
-        )
-        md_file.new_paragraph("")
-    return out_list
-
-
-def estimate_run_time_for_non_simple_operation(
+def estimate_run_time_for_operation(
     gas_bench_df: pd.DataFrame,
     opcode: str,
     md_file: MdUtils,
@@ -165,48 +125,118 @@ def estimate_run_time_for_non_simple_operation(
     groupby_cols = [col for col in group_by if opcode_df[col].nunique() > 1]
     out_list = []
     last_values = [None] * len(groupby_cols)
-    for group_values, op_df in opcode_df.groupby(groupby_cols):
+    for group_values, op_df in opcode_df.groupby(groupby_cols, dropna=False):
         if not isinstance(group_values, tuple):
             group_values = (group_values,)
         plot_label = write_group_headers(
             group_values, last_values, md_file, groupby_cols, opcode
         )
-        try:
-            model_op_df, features = prepare_non_simple_model_data(op_df, params)
-            result = fit_NNLS_without_low_diff_runs(model_op_df, features)
-        except Exception as e:
-            md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
-            md_file.new_line(f"")
-            continue
-        out_dict = build_result_dict(result, opcode, group_by, tuple(op_df[col].iloc[0] for col in group_by))
-        add_param_results_to_dict(out_dict, result, params)
+        _, features = prepare_non_simple_model_data(op_df, params)
+        if len(features)>1:
+            out_dict = estimate_non_simple_model(
+                op_df, opcode, md_file, out_dir, params, group_by, group_values, plot_label
+            )
+        else:
+            out_dict = estimate_simple_model(
+                op_df, opcode, md_file, out_dir, group_by, group_values, plot_label
+            )
         out_list.append(out_dict)
-        # Add outputs in markdown report
-        md_file.new_paragraph("```python")
-        md_file.new_line(str(result.summary()))
-        md_file.new_line("```")
-        # Create and save plots
-        create_and_save_multidim_nnls_regression_plot(
-            op_df, result, opcode, group_values[0], out_dir, features, label=plot_label
-        )
-        create_and_save_nnls_diagnostic_plots(
-            result, opcode, group_values[0], out_dir, label=plot_label
-        )
-        create_and_save_nnls_bootstrap_diagnostic(
-            result, opcode, group_values[0], out_dir, label=plot_label
-        )
-        # Add plots to markdown
-        md_file.new_paragraph(
-            f'<img src="./figs/{plot_label}_regression.png" alt="{plot_label}_regression" width="600"/>'
-        )
-        md_file.new_paragraph(
-            f'<img src="./figs/{plot_label}_diagnostics.png" alt="{plot_label}_diagnostics" width="600"/>'
-        )
-        md_file.new_paragraph(
-            f'<img src="./figs/{plot_label}_bootstrap.png" alt="{plot_label}_bootstrap" width="600"/>'
-        )
-        md_file.new_paragraph("")
     return out_list
+
+
+def estimate_simple_model(
+    op_df: pd.DataFrame,
+    opcode: str,
+    md_file: MdUtils,
+    out_dir: str,
+    group_by: List[str],
+    group_values: List,
+    plot_label: str,
+) -> List[dict[str, Any]]:
+    try:
+        result = fit_NNLS_without_low_diff_runs(op_df, ["opcount"])
+    except Exception as e:
+        md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
+        md_file.new_line(f"")
+        return None
+    out_dict = build_result_dict(
+        result, opcode, group_by, tuple(op_df[col].iloc[0] for col in group_by)
+    )
+    # Add outputs in markdown report
+    md_file.new_paragraph("```python")
+    md_file.new_line(str(result.summary()))
+    md_file.new_line("```")
+    # Create and save plots
+    create_and_save_1dim_nnls_regression_plot(
+        op_df, result, opcode, group_values[0], out_dir, label=plot_label
+    )
+    create_and_save_nnls_diagnostic_plots(
+        result, opcode, group_values[0], out_dir, label=plot_label
+    )
+    create_and_save_nnls_bootstrap_diagnostic(
+        result, opcode, group_values[0], out_dir, label=plot_label
+    )
+    # Add plots to markdown
+    md_file.new_paragraph(
+        f'<img src="./figs/{plot_label}_regression.png" alt="{plot_label}_regression" width="600"/>'
+    )
+    md_file.new_paragraph(
+        f'<img src="./figs/{plot_label}_diagnostics.png" alt="{plot_label}_diagnostics" width="600"/>'
+    )
+    md_file.new_paragraph(
+        f'<img src="./figs/{plot_label}_bootstrap.png" alt="{plot_label}_bootstrap" width="600"/>'
+    )
+    md_file.new_paragraph("")
+    return out_dict
+
+
+def estimate_non_simple_model(
+    op_df: pd.DataFrame,
+    opcode: str,
+    md_file: MdUtils,
+    out_dir: str,
+    params: List[str],
+    group_by: List[str],
+    group_values: List,
+    plot_label: str,
+) -> List[dict[str, Any]]:
+    try:
+        model_op_df, features = prepare_non_simple_model_data(op_df, params)
+        result = fit_NNLS_without_low_diff_runs(model_op_df, features)
+    except Exception as e:
+        md_file.new_line(f"NNLS model did not run... Error: {str(e)}")
+        md_file.new_line(f"")
+        return None
+    out_dict = build_result_dict(
+        result, opcode, group_by, tuple(op_df[col].iloc[0] for col in group_by)
+    )
+    add_param_results_to_dict(out_dict, result, params)
+    # Add outputs in markdown report
+    md_file.new_paragraph("```python")
+    md_file.new_line(str(result.summary()))
+    md_file.new_line("```")
+    # Create and save plots
+    create_and_save_multidim_nnls_regression_plot(
+        op_df, result, opcode, group_values[0], out_dir, features, label=plot_label
+    )
+    create_and_save_nnls_diagnostic_plots(
+        result, opcode, group_values[0], out_dir, label=plot_label
+    )
+    create_and_save_nnls_bootstrap_diagnostic(
+        result, opcode, group_values[0], out_dir, label=plot_label
+    )
+    # Add plots to markdown
+    md_file.new_paragraph(
+        f'<img src="./figs/{plot_label}_regression.png" alt="{plot_label}_regression" width="600"/>'
+    )
+    md_file.new_paragraph(
+        f'<img src="./figs/{plot_label}_diagnostics.png" alt="{plot_label}_diagnostics" width="600"/>'
+    )
+    md_file.new_paragraph(
+        f'<img src="./figs/{plot_label}_bootstrap.png" alt="{plot_label}_bootstrap" width="600"/>'
+    )
+    md_file.new_paragraph("")
+    return out_dict
 
 
 def estimate_run_time_for_glue_opcodes(
@@ -214,7 +244,6 @@ def estimate_run_time_for_glue_opcodes(
     glue_opcodes: List[str],
     out_dir: str,
     md_file: MdUtils,
-    glue_group_by: List[str] = [],
 ):
     # Select relevant parameters - warm CALLs
     df = glue_df[~(glue_df["test_params"].str.contains("cold_1", na=False))]
@@ -226,9 +255,7 @@ def estimate_run_time_for_glue_opcodes(
         client_df = df[df["client_name"] == client]
         # Fit model
         try:
-            features = df.drop(
-                columns=["test_title", "client_name", "test_params", "run_duration_ms"]
-            ).columns.to_list()
+            features = list(set(df.columns.to_list()).intersection(set(operation_types.ALL_OPCODES)))
             result = fit_NNLS_without_low_diff_runs(client_df, features)
         except Exception as e:
             md_file.new_line(f"NNLS model did not run... Error: {str(e)}")

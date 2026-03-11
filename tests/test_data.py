@@ -140,18 +140,6 @@ class TestProcessComputeParams:
 
 
 class TestGetCurrentGasCost:
-    def test_new_param(self):
-        assert get_current_gas_cost("SSTORE", "new") == 20_000 - 100
-
-    def test_cold_param(self):
-        assert get_current_gas_cost("SLOAD", "cold") == 2_100 - 100
-
-    def test_update_param(self):
-        assert get_current_gas_cost("SSTORE", "update") == 5_000 - 2_100 - 100
-
-    def test_code_size_param(self):
-        assert get_current_gas_cost("EXTCODECOPY", "code_size") == 3
-
     def test_num_rounds_param(self):
         assert get_current_gas_cost("BLAKE2F", "num_rounds") == 1
 

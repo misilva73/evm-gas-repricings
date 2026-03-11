@@ -2,6 +2,8 @@ import re
 import sys
 import math
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -33,17 +35,8 @@ def get_current_gas_cost(opcode: str, param: str) -> int | None:
     """Map opcode and parameter to current gas cost from fusaka_dict"""
     fusaka_dict = get_fusaka_dict()
     # Handle parameter-based costs
-    # 8038 repricings
-    if param == "new":
-        return fusaka_dict.get(f"{opcode}_NEW", None)
-    elif param == "cold":
-        return fusaka_dict.get(f"{opcode}_COLD", None)
-    elif param == "update":
-        return fusaka_dict.get(f"{opcode}_UPDATE", None)
-    elif param == "code_size":
-        return fusaka_dict.get(f"{opcode}_SIZE", None)
     # 7904 repricings
-    elif param == "num_rounds":
+    if param == "num_rounds":
         return fusaka_dict.get(f"{opcode}_ROUNDS", None)
     elif param == "num_pairs":
         return fusaka_dict.get(f"{opcode}_PAIRS", None)
@@ -88,11 +81,13 @@ def _query_benchmarkoor(
     test_type: str,
     start_date: str,
     page_size: int = 10_000,
-    max_workers: int = 10,
+    max_workers: int = 5,
 ) -> pd.DataFrame:
     print("Querying benchmarkoor database....")
     base_url = "https://benchmarkoor-api.core.ethpandaops.io/api/v1/index/query"
     session = requests.Session()
+    retries = Retry(total=3, backoff_factor=2, status_forcelist=[502, 503, 524])
+    session.mount("https://", HTTPAdapter(max_retries=retries))
     session.headers.update(
         {
             "Authorization": f"Bearer {bearer_token}",
@@ -108,8 +103,11 @@ def _query_benchmarkoor(
     suites_df = pd.DataFrame(response.json()["data"])
     if suites_df.empty:
         raise ValueError(f"No suite found for network={network}, test_type={test_type}")
+    # Filter weird compute run...
+    suites_df = suites_df[suites_df["suite_hash"]!="d74b491048b10299"]
+    # TODO: should remove this filter eventually...
     parsed = suites_df["name"].str.extract(r"^(.+)-(\d+)-([^-]+)$")
-    suites_df["network"] = parsed[0]
+    suites_df["network"] = parsed[0].str.replace("-", "_")
     suites_df["test_type"] = parsed[2]
     suites_df["indexed_at"] = pd.to_datetime(suites_df["indexed_at"])
     suites_df = suites_df.loc[

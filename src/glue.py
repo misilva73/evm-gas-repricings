@@ -14,13 +14,14 @@ import operation_types
 def compute_glue_adjustment(
     glue_results_df: pd.DataFrame,
     glue_opcodes_by_test: pd.DataFrame,
+    group_by: List[str] = ["test_name", "client_name"],
 ) -> pd.DataFrame:
     """Compute glue opcode runtime adjustment for each test.
 
-    For each (test_name, opcode, client), computes the total glue opcode
-    runtime to subtract from the slope. This accounts for the fact that glue
-    opcodes (e.g., PUSH1, CALL) scale with the main opcode count and their
-    runtime is captured in the slope coefficient.
+    For each combination of ``group_by`` columns + opcode, computes the total glue
+    opcode runtime to subtract from the slope. This accounts for the fact
+    that glue opcodes (e.g., PUSH1, CALL) scale with the main opcode count
+    and their runtime is captured in the slope coefficient.
 
     The adjustment is: sum(ratio_i * glue_runtime_i) for all glue opcodes i
     where ratio_i is the average number of glue opcode instances per main opcode
@@ -29,11 +30,20 @@ def compute_glue_adjustment(
     opcodes with a statistically significant fit (p_value < 0.05) are included.
 
     Returns:
-        DataFrame with columns: test_name, opcode, client_name, glue_adjustment
+        DataFrame with columns: *group_by, opcode, glue_adjustment
     """
-    # Average ratios across test_params for each (test_name, test_opcode, glue_opcode)
+    group_by = np.unique(group_by + ["opcode"]).tolist()
+    # Map output column names to source column names
+    _OUTPUT_TO_SOURCE = {"opcode": "test_opcode", "client_name": "client"}
+    source_group_by = [_OUTPUT_TO_SOURCE.get(c, c) for c in group_by]
+
+    # Split into columns from glue_opcodes_by_test vs glue_results_df
+    glue_results_cols = {"client"}
+    ratio_group_cols = [c for c in source_group_by if c not in glue_results_cols]
+
+    # Average ratios across test_params for each (ratio_group_cols, glue_opcode)
     avg_ratios = (
-        glue_opcodes_by_test.groupby(["test_name", "test_opcode", "glue_opcode"])[
+        glue_opcodes_by_test.groupby(ratio_group_cols + ["glue_opcode"], dropna=False)[
             "ratio"
         ]
         .mean()
@@ -41,7 +51,7 @@ def compute_glue_adjustment(
     )
     # Only use glue opcodes with a statistically significant fit
     significant_glue = glue_results_df[glue_results_df["p_value"] < 0.05]
-    # Merge with glue runtimes to get ratio * runtime per (test, opcode, glue_opcode, client)
+    # Merge with glue runtimes to get ratio * runtime per (group_by, glue_opcode)
     glue_with_runtime = avg_ratios.merge(
         significant_glue[["client", "glue_opcode", "runtime"]],
         on="glue_opcode",
@@ -50,21 +60,18 @@ def compute_glue_adjustment(
     glue_with_runtime["glue_runtime_contribution"] = (
         glue_with_runtime["ratio"] * glue_with_runtime["runtime"]
     )
-    # Sum contributions per (test_name, test_opcode, client)
+    # Sum contributions per group_by
     glue_adjustment = (
-        glue_with_runtime.groupby(["test_name", "test_opcode", "client"])[
+        glue_with_runtime.groupby(source_group_by, dropna=False)[
             "glue_runtime_contribution"
         ]
         .sum()
         .reset_index()
     )
-    glue_adjustment = glue_adjustment.rename(
-        columns={
-            "test_opcode": "opcode",
-            "client": "client_name",
-            "glue_runtime_contribution": "glue_adjustment",
-        }
-    )
+    # Rename source columns to output column names
+    rename_map = {v: k for k, v in _OUTPUT_TO_SOURCE.items() if v in glue_adjustment.columns}
+    rename_map["glue_runtime_contribution"] = "glue_adjustment"
+    glue_adjustment = glue_adjustment.rename(columns=rename_map)
     return glue_adjustment
 
 
@@ -116,7 +123,7 @@ def get_all_glue_opcodes_for_target_opcodes(
 ):
     df = glue_opcodes_by_test[glue_opcodes_by_test["test_opcode"].isin(target_opcodes)]
     prev_glue_opcodes = []
-    glue_opcodes = df["glue_opcode"].unique()
+    glue_opcodes = df["glue_opcode"].unique().tolist()
     i = 0
     while len(prev_glue_opcodes) != len(glue_opcodes) and i < max_iter:
         new_glue_opcodes = df[df["test_opcode"].isin(glue_opcodes)][
@@ -125,7 +132,6 @@ def get_all_glue_opcodes_for_target_opcodes(
         prev_glue_opcodes = glue_opcodes
         glue_opcodes = list(set(glue_opcodes).union(set(new_glue_opcodes)))
         i += 1
-    glue_opcodes = list(set(glue_opcodes).difference(set(target_opcodes)))
     return glue_opcodes
 
 
@@ -243,16 +249,17 @@ We also plot some diagnostic graphs for each operation and client combination to
     glue_opcodes = get_all_glue_opcodes_for_target_opcodes(
         target_opcodes, glue_opcodes_by_test
     )
+    aux_glue_opcodes = list(set(glue_opcodes).difference(set(target_opcodes)))
     # get opcode counts for all glue opcodes
-    glue_df = trace_df[trace_df["test_opcode"].isin(glue_opcodes)][
-        ["test_title"] + glue_opcodes
+    glue_df = trace_df[trace_df["test_opcode"].isin(aux_glue_opcodes)][
+        ["test_title"] + aux_glue_opcodes
     ].fillna(0.0)
     glue_df = gas_bench_df[
         ["test_title", "client_name", "test_params", "run_duration_ms"] + glue_group_by
     ].merge(glue_df, on="test_title", how="inner")
-    # Estimate runtime for all opcodes together
+    # Estimate runtime for all glue opcodes together
     out_list = estimate_run_time_for_glue_opcodes(
-        glue_df, glue_opcodes, out_dir, md_file, glue_group_by
+        glue_df, aux_glue_opcodes, out_dir, md_file
     )
     # Create and save output dataframe
     out_df = pd.DataFrame(out_list)

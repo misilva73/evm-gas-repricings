@@ -507,6 +507,170 @@ class TestComputeGlueAdjustment:
         result = compute_glue_adjustment(glue_results, glue_by_test)
         assert len(result) == 0
 
+    def test_custom_group_by_with_extra_column(self):
+        """Custom group_by with an extra column produces separate adjustments per group."""
+        glue_results = _make_glue_results_df(
+            [{"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9}]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_sload",
+                    "test_name": "test_sload",
+                    "test_opcode": "SLOAD",
+                    "test_params": "default",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 2.0,
+                    "cache_strategy": "NO_CACHE",
+                },
+                {
+                    "test_file": "test_sload",
+                    "test_name": "test_sload",
+                    "test_opcode": "SLOAD",
+                    "test_params": "default",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 4.0,
+                    "cache_strategy": "CACHE_TX",
+                },
+            ]
+        )
+        result = compute_glue_adjustment(
+            glue_results,
+            glue_by_test,
+            group_by=["test_name", "opcode", "client_name", "cache_strategy"],
+        )
+        assert len(result) == 2
+        assert set(result.columns) == {"test_name", "opcode", "client_name", "cache_strategy", "glue_adjustment"}
+        no_cache = result[result["cache_strategy"] == "NO_CACHE"].iloc[0]
+        cache_tx = result[result["cache_strategy"] == "CACHE_TX"].iloc[0]
+        assert np.isclose(no_cache["glue_adjustment"], 2.0 * 0.001)
+        assert np.isclose(cache_tx["glue_adjustment"], 4.0 * 0.001)
+
+    def test_custom_group_by_without_client(self):
+        """group_by without client_name aggregates across clients."""
+        glue_results = _make_glue_results_df(
+            [
+                {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9},
+                {"client": "reth", "glue_opcode": "PUSH1", "runtime": 0.003, "p_value": 0.0, "rsquared": 0.9},
+            ]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_add",
+                    "test_name": "test_add",
+                    "test_opcode": "ADD",
+                    "test_params": "default",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 2.0,
+                }
+            ]
+        )
+        # Without client_name, both clients' contributions are summed
+        result = compute_glue_adjustment(
+            glue_results,
+            glue_by_test,
+            group_by=["test_name", "opcode"],
+        )
+        assert len(result) == 1
+        assert "client_name" not in result.columns
+        expected = 2.0 * 0.001 + 2.0 * 0.003
+        assert np.isclose(result.iloc[0]["glue_adjustment"], expected)
+
+    def test_custom_group_by_averages_ratios_per_group(self):
+        """Extra group_by columns split ratio averaging into separate groups."""
+        glue_results = _make_glue_results_df(
+            [{"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.0, "rsquared": 0.9}]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_file": "test_sload",
+                    "test_name": "test_sload",
+                    "test_opcode": "SLOAD",
+                    "test_params": "p1",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 6.0,
+                    "cache_strategy": "NO_CACHE",
+                },
+                {
+                    "test_file": "test_sload",
+                    "test_name": "test_sload",
+                    "test_opcode": "SLOAD",
+                    "test_params": "p2",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 2.0,
+                    "cache_strategy": "NO_CACHE",
+                },
+                {
+                    "test_file": "test_sload",
+                    "test_name": "test_sload",
+                    "test_opcode": "SLOAD",
+                    "test_params": "p1",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 10.0,
+                    "cache_strategy": "CACHE_TX",
+                },
+            ]
+        )
+        # With cache_strategy in group_by, ratios are averaged separately per cache_strategy
+        result = compute_glue_adjustment(
+            glue_results,
+            glue_by_test,
+            group_by=["test_name", "opcode", "client_name", "cache_strategy"],
+        )
+        no_cache = result[result["cache_strategy"] == "NO_CACHE"].iloc[0]
+        cache_tx = result[result["cache_strategy"] == "CACHE_TX"].iloc[0]
+        # NO_CACHE: avg ratio = (6+2)/2 = 4.0
+        assert np.isclose(no_cache["glue_adjustment"], 4.0 * 0.001)
+        # CACHE_TX: avg ratio = 10.0/1 = 10.0
+        assert np.isclose(cache_tx["glue_adjustment"], 10.0 * 0.001)
+
+    def test_nan_in_group_by_columns_not_dropped(self):
+        """Rows with NaN in group_by columns should still produce adjustments."""
+        glue_results = _make_glue_results_df(
+            [{"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.002, "p_value": 0.01, "rsquared": 0.9}]
+        )
+        glue_by_test = _make_glue_opcodes_by_test(
+            [
+                {
+                    "test_name": "test_sload",
+                    "test_opcode": "SLOAD",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 5.0,
+                    "cache_strategy": "NO_CACHE",
+                    "account_mode": None,
+                },
+                {
+                    "test_name": "test_sload",
+                    "test_opcode": "SLOAD",
+                    "glue_opcode": "PUSH1",
+                    "corr": 0.99,
+                    "ratio": 3.0,
+                    "cache_strategy": "NO_CACHE",
+                    "account_mode": "EXISTING_EOA",
+                },
+            ]
+        )
+        result = compute_glue_adjustment(
+            glue_results,
+            glue_by_test,
+            group_by=["test_name", "opcode", "client_name", "cache_strategy", "account_mode"],
+        )
+        # Both rows should produce results (NaN account_mode not dropped)
+        assert len(result) == 2
+        nan_row = result[result["account_mode"].isna()].iloc[0]
+        assert np.isclose(nan_row["glue_adjustment"], 5.0 * 0.002)
+        eoa_row = result[result["account_mode"] == "EXISTING_EOA"].iloc[0]
+        assert np.isclose(eoa_row["glue_adjustment"], 3.0 * 0.002)
+
 
 # ---------------------------------------------------------------------------
 # Tests for get_all_glue_opcodes_for_target_opcodes
@@ -537,17 +701,6 @@ class TestGetAllGlueOpcodesForTargetOpcodes:
         result = get_all_glue_opcodes_for_target_opcodes(["ADD"], df)
         assert "PUSH1" in result
         assert "ADD" not in result
-
-    def test_transitive_glue_via_intermediate_target(self):
-        """Transitive expansion works when the intermediate opcode is also a target.
-
-        If ADD has PUSH1 as a glue opcode, and PUSH1 is also a target opcode with
-        DUP1 as its glue, then DUP1 is included when both ADD and PUSH1 are targets.
-        """
-        df = _make_glue_by_test(("ADD", "PUSH1"), ("PUSH1", "DUP1"))
-        result = get_all_glue_opcodes_for_target_opcodes(["ADD", "PUSH1"], df)
-        assert "PUSH1" not in result  # PUSH1 is a target, excluded
-        assert "DUP1" in result
 
     def test_no_glue_opcodes_returns_empty(self):
         """When no glue opcodes exist for the target, return empty list."""

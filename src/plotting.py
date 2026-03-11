@@ -69,6 +69,54 @@ def create_and_save_new_gas_plot(new_gas_df: pd.DataFrame, out_dir: str) -> None
     plt.close()
 
 
+def create_and_save_state_access_gas_plot(params_df: pd.DataFrame, out_dir: str) -> None:
+    """Plot per-client new gas estimates for state access parameters with confidence intervals."""
+    fig, ax = plt.subplots(figsize=(10, max(6, len(params_df) * 0.15)))
+    gas_params = params_df["gas_param"].unique()
+    clients = params_df["client_name"].unique()
+    palette = sns.color_palette("husl", n_colors=len(clients))
+    client_colors = dict(zip(clients, palette))
+    for idx, client in enumerate(clients):
+        client_data = params_df[params_df["client_name"] == client].copy()
+        y_positions = []
+        for gp in client_data["gas_param"]:
+            base_pos = np.where(gas_params == gp)[0][0]
+            offset = (idx - len(clients) / 2) * 0.15
+            y_positions.append(base_pos + offset)
+        ax.errorbar(
+            client_data["new_gas_rounded"],
+            y_positions,
+            xerr=[
+                client_data["new_gas_rounded"] - client_data["new_gas_conf_int_low"],
+                client_data["new_gas_conf_int_high"] - client_data["new_gas_rounded"],
+            ],
+            fmt="o",
+            label=client,
+            color=client_colors[client],
+            markersize=6,
+            capsize=3,
+            capthick=1.5,
+            alpha=0.8,
+        )
+    ax.set_xscale("log")
+    ax.set_yticks(range(len(gas_params)))
+    ax.set_yticklabels(gas_params)
+    ax.set_xlabel("New Gas Cost (Rounded) - Log Scale", fontsize=12)
+    ax.set_ylabel("Gas Parameter", fontsize=12)
+    ax.set_title(
+        "State Access Gas Parameters by Client with Confidence Intervals",
+        fontsize=14,
+        fontweight="bold",
+    )
+    ax.legend(title="Client", bbox_to_anchor=(1.05, 1), loc="upper left")
+    ax.grid(axis="x", alpha=0.3, linestyle="--", which="both")
+    ax.grid(axis="y", alpha=0.1, linestyle="-")
+    plt.tight_layout()
+    plot_path = os.path.join(out_dir, "figs", "state_access_gas_params_by_client.png")
+    plt.savefig(plot_path, dpi=144, bbox_inches="tight")
+    plt.close()
+
+
 def create_and_save_1dim_nnls_regression_plot(
     op_df: pd.DataFrame,
     result,  # NNLSResults type

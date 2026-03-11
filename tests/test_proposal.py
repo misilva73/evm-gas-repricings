@@ -11,6 +11,9 @@ from proposal import (
     select_worst_case_estimates,
     compute_worst_gas_proposal,
     find_missing_client_estimations,
+    compute_state_access_gas_params,
+    _apply_filter,
+    _STATE_ACCESS_CURRENT_GAS,
 )
 
 
@@ -579,3 +582,317 @@ class TestSelectWorstCaseWithGlue:
         # test_b (adjusted 0.06) > test_a (adjusted 0.05) -> test_b selected
         assert new_gas_df.iloc[0]["test_name"] == "test_b"
         assert np.isclose(new_gas_df.iloc[0]["runtime_ms"], 0.06)
+
+
+# ---------------------------------------------------------------------------
+# Helpers for state access tests
+# ---------------------------------------------------------------------------
+
+
+def _sa_row(
+    opcode="SLOAD",
+    client="geth",
+    test_name="test_sload_erc20_balanceof",
+    cache_strategy="NO_CACHE",
+    account_mode=np.nan,
+    existing_slots=np.nan,
+    slope=0.01,
+    slope_pvalue=0.01,
+    slope_conf_low=0.008,
+    slope_conf_high=0.012,
+    update=np.nan,
+    update_pvalue=np.nan,
+    update_conf_low=np.nan,
+    update_conf_high=np.nan,
+    rsquared=0.95,
+):
+    return {
+        "opcode": opcode,
+        "client_name": client,
+        "test_name": test_name,
+        "cache_strategy": cache_strategy,
+        "account_mode": account_mode,
+        "existing_slots": existing_slots,
+        "slope": slope,
+        "slope_pvalue": slope_pvalue,
+        "slope_conf_int_low": slope_conf_low,
+        "slope_conf_int_high": slope_conf_high,
+        "update": update,
+        "update_pvalue": update_pvalue,
+        "update_conf_int_low": update_conf_low,
+        "update_conf_int_high": update_conf_high,
+        "rsquared": rsquared,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tests for _apply_filter
+# ---------------------------------------------------------------------------
+
+
+class TestApplyFilter:
+    def test_equality_filter(self):
+        df = pd.DataFrame([
+            {"test_name": "a", "cache_strategy": "NO_CACHE"},
+            {"test_name": "b", "cache_strategy": "CACHE_TX"},
+        ])
+        result = _apply_filter(df, {"cache_strategy": "NO_CACHE"})
+        assert len(result) == 1
+        assert result.iloc[0]["test_name"] == "a"
+
+    def test_inequality_filter(self):
+        df = pd.DataFrame([
+            {"account_mode": "EXISTING_EOA"},
+            {"account_mode": "EXISTING_CONTRACT"},
+            {"account_mode": "NON_EXISTING_ACCOUNT"},
+        ])
+        result = _apply_filter(df, {"account_mode__ne": "EXISTING_CONTRACT"})
+        assert len(result) == 2
+        assert "EXISTING_CONTRACT" not in result["account_mode"].values
+
+    def test_multiple_conditions(self):
+        df = pd.DataFrame([
+            {"test_name": "test_account_access", "cache_strategy": "NO_CACHE", "account_mode": "EXISTING_EOA"},
+            {"test_name": "test_account_access", "cache_strategy": "CACHE_TX", "account_mode": "EXISTING_EOA"},
+            {"test_name": "test_other", "cache_strategy": "NO_CACHE", "account_mode": "EXISTING_EOA"},
+        ])
+        result = _apply_filter(df, {"test_name": "test_account_access", "cache_strategy": "NO_CACHE"})
+        assert len(result) == 1
+        assert result.iloc[0]["account_mode"] == "EXISTING_EOA"
+
+    def test_missing_column_ignored(self):
+        df = pd.DataFrame([{"test_name": "a"}])
+        result = _apply_filter(df, {"nonexistent": "value"})
+        assert len(result) == 1
+
+    def test_empty_filter_returns_all(self):
+        df = pd.DataFrame([{"test_name": "a"}, {"test_name": "b"}])
+        result = _apply_filter(df, {})
+        assert len(result) == 2
+
+
+# ---------------------------------------------------------------------------
+# Tests for compute_state_access_gas_params
+# ---------------------------------------------------------------------------
+
+
+class TestComputeStateAccessGasParams:
+    ANCHOR = 60_000_000.0  # 60M gas/s
+
+    def test_cold_storage_access_from_sload_no_cache(self):
+        """GAS_COLD_STORAGE_ACCESS is estimated from test_sload_erc20_balanceof NO_CACHE slope."""
+        df = pd.DataFrame([_sa_row(
+            test_name="test_sload_erc20_balanceof",
+            cache_strategy="NO_CACHE",
+            slope=0.03,
+            slope_pvalue=0.01,
+        )])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
+        assert len(row) == 1
+        assert np.isclose(row.iloc[0]["runtime_ms"], 0.03)
+
+    def test_cold_storage_write_from_update_coef(self):
+        """GAS_COLD_STORAGE_WRITE is estimated from test_sstore_erc20_mint NO_CACHE update coef."""
+        df = pd.DataFrame([_sa_row(
+            test_name="test_sstore_erc20_mint",
+            cache_strategy="NO_CACHE",
+            slope=0.02,
+            slope_pvalue=0.01,
+            update=0.05,
+            update_pvalue=0.01,
+            update_conf_low=0.04,
+            update_conf_high=0.06,
+        )])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        write_row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_WRITE"]
+        assert len(write_row) == 1
+        assert np.isclose(write_row.iloc[0]["runtime_ms"], 0.05)
+
+    def test_warm_access_from_account_access_cache_tx(self):
+        """GAS_WARM_ACCESS is estimated from test_account_access CACHE_TX slope."""
+        df = pd.DataFrame([_sa_row(
+            opcode="BALANCE",
+            test_name="test_account_access",
+            cache_strategy="CACHE_TX",
+            account_mode="EXISTING_EOA",
+            slope=0.005,
+            slope_pvalue=0.01,
+        )])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        row = params_df[params_df["gas_param"] == "GAS_WARM_ACCESS"]
+        assert len(row) == 1
+        assert np.isclose(row.iloc[0]["runtime_ms"], 0.005)
+
+    def test_cold_account_nocode_excludes_existing_contract(self):
+        """GAS_COLD_ACCOUNT_NOCODE_ACCESS must exclude EXISTING_CONTRACT rows."""
+        df = pd.DataFrame([
+            _sa_row(
+                opcode="BALANCE",
+                test_name="test_account_access",
+                cache_strategy="NO_CACHE",
+                account_mode="EXISTING_EOA",
+                slope=0.04,
+                slope_pvalue=0.01,
+            ),
+            _sa_row(
+                opcode="BALANCE",
+                test_name="test_account_access",
+                cache_strategy="NO_CACHE",
+                account_mode="EXISTING_CONTRACT",
+                slope=0.10,  # higher, but should be excluded
+                slope_pvalue=0.01,
+            ),
+        ])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        nocode = params_df[params_df["gas_param"] == "GAS_COLD_ACCOUNT_NOCODE_ACCESS"]
+        assert len(nocode) == 1
+        assert np.isclose(nocode.iloc[0]["runtime_ms"], 0.04)
+
+    def test_cold_account_code_excludes_existing_eoa(self):
+        """GAS_COLD_ACCOUNT_CODE_ACCESS must exclude EXISTING_EOA rows."""
+        df = pd.DataFrame([
+            _sa_row(
+                opcode="BALANCE",
+                test_name="test_account_access",
+                cache_strategy="NO_CACHE",
+                account_mode="EXISTING_CONTRACT",
+                slope=0.04,
+                slope_pvalue=0.01,
+            ),
+            _sa_row(
+                opcode="BALANCE",
+                test_name="test_account_access",
+                cache_strategy="NO_CACHE",
+                account_mode="EXISTING_EOA",
+                slope=0.10,  # higher, but should be excluded
+                slope_pvalue=0.01,
+            ),
+        ])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        code = params_df[params_df["gas_param"] == "GAS_COLD_ACCOUNT_CODE_ACCESS"]
+        assert len(code) == 1
+        assert np.isclose(code.iloc[0]["runtime_ms"], 0.04)
+
+    def test_worst_case_selected_across_test_configs(self):
+        """For a given gas_param and client, the worst-case (max runtime) row is selected."""
+        df = pd.DataFrame([
+            _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.02, slope_pvalue=0.01),
+            _sa_row(test_name="test_sstore_erc20_mint", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.01),
+        ])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
+        assert len(cold_access) == 1
+        assert np.isclose(cold_access.iloc[0]["runtime_ms"], 0.05)
+
+    def test_prefers_good_fit_over_poor_fit(self):
+        """Rows with p < 0.05 are preferred over rows with p >= 0.05 even if runtime is lower."""
+        df = pd.DataFrame([
+            _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.01, slope_pvalue=0.02),
+            _sa_row(test_name="test_sstore_erc20_mint", cache_strategy="NO_CACHE", slope=0.09, slope_pvalue=0.20),
+        ])
+        params_df, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR)
+        cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
+        assert np.isclose(cold_access.iloc[0]["runtime_ms"], 0.01)
+        assert "GAS_COLD_STORAGE_ACCESS" not in poor_fit
+
+    def test_poor_fit_tracked_when_no_good_fits(self):
+        """gas_param is added to poor_fit_dict when all matching rows have p >= 0.05."""
+        df = pd.DataFrame([
+            _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.10),
+        ])
+        _, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR)
+        assert "GAS_COLD_STORAGE_ACCESS" in poor_fit
+        assert "geth" in poor_fit["GAS_COLD_STORAGE_ACCESS"]
+
+    def test_new_gas_calculation(self):
+        """new_gas_rounded = ceil(anchor_rate * runtime_ms / 1000)."""
+        slope = 0.033333  # ms
+        df = pd.DataFrame([_sa_row(
+            test_name="test_sload_erc20_balanceof",
+            cache_strategy="NO_CACHE",
+            slope=slope,
+            slope_pvalue=0.01,
+        )])
+        anchor = 60_000_000.0
+        params_df, _, _ = compute_state_access_gas_params(df, anchor)
+        row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"].iloc[0]
+        expected = np.ceil(anchor * slope / 1e3)
+        assert row["new_gas_rounded"] == expected
+
+    def test_derived_parameters_computed(self):
+        """GAS_STORAGE_CLEAR_REFUND, ACCESS_LIST_* are computed from direct estimates."""
+        df = pd.DataFrame([
+            _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.010, slope_pvalue=0.01),
+            _sa_row(test_name="test_sstore_erc20_mint", cache_strategy="NO_CACHE",
+                    slope=0.010, slope_pvalue=0.01,
+                    update=0.020, update_pvalue=0.01, update_conf_low=0.015, update_conf_high=0.025),
+            _sa_row(opcode="BALANCE", test_name="test_account_access",
+                    cache_strategy="NO_CACHE", account_mode="EXISTING_CONTRACT",
+                    slope=0.005, slope_pvalue=0.01),
+        ])
+        params_df, derived_df, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        assert len(derived_df) == 3
+        derived = derived_df.set_index("gas_param")["new_gas_rounded"].to_dict()
+
+        cold_storage_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]["new_gas_rounded"].max()
+        cold_storage_write = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_WRITE"]["new_gas_rounded"].max()
+        expected_refund = int(np.ceil((cold_storage_write + cold_storage_access) * (4800 / 5000)))
+        assert derived["GAS_STORAGE_CLEAR_REFUND"] == expected_refund
+        assert derived["ACCESS_LIST_STORAGE_KEY_COST"] == int(cold_storage_access)
+
+    def test_missing_test_name_ignored(self):
+        """Tests not in _STATE_ACCESS_PARAM_SOURCES simply produce no candidates."""
+        df = pd.DataFrame([_sa_row(
+            test_name="test_nonexistent_benchmark",
+            cache_strategy="NO_CACHE",
+            slope=0.99,
+            slope_pvalue=0.01,
+        )])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        assert params_df.empty
+
+    def test_empty_dataframe_returns_empty(self):
+        """Empty input produces empty outputs without error."""
+        df = pd.DataFrame(columns=["opcode", "client_name", "test_name", "cache_strategy",
+                                   "account_mode", "slope", "slope_pvalue",
+                                   "slope_conf_int_low", "slope_conf_int_high"])
+        params_df, derived_df, poor_fit = compute_state_access_gas_params(df, self.ANCHOR)
+        assert params_df.empty
+        assert poor_fit == {}
+
+    def test_multiple_clients_each_get_own_row(self):
+        """Each client produces its own worst-case row per gas parameter."""
+        df = pd.DataFrame([
+            _sa_row(client="geth", test_name="test_sload_erc20_balanceof",
+                    cache_strategy="NO_CACHE", slope=0.02, slope_pvalue=0.01),
+            _sa_row(client="reth", test_name="test_sload_erc20_balanceof",
+                    cache_strategy="NO_CACHE", slope=0.03, slope_pvalue=0.01),
+        ])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
+        assert set(cold_access["client_name"]) == {"geth", "reth"}
+
+    def test_glue_adjustment_applied_to_slope(self):
+        """Glue opcode runtime is subtracted from slope before computing gas."""
+        df = pd.DataFrame([_sa_row(
+            opcode="SLOAD",
+            test_name="test_sload_erc20_balanceof",
+            cache_strategy="NO_CACHE",
+            slope=0.05,
+            slope_pvalue=0.01,
+            slope_conf_low=0.04,
+            slope_conf_high=0.06,
+        )])
+        glue_results = pd.DataFrame([{
+            "client": "geth", "glue_opcode": "PUSH1", "runtime": 0.005, "p_value": 0.0, "rsquared": 0.9,
+        }])
+        glue_by_test = pd.DataFrame([{
+            "test_file": "test_sload", "test_name": "test_sload_erc20_balanceof",
+            "test_opcode": "SLOAD", "test_params": "default",
+            "glue_opcode": "PUSH1", "corr": 0.99, "ratio": 2.0,
+        }])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, glue_results, glue_by_test)
+        row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"].iloc[0]
+        # adjusted slope = 0.05 - 2.0 * 0.005 = 0.04
+        assert np.isclose(row["runtime_ms"], 0.04)
