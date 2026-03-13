@@ -27,6 +27,7 @@ When creating or editing Jupyter notebooks in the `notebooks/` folder, follow th
 ## Plotting
 
 - Use **seaborn** as the primary plotting library (`sns.boxplot`, `sns.barplot`, `sns.relplot`, `sns.stripplot`, `sns.heatmap`), with matplotlib for layout (`plt.subplots`, `plt.figure`).
+- Use **seaborn** facetgrid plots for plotting multiple subplots (`sns.catplot`, `sns.relplot`, `sns.distplot`)
 - Always set descriptive `plt.title()`, `plt.xlabel()`, and `plt.ylabel()`.
 - Use `plt.tight_layout()` before `plt.show()`.
 - For multi-panel figures, use `plt.subplots(nrows, ncols, figsize=(...))`.
