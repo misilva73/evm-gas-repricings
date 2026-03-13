@@ -29,9 +29,9 @@ MODEL_BY = [
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2026-03-04"
+    start_date = "2026-03-01"
     # Query source - benchmarkoor or gas_bench
-    query_source = "gas_bench"
+    query_source = "benchmarkoor"
     # Anchor rate for repricings
     anchor_rate = 60 * 1e6
     # target storage size
@@ -63,6 +63,19 @@ if __name__ == "__main__":
         password=password,
         bearer_token=bearer_token,
     )
+    state_tests = [
+        "test_storage_sload_same_key_benchmark",
+        "test_sload_erc20_balanceof",
+        "test_sstore_erc20_mint",
+        "test_ext_account_query_warm",
+        "test_account_access",
+    ]
+    filtered_state_gas_bench_df = state_gas_bench_df[
+        state_gas_bench_df["test_name"].isin(state_tests)
+    ]
+    filtered_state_trace_df = state_trace_df[
+        state_trace_df["test_name"].isin(state_tests)
+    ]
     compute_gas_bench_df, compute_trace_df = process_gas_bench_data(
         network="mainnet",
         test_type="compute",
@@ -83,11 +96,17 @@ if __name__ == "__main__":
         )
     ]
     gas_bench_df = pd.concat(
-        [filtered_compute_gas_bench_df, state_gas_bench_df], ignore_index=True
+        [filtered_compute_gas_bench_df, filtered_state_gas_bench_df], ignore_index=True
     )
     outfile = os.path.join(out_dir, f"gas_bench_data.csv")
     gas_bench_df.to_csv(outfile, index=False)
-    trace_df = pd.concat([filtered_compute_trace_df, state_trace_df], ignore_index=True)
+    trace_df = pd.concat(
+        [filtered_compute_trace_df, filtered_state_trace_df], ignore_index=True
+    )
+    outfile = os.path.join(out_dir, f"trace_data.csv")
+    trace_df.to_csv(outfile, index=False)
+    # TODO: remove this filter once test_sstore_erc20_mint is fixed
+    gas_bench_df = gas_bench_df[gas_bench_df["test_name"]!="test_sstore_erc20_mint"]
     # Run estimations and generate reports
     generate_runtime_report(
         start_date=start_date,

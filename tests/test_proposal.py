@@ -12,6 +12,7 @@ from proposal import (
     compute_worst_gas_proposal,
     find_missing_client_estimations,
     compute_state_access_gas_params,
+    find_poor_fit_glue_opcodes,
     _apply_filter,
     _STATE_ACCESS_CURRENT_GAS,
 )
@@ -678,6 +679,12 @@ class TestApplyFilter:
 
 class TestComputeStateAccessGasParams:
     ANCHOR = 60_000_000.0  # 60M gas/s
+    EMPTY_GLUE_RESULTS = pd.DataFrame(
+        columns=["client", "glue_opcode", "runtime", "p_value", "rsquared"]
+    )
+    EMPTY_GLUE_BY_TEST = pd.DataFrame(
+        columns=["test_file", "test_name", "test_opcode", "test_params", "glue_opcode", "corr", "ratio"]
+    )
 
     def test_cold_storage_access_from_sload_no_cache(self):
         """GAS_COLD_STORAGE_ACCESS is estimated from test_sload_erc20_balanceof NO_CACHE slope."""
@@ -687,7 +694,7 @@ class TestComputeStateAccessGasParams:
             slope=0.03,
             slope_pvalue=0.01,
         )])
-        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
         assert len(row) == 1
         assert np.isclose(row.iloc[0]["runtime_ms"], 0.03)
@@ -704,7 +711,7 @@ class TestComputeStateAccessGasParams:
             update_conf_low=0.04,
             update_conf_high=0.06,
         )])
-        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         write_row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_WRITE"]
         assert len(write_row) == 1
         assert np.isclose(write_row.iloc[0]["runtime_ms"], 0.05)
@@ -719,7 +726,7 @@ class TestComputeStateAccessGasParams:
             slope=0.005,
             slope_pvalue=0.01,
         )])
-        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         row = params_df[params_df["gas_param"] == "GAS_WARM_ACCESS"]
         assert len(row) == 1
         assert np.isclose(row.iloc[0]["runtime_ms"], 0.005)
@@ -744,7 +751,7 @@ class TestComputeStateAccessGasParams:
                 slope_pvalue=0.01,
             ),
         ])
-        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         nocode = params_df[params_df["gas_param"] == "GAS_COLD_ACCOUNT_NOCODE_ACCESS"]
         assert len(nocode) == 1
         assert np.isclose(nocode.iloc[0]["runtime_ms"], 0.04)
@@ -769,7 +776,7 @@ class TestComputeStateAccessGasParams:
                 slope_pvalue=0.01,
             ),
         ])
-        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         code = params_df[params_df["gas_param"] == "GAS_COLD_ACCOUNT_CODE_ACCESS"]
         assert len(code) == 1
         assert np.isclose(code.iloc[0]["runtime_ms"], 0.04)
@@ -780,7 +787,7 @@ class TestComputeStateAccessGasParams:
             _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.02, slope_pvalue=0.01),
             _sa_row(test_name="test_sstore_erc20_mint", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.01),
         ])
-        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
         assert len(cold_access) == 1
         assert np.isclose(cold_access.iloc[0]["runtime_ms"], 0.05)
@@ -791,7 +798,7 @@ class TestComputeStateAccessGasParams:
             _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.01, slope_pvalue=0.02),
             _sa_row(test_name="test_sstore_erc20_mint", cache_strategy="NO_CACHE", slope=0.09, slope_pvalue=0.20),
         ])
-        params_df, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
         assert np.isclose(cold_access.iloc[0]["runtime_ms"], 0.01)
         assert "GAS_COLD_STORAGE_ACCESS" not in poor_fit
@@ -801,7 +808,7 @@ class TestComputeStateAccessGasParams:
         df = pd.DataFrame([
             _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.10),
         ])
-        _, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR)
+        _, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         assert "GAS_COLD_STORAGE_ACCESS" in poor_fit
         assert "geth" in poor_fit["GAS_COLD_STORAGE_ACCESS"]
 
@@ -815,31 +822,10 @@ class TestComputeStateAccessGasParams:
             slope_pvalue=0.01,
         )])
         anchor = 60_000_000.0
-        params_df, _, _ = compute_state_access_gas_params(df, anchor)
+        params_df, _, _ = compute_state_access_gas_params(df, anchor, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"].iloc[0]
         expected = np.ceil(anchor * slope / 1e3)
         assert row["new_gas_rounded"] == expected
-
-    def test_derived_parameters_computed(self):
-        """GAS_STORAGE_CLEAR_REFUND, ACCESS_LIST_* are computed from direct estimates."""
-        df = pd.DataFrame([
-            _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.010, slope_pvalue=0.01),
-            _sa_row(test_name="test_sstore_erc20_mint", cache_strategy="NO_CACHE",
-                    slope=0.010, slope_pvalue=0.01,
-                    update=0.020, update_pvalue=0.01, update_conf_low=0.015, update_conf_high=0.025),
-            _sa_row(opcode="BALANCE", test_name="test_account_access",
-                    cache_strategy="NO_CACHE", account_mode="EXISTING_CONTRACT",
-                    slope=0.005, slope_pvalue=0.01),
-        ])
-        params_df, derived_df, _ = compute_state_access_gas_params(df, self.ANCHOR)
-        assert len(derived_df) == 3
-        derived = derived_df.set_index("gas_param")["new_gas_rounded"].to_dict()
-
-        cold_storage_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]["new_gas_rounded"].max()
-        cold_storage_write = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_WRITE"]["new_gas_rounded"].max()
-        expected_refund = int(np.ceil((cold_storage_write + cold_storage_access) * (4800 / 5000)))
-        assert derived["GAS_STORAGE_CLEAR_REFUND"] == expected_refund
-        assert derived["ACCESS_LIST_STORAGE_KEY_COST"] == int(cold_storage_access)
 
     def test_missing_test_name_ignored(self):
         """Tests not in _STATE_ACCESS_PARAM_SOURCES simply produce no candidates."""
@@ -849,7 +835,7 @@ class TestComputeStateAccessGasParams:
             slope=0.99,
             slope_pvalue=0.01,
         )])
-        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         assert params_df.empty
 
     def test_empty_dataframe_returns_empty(self):
@@ -857,7 +843,7 @@ class TestComputeStateAccessGasParams:
         df = pd.DataFrame(columns=["opcode", "client_name", "test_name", "cache_strategy",
                                    "account_mode", "slope", "slope_pvalue",
                                    "slope_conf_int_low", "slope_conf_int_high"])
-        params_df, derived_df, poor_fit = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         assert params_df.empty
         assert poor_fit == {}
 
@@ -869,7 +855,7 @@ class TestComputeStateAccessGasParams:
             _sa_row(client="reth", test_name="test_sload_erc20_balanceof",
                     cache_strategy="NO_CACHE", slope=0.03, slope_pvalue=0.01),
         ])
-        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR)
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
         assert set(cold_access["client_name"]) == {"geth", "reth"}
 
@@ -896,3 +882,280 @@ class TestComputeStateAccessGasParams:
         row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"].iloc[0]
         # adjusted slope = 0.05 - 2.0 * 0.005 = 0.04
         assert np.isclose(row["runtime_ms"], 0.04)
+
+    def test_cold_account_write_from_existing_eoa(self):
+        """GAS_COLD_ACCOUNT_WRITE is estimated from test_account_access NO_CACHE update coef
+        for EXISTING_EOA (excluded from EXISTING_CONTRACT filter)."""
+        df = pd.DataFrame([_sa_row(
+            opcode="BALANCE",
+            test_name="test_account_access",
+            cache_strategy="NO_CACHE",
+            account_mode="EXISTING_EOA",
+            slope=0.02,
+            slope_pvalue=0.01,
+            update=0.06,
+            update_pvalue=0.01,
+            update_conf_low=0.05,
+            update_conf_high=0.07,
+        )])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
+        write_row = params_df[params_df["gas_param"] == "GAS_COLD_ACCOUNT_WRITE"]
+        assert len(write_row) == 1
+        assert np.isclose(write_row.iloc[0]["runtime_ms"], 0.06)
+
+    def test_cold_account_write_from_existing_contract(self):
+        """GAS_COLD_ACCOUNT_WRITE is estimated from test_account_access NO_CACHE update coef
+        for EXISTING_CONTRACT (excluded from EXISTING_EOA filter)."""
+        df = pd.DataFrame([_sa_row(
+            opcode="BALANCE",
+            test_name="test_account_access",
+            cache_strategy="NO_CACHE",
+            account_mode="EXISTING_CONTRACT",
+            slope=0.02,
+            slope_pvalue=0.01,
+            update=0.08,
+            update_pvalue=0.01,
+            update_conf_low=0.07,
+            update_conf_high=0.09,
+        )])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
+        write_row = params_df[params_df["gas_param"] == "GAS_COLD_ACCOUNT_WRITE"]
+        assert len(write_row) == 1
+        assert np.isclose(write_row.iloc[0]["runtime_ms"], 0.08)
+
+    def test_cold_account_write_selects_worst_across_account_modes(self):
+        """GAS_COLD_ACCOUNT_WRITE takes worst-case update runtime across EOA and CONTRACT."""
+        df = pd.DataFrame([
+            _sa_row(
+                opcode="BALANCE",
+                test_name="test_account_access",
+                cache_strategy="NO_CACHE",
+                account_mode="EXISTING_EOA",
+                slope=0.02, slope_pvalue=0.01,
+                update=0.04, update_pvalue=0.01,
+                update_conf_low=0.03, update_conf_high=0.05,
+            ),
+            _sa_row(
+                opcode="BALANCE",
+                test_name="test_account_access",
+                cache_strategy="NO_CACHE",
+                account_mode="EXISTING_CONTRACT",
+                slope=0.02, slope_pvalue=0.01,
+                update=0.09, update_pvalue=0.01,
+                update_conf_low=0.08, update_conf_high=0.10,
+            ),
+        ])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
+        write_row = params_df[params_df["gas_param"] == "GAS_COLD_ACCOUNT_WRITE"]
+        assert len(write_row) == 1
+        assert np.isclose(write_row.iloc[0]["runtime_ms"], 0.09)
+
+    def test_state_glue_balance_adjusts_sload_slope(self):
+        """BALANCE slope from results_df is used as a glue runtime to adjust SLOAD slope."""
+        df = pd.DataFrame([
+            _sa_row(
+                opcode="SLOAD",
+                test_name="test_sload_erc20_balanceof",
+                cache_strategy="NO_CACHE",
+                slope=0.05,
+                slope_pvalue=0.01,
+                slope_conf_low=0.04,
+                slope_conf_high=0.06,
+            ),
+            _sa_row(
+                opcode="BALANCE",
+                test_name="test_account_access",
+                cache_strategy="NO_CACHE",
+                account_mode="EXISTING_EOA",
+                slope=0.01,
+                slope_pvalue=0.0,
+            ),
+        ])
+        # Start with empty glue_results — BALANCE will be added by add_state_glue_results
+        glue_results = pd.DataFrame(
+            columns=["client", "glue_opcode", "runtime", "p_value", "rsquared"]
+        )
+        glue_by_test = pd.DataFrame([{
+            "test_file": "test_sload",
+            "test_name": "test_sload_erc20_balanceof",
+            "test_opcode": "SLOAD",
+            "test_params": "default",
+            "glue_opcode": "BALANCE",
+            "corr": 0.99,
+            "ratio": 2.0,
+        }])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, glue_results, glue_by_test)
+        row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"].iloc[0]
+        # BALANCE runtime = 0.01, ratio = 2.0 → adjustment = 0.02
+        # adjusted SLOAD slope = 0.05 - 0.02 = 0.03
+        assert np.isclose(row["runtime_ms"], 0.03)
+
+    def test_state_glue_poor_fit_balance_not_used(self):
+        """BALANCE with poor slope_pvalue is not used as glue adjustment."""
+        df = pd.DataFrame([
+            _sa_row(
+                opcode="SLOAD",
+                test_name="test_sload_erc20_balanceof",
+                cache_strategy="NO_CACHE",
+                slope=0.05,
+                slope_pvalue=0.01,
+            ),
+            _sa_row(
+                opcode="BALANCE",
+                test_name="test_account_access",
+                cache_strategy="NO_CACHE",
+                account_mode="EXISTING_EOA",
+                slope=0.01,
+                slope_pvalue=0.20,  # poor fit → excluded from glue adjustment
+            ),
+        ])
+        glue_results = pd.DataFrame(
+            columns=["client", "glue_opcode", "runtime", "p_value", "rsquared"]
+        )
+        glue_by_test = pd.DataFrame([{
+            "test_file": "test_sload",
+            "test_name": "test_sload_erc20_balanceof",
+            "test_opcode": "SLOAD",
+            "test_params": "default",
+            "glue_opcode": "BALANCE",
+            "corr": 0.99,
+            "ratio": 2.0,
+        }])
+        params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, glue_results, glue_by_test)
+        row = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"].iloc[0]
+        # BALANCE p_value >= 0.05 → no glue adjustment → SLOAD slope unchanged at 0.05
+        assert np.isclose(row["runtime_ms"], 0.05)
+
+
+# ---------------------------------------------------------------------------
+# Tests for find_poor_fit_glue_opcodes
+# ---------------------------------------------------------------------------
+
+
+def _make_glue_res(*rows):
+    return pd.DataFrame(rows)
+
+
+def _make_glue_by_test_df(*rows):
+    return pd.DataFrame(rows)
+
+
+class TestFindPoorFitGlueOpcodes:
+    def test_poor_fit_opcode_returned(self):
+        """Glue opcode with p_value >= 0.05 for any client is included."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.10},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
+        assert "PUSH1" in result
+        assert result["PUSH1"]["clients"] == ["geth"]
+        assert result["PUSH1"]["test_opcodes"] == ["ADD"]
+
+    def test_good_fit_opcode_not_returned(self):
+        """Glue opcode with p_value < 0.05 is excluded."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.01},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
+        assert result == {}
+
+    def test_glue_opcode_not_in_mapping_excluded(self):
+        """Glue opcode with poor fit but absent from glue_opcodes_by_test is excluded."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "UNKNOWN", "runtime": 0.001, "p_value": 0.20},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
+        assert result == {}
+
+    def test_multiple_clients_all_listed(self):
+        """All clients with poor fit for the same glue opcode are listed."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.10},
+            {"client": "reth", "glue_opcode": "PUSH1", "runtime": 0.002, "p_value": 0.15},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
+        assert result["PUSH1"]["clients"] == ["geth", "reth"]
+
+    def test_mixed_clients_only_poor_ones_listed(self):
+        """Only clients with p_value >= 0.05 are listed."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.01},
+            {"client": "reth", "glue_opcode": "PUSH1", "runtime": 0.002, "p_value": 0.15},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
+        assert "PUSH1" in result
+        assert result["PUSH1"]["clients"] == ["reth"]
+
+    def test_target_operations_filters_test_opcodes(self):
+        """With target_operations, only matching test opcodes are returned."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.10},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},
+            {"glue_opcode": "PUSH1", "test_opcode": "MUL"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test, target_operations=["ADD"])
+        assert result["PUSH1"]["test_opcodes"] == ["ADD"]
+        assert "MUL" not in result["PUSH1"]["test_opcodes"]
+
+    def test_target_operations_excludes_glue_opcode_with_no_match(self):
+        """Glue opcode whose test_opcodes don't overlap target_operations is excluded."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.10},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "MUL"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test, target_operations=["ADD"])
+        assert result == {}
+
+    def test_result_sorted_by_glue_opcode(self):
+        """Result dict keys are sorted alphabetically."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "PUSH2", "runtime": 0.001, "p_value": 0.10},
+            {"client": "geth", "glue_opcode": "CALL", "runtime": 0.005, "p_value": 0.20},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH2", "test_opcode": "ADD"},
+            {"glue_opcode": "CALL", "test_opcode": "MUL"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
+        assert list(result.keys()) == sorted(result.keys())
+
+    def test_empty_glue_results_returns_empty(self):
+        """Empty glue_results_df returns empty dict."""
+        glue_results = pd.DataFrame(columns=["client", "glue_opcode", "runtime", "p_value"])
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
+        assert result == {}
+
+    def test_multiple_test_opcodes_per_glue_opcode(self):
+        """All test opcodes affected by a poor-fit glue opcode are listed."""
+        glue_results = _make_glue_res(
+            {"client": "geth", "glue_opcode": "PUSH1", "runtime": 0.001, "p_value": 0.10},
+        )
+        glue_by_test = _make_glue_by_test_df(
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},
+            {"glue_opcode": "PUSH1", "test_opcode": "MUL"},
+            {"glue_opcode": "PUSH1", "test_opcode": "ADD"},  # duplicate, should deduplicate
+        )
+        result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
+        assert result["PUSH1"]["test_opcodes"] == ["ADD", "MUL"]

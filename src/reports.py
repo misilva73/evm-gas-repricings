@@ -1,6 +1,7 @@
 import os
 import sys
 import warnings
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from typing import Dict, List, Set
@@ -467,7 +468,7 @@ is used. Parameters with no significant fits are listed in the "Errors and cavea
     glue_opcodes_by_test = pd.read_csv(
         os.path.join(out_dir, "glue_opcodes_by_test.csv")
     )
-    params_df, derived_df, poor_fit_dict = compute_state_access_gas_params(
+    params_df, all_params_df, poor_fit_dict = compute_state_access_gas_params(
         results_df,
         anchor_rate,
         glue_results_df,
@@ -475,6 +476,7 @@ is used. Parameters with no significant fits are listed in the "Errors and cavea
         group_by=group_by,
     )
     params_df.to_csv(os.path.join(out_dir, "new_gas.csv"), index=False)
+    all_params_df.to_csv(os.path.join(out_dir, "new_gas_all_params.csv"), index=False)
 
     # Worst case across clients
     worst_direct = (
@@ -513,6 +515,19 @@ is used. Parameters with no significant fits are listed in the "Errors and cavea
     )
 
     # Derived parameters table
+    cold_storage_access = worst_direct.get("GAS_COLD_STORAGE_ACCESS", 0)
+    cold_storage_write = worst_direct.get("GAS_COLD_STORAGE_WRITE", 0)
+    cold_account_code_access = worst_direct.get("GAS_COLD_ACCOUNT_CODE_ACCESS", 0)
+    derived = {
+        "GAS_STORAGE_CLEAR_REFUND": int(
+            np.ceil((cold_storage_write + cold_storage_access) * (4800 / 5000))
+        ),
+        "ACCESS_LIST_STORAGE_KEY_COST": int(cold_storage_access),
+        "ACCESS_LIST_ADDRESS_COST": int(cold_account_code_access),
+    }
+    derived_df = pd.DataFrame(
+        [{"gas_param": k, "new_gas_rounded": v} for k, v in derived.items()]
+    )
     if not derived_df.empty:
         md_file.new_header(
             level=2, title="Derived parameters", add_table_of_contents="n"

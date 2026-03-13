@@ -245,17 +245,15 @@ def estimate_run_time_for_glue_opcodes(
     out_dir: str,
     md_file: MdUtils,
 ):
-    # Select relevant parameters - warm CALLs
-    df = glue_df[~(glue_df["test_params"].str.contains("cold_1", na=False))]
     # fit one model per client on all glue opcodes at the same time
     out_list = []
-    clients = df["client_name"].unique()
+    clients = glue_df["client_name"].unique()
     for client in clients:
         md_file.new_header(level=1, title=client)
-        client_df = df[df["client_name"] == client]
+        client_df = glue_df[glue_df["client_name"] == client]
         # Fit model
         try:
-            features = list(set(df.columns.to_list()).intersection(set(operation_types.ALL_OPCODES)))
+            features = list(set(glue_df.columns.to_list()).intersection(set(operation_types.ALL_OPCODES)))
             result = fit_NNLS_without_low_diff_runs(client_df, features)
         except Exception as e:
             md_file.new_line(f"NNLS model did not run... Error: {str(e)}")

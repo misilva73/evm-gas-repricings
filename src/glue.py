@@ -29,19 +29,28 @@ def compute_glue_adjustment(
     per-execution runtime of the glue opcode for the given client. Only glue
     opcodes with a statistically significant fit (p_value < 0.05) are included.
 
+    Parameters:
+        glue_results_df: Per-client glue opcode runtimes. Columns: client,
+            glue_opcode, runtime, p_value.
+        glue_opcodes_by_test: Per-test glue opcode ratios. Columns: test_name,
+            test_opcode, glue_opcode, ratio, plus any extra ``group_by`` columns.
+        group_by: Output grouping columns (using output names: ``client_name``
+            for client, ``opcode`` for test_opcode).
+
     Returns:
         DataFrame with columns: *group_by, opcode, glue_adjustment
     """
-    group_by = np.unique(group_by + ["opcode"]).tolist()
-    # Map output column names to source column names
-    _OUTPUT_TO_SOURCE = {"opcode": "test_opcode", "client_name": "client"}
-    source_group_by = [_OUTPUT_TO_SOURCE.get(c, c) for c in group_by]
+    # Columns in glue_opcodes_by_test use source names; map output names back
+    _RENAME = {"opcode": "test_opcode", "client_name": "client"}
+    _RENAME_INV = {v: k for k, v in _RENAME.items()}
 
-    # Split into columns from glue_opcodes_by_test vs glue_results_df
-    glue_results_cols = {"client"}
-    ratio_group_cols = [c for c in source_group_by if c not in glue_results_cols]
+    output_cols = np.unique(group_by + ["opcode"]).tolist()
+    source_cols = [_RENAME.get(c, c) for c in output_cols]
 
-    # Average ratios across test_params for each (ratio_group_cols, glue_opcode)
+    # glue_opcodes_by_test has all group_by cols except "client"
+    ratio_group_cols = [c for c in source_cols if c != "client"]
+
+    # Average ratios across test_params per (ratio_group_cols, glue_opcode)
     avg_ratios = (
         glue_opcodes_by_test.groupby(ratio_group_cols + ["glue_opcode"], dropna=False)[
             "ratio"
@@ -49,30 +58,21 @@ def compute_glue_adjustment(
         .mean()
         .reset_index()
     )
-    # Only use glue opcodes with a statistically significant fit
-    significant_glue = glue_results_df[glue_results_df["p_value"] < 0.05]
-    # Merge with glue runtimes to get ratio * runtime per (group_by, glue_opcode)
-    glue_with_runtime = avg_ratios.merge(
-        significant_glue[["client", "glue_opcode", "runtime"]],
-        on="glue_opcode",
-        how="inner",
+
+    # Keep only glue opcodes with a statistically significant fit
+    significant_glue = glue_results_df.loc[
+        glue_results_df["p_value"] < 0.05, ["client", "glue_opcode", "runtime"]
+    ]
+
+    # Inner merge on glue_opcode brings in per-client runtimes
+    merged = avg_ratios.merge(significant_glue, on="glue_opcode", how="inner")
+    merged["glue_adjustment"] = merged["ratio"] * merged["runtime"]
+
+    # Sum contributions per output group
+    result = (
+        merged.groupby(source_cols, dropna=False)["glue_adjustment"].sum().reset_index()
     )
-    glue_with_runtime["glue_runtime_contribution"] = (
-        glue_with_runtime["ratio"] * glue_with_runtime["runtime"]
-    )
-    # Sum contributions per group_by
-    glue_adjustment = (
-        glue_with_runtime.groupby(source_group_by, dropna=False)[
-            "glue_runtime_contribution"
-        ]
-        .sum()
-        .reset_index()
-    )
-    # Rename source columns to output column names
-    rename_map = {v: k for k, v in _OUTPUT_TO_SOURCE.items() if v in glue_adjustment.columns}
-    rename_map["glue_runtime_contribution"] = "glue_adjustment"
-    glue_adjustment = glue_adjustment.rename(columns=rename_map)
-    return glue_adjustment
+    return result.rename(columns=_RENAME_INV)
 
 
 def get_glue_opcodes_by_test(
@@ -133,6 +133,92 @@ def get_all_glue_opcodes_for_target_opcodes(
         glue_opcodes = list(set(glue_opcodes).union(set(new_glue_opcodes)))
         i += 1
     return glue_opcodes
+
+
+def add_state_glue_results(
+    results_df: pd.DataFrame, glue_results_df: pd.DataFrame
+) -> pd.DataFrame:
+    """Add stateful glue results for cold BALANCE to glue results."""
+    # cold balance
+    balance_df = results_df[
+        (results_df["opcode"] == "BALANCE")
+        & (results_df["test_name"] == "test_account_access")
+        & (results_df["cache_strategy"] == "NO_CACHE")
+    ]
+    # Warm CALL
+    call_df = results_df[
+        (results_df["opcode"] == "CALL")
+        & (results_df["test_name"] == "test_ext_account_query_warm")
+        & (results_df["cache_strategy"] == "NO_CACHE")
+    ]
+    # TODO: missing cold SLOAD
+    sload_df = results_df[
+        (results_df["test_name"] == "test_sload_erc20_balanceof")
+        & (results_df["cache_strategy"] == "NO_CACHE")
+    ]
+    # Join all cases
+    state_glue_results_df = pd.concat([balance_df, call_df, sload_df], ignore_index=True)
+    if state_glue_results_df.empty:
+        return glue_results_df
+    # Fix columns
+    state_glue_results_df = state_glue_results_df[
+        [
+            "client_name",
+            "opcode",
+            "slope",
+            "slope_pvalue",
+            "rsquared",
+            "account_mode",
+        ]
+    ]
+    state_glue_results_df = state_glue_results_df.rename(
+        columns={
+            "client_name": "client",
+            "opcode": "glue_opcode",
+            "slope": "runtime",
+            "slope_pvalue": "p_value",
+        }
+    )
+    return pd.concat([glue_results_df, state_glue_results_df], ignore_index=True)
+
+
+def add_state_missing_glues(glue_opcodes_by_test: pd.DataFrame) -> pd.DataFrame:
+    """Add missing state glue opcodes (e.g. BALANCE for CACHE_TX tests)."""
+    # Add a balance to the balance CACHE_TX tests
+    if "cache_strategy" not in glue_opcodes_by_test.columns:
+        balance_cache_tests = pd.DataFrame()
+    else:
+        balance_cache_tests = (
+            glue_opcodes_by_test[
+                (glue_opcodes_by_test["test_opcode"] == "BALANCE")
+                & (glue_opcodes_by_test["cache_strategy"] == "CACHE_TX")
+            ]
+            .drop(columns=["glue_opcode", "corr", "ratio"])
+            .drop_duplicates()
+        )
+        balance_cache_tests["glue_opcode"] = "BALANCE"
+        balance_cache_tests["corr"] = 1.0
+        balance_cache_tests["ratio"] = 1.0
+    # Add a sload to the sload CACHE_TX tests
+    if "cache_strategy" not in glue_opcodes_by_test.columns:
+        sload_cache_tests = pd.DataFrame()
+    else:
+        sload_cache_tests = (
+            glue_opcodes_by_test[
+                (glue_opcodes_by_test["test_opcode"] == "SLOAD")
+                & (glue_opcodes_by_test["cache_strategy"] == "CACHE_TX")
+            ]
+            .drop(columns=["glue_opcode", "corr", "ratio"])
+            .drop_duplicates()
+        )
+        sload_cache_tests["glue_opcode"] = "SLOAD"
+        sload_cache_tests["corr"] = 1.0
+        sload_cache_tests["ratio"] = 1.0
+    # join all new glues
+    glue_opcodes_by_test = pd.concat(
+        [glue_opcodes_by_test, balance_cache_tests, sload_cache_tests], ignore_index=True
+    )
+    return glue_opcodes_by_test
 
 
 def generate_glue_opcode_report(
@@ -254,7 +340,15 @@ We also plot some diagnostic graphs for each operation and client combination to
     glue_df = trace_df[trace_df["test_opcode"].isin(aux_glue_opcodes)][
         ["test_title"] + aux_glue_opcodes
     ].fillna(0.0)
-    glue_df = gas_bench_df[
+    # Make sure we use warm CALLs for glue opcodes
+    filtered_gas_bench_df = gas_bench_df[
+        (
+            (gas_bench_df["test_name"] == "test_ext_account_query_warm")
+            & (gas_bench_df["test_opcode"].isin(operation_types.CALL))
+        )
+        | (~gas_bench_df["test_opcode"].isin(operation_types.CALL))
+    ]
+    glue_df = filtered_gas_bench_df[
         ["test_title", "client_name", "test_params", "run_duration_ms"] + glue_group_by
     ].merge(glue_df, on="test_title", how="inner")
     # Estimate runtime for all glue opcodes together

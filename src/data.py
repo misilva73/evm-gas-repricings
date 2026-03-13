@@ -7,7 +7,7 @@ from urllib3.util.retry import Retry
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -17,12 +17,18 @@ from operation_gas_costs import get_fusaka_dict
 from operation_types import PRECOMPILES, CALL, STATEFUL
 
 
+BENCHMARKOOR_BASE_URL = (
+    "https://benchmarkoor-api.core.ethpandaops.io/api/v1/index/query"
+)
+
 opcodes_file_name = Path(__file__).parent.joinpath("opcodes_in_test_name.txt")
 with open(opcodes_file_name, "r") as f:
     OPCODES_IN_TEST_NAME_LIST = [line.strip() for line in f.readlines()]
 
 
 def extract_param_values(params_str: str, param_name: str):
+    if not isinstance(params_str, str):
+        return np.nan
     regex_str = param_name + r"_(\d+)"
     values = re.findall(regex_str, params_str)
     if len(values) > 0:
@@ -75,28 +81,34 @@ def _query_gas_bench(
     return df
 
 
-def _query_benchmarkoor(
-    bearer_token: str,
-    network: str,
-    test_type: str,
-    start_date: str,
-    page_size: int = 10_000,
-    max_workers: int = 5,
-) -> pd.DataFrame:
-    print("Querying benchmarkoor database....")
-    base_url = "https://benchmarkoor-api.core.ethpandaops.io/api/v1/index/query"
+def _get_benchmarkoor_session(bearer_token: str, count_exact: bool = False):
     session = requests.Session()
     retries = Retry(total=3, backoff_factor=2, status_forcelist=[502, 503, 524])
     session.mount("https://", HTTPAdapter(max_retries=retries))
     session.headers.update(
         {
             "Authorization": f"Bearer {bearer_token}",
-            "Prefer": "count=exact",
         }
     )
+    if count_exact:
+        session.headers.update(
+            {
+                "Prefer": "count=exact",
+            }
+        )
+    return session
+
+
+def _get_latest_benchmarkoor_suite_hash(
+    bearer_token: str,
+    network: str,
+    test_type: str,
+    page_size: int,
+) -> str:
+    session = _get_benchmarkoor_session(bearer_token)
     # Resolve network + test_type to a suite_hash
     response = session.get(
-        f"{base_url}/suites",
+        f"{BENCHMARKOOR_BASE_URL}/suites",
         params={"discovery_path": "eq.repricings/results", "limit": page_size},
     )
     response.raise_for_status()
@@ -104,7 +116,7 @@ def _query_benchmarkoor(
     if suites_df.empty:
         raise ValueError(f"No suite found for network={network}, test_type={test_type}")
     # Filter weird compute run...
-    suites_df = suites_df[suites_df["suite_hash"]!="d74b491048b10299"]
+    suites_df = suites_df[suites_df["suite_hash"] != "d74b491048b10299"]
     # TODO: should remove this filter eventually...
     parsed = suites_df["name"].str.extract(r"^(.+)-(\d+)-([^-]+)$")
     suites_df["network"] = parsed[0].str.replace("-", "_")
@@ -119,6 +131,34 @@ def _query_benchmarkoor(
     if suite_row.empty:
         raise ValueError(f"No suite found for network={network}, test_type={test_type}")
     suite_hash = suite_row.iloc[0]["suite_hash"]
+    return suite_hash
+
+
+def _get_benchmarkoor_total_pages(
+    bearer_token: str, page_size: int, params: Dict[str, str]
+):
+    session = _get_benchmarkoor_session(bearer_token, count_exact=True)
+    response = session.get(
+        f"{BENCHMARKOOR_BASE_URL}/test_stats", params={**params, "limit": 0}
+    )
+    response.raise_for_status()
+    total = response.json()["total"]
+    total_pages = math.ceil(total / page_size)
+    return total_pages
+
+
+def _query_benchmarkoor(
+    bearer_token: str,
+    network: str,
+    test_type: str,
+    start_date: str,
+    page_size: int = 10_000,
+    max_workers: int = 5,
+) -> pd.DataFrame:
+    print("Querying benchmarkoor database....")
+    suite_hash = _get_latest_benchmarkoor_suite_hash(
+        bearer_token, network, test_type, page_size
+    )
     # Query test stats
     params = {
         "select": "test_name,client,test_time_ns,run_start",
@@ -128,14 +168,12 @@ def _query_benchmarkoor(
     if start_date is not None:
         start_ts = int(pd.Timestamp(start_date).timestamp())
         params["run_start"] = f"gt.{start_ts}"
-    response = session.get(f"{base_url}/test_stats", params={**params, "limit": 0})
-    response.raise_for_status()
-    total = response.json()["total"]
-    total_pages = math.ceil(total / page_size)
+    total_pages = _get_benchmarkoor_total_pages(bearer_token, page_size, params)
+    session = _get_benchmarkoor_session(bearer_token)
 
     def fetch_page(page):
         paginated_params = {**params, "limit": page_size, "offset": page * page_size}
-        resp = session.get(f"{base_url}/test_stats", params=paginated_params)
+        resp = session.get(f"{BENCHMARKOOR_BASE_URL}/test_stats", params=paginated_params)
         resp.raise_for_status()
         return page, resp.json()["data"]
 

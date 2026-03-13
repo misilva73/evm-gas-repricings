@@ -44,6 +44,14 @@ class TestExtractParamValues:
         result = extract_param_values("", "opcount")
         assert np.isnan(result)
 
+    def test_nan_input(self):
+        result = extract_param_values(float("nan"), "opcount")
+        assert np.isnan(result)
+
+    def test_none_input(self):
+        result = extract_param_values(None, "opcount")
+        assert np.isnan(result)
+
 
 # ---------------------------------------------------------------------------
 # Tests for process_compute_params

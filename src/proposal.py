@@ -6,7 +6,11 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent))
 from data import get_current_gas_cost
-from glue import compute_glue_adjustment
+from glue import (
+    compute_glue_adjustment,
+    add_state_glue_results,
+    add_state_missing_glues,
+)
 
 
 # EIP-8038 state access parameter current gas costs
@@ -133,8 +137,8 @@ def _apply_filter(df: pd.DataFrame, filter_dict: dict) -> pd.DataFrame:
 def compute_state_access_gas_params(
     results_df: pd.DataFrame,
     anchor_rate: float,
-    glue_results_df: pd.DataFrame = None,
-    glue_opcodes_by_test: pd.DataFrame = None,
+    glue_results_df: pd.DataFrame,
+    glue_opcodes_by_test: pd.DataFrame,
     group_by: List[str] = ["client_name", "test_name"],
 ) -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Set[str]]]:
     """Estimate state access gas parameters from NNLS model outputs.
@@ -157,13 +161,17 @@ def compute_state_access_gas_params(
         - derived_df: computed derived parameters with new_gas_rounded values.
         - poor_fit_dict: maps gas_param to the set of client names with no significant fit.
     """
+    glue_results_df = add_state_glue_results(results_df, glue_results_df)
+    glue_opcodes_by_test = add_state_missing_glues(glue_opcodes_by_test)
     # Apply glue adjustment to slope columns
     if glue_results_df is not None and glue_opcodes_by_test is not None:
-        glue_adj = compute_glue_adjustment(glue_results_df, glue_opcodes_by_test, group_by)
-        merge_keys = list(set(glue_adj.columns) & set(results_df.columns) - {"glue_adjustment"})
-        results_df = results_df.merge(
-            glue_adj, on=merge_keys, how="left"
+        glue_adj = compute_glue_adjustment(
+            glue_results_df, glue_opcodes_by_test, group_by
         )
+        merge_keys = list(
+            set(glue_adj.columns) & set(results_df.columns) - {"glue_adjustment"}
+        )
+        results_df = results_df.merge(glue_adj, on=merge_keys, how="left")
         results_df["glue_adjustment"] = results_df["glue_adjustment"].fillna(0.0)
         for col in ["slope", "slope_conf_int_low", "slope_conf_int_high"]:
             if col in results_df.columns:
@@ -173,6 +181,7 @@ def compute_state_access_gas_params(
 
     rows = []
     poor_fit_dict: Dict[str, Set[str]] = {}
+    all_params_df = pd.DataFrame()
 
     for gas_param, sources in _STATE_ACCESS_PARAM_SOURCES.items():
         candidates = []
@@ -210,6 +219,7 @@ def compute_state_access_gas_params(
             continue
 
         cand_df = pd.DataFrame(candidates)
+        all_params_df = pd.concat([all_params_df, cand_df], ignore_index=True)
         for client, grp in cand_df.groupby("client_name"):
             good = grp[grp["pvalue"] < 0.05]
             if not good.empty:
@@ -236,6 +246,7 @@ def compute_state_access_gas_params(
     if not rows:
         return pd.DataFrame(), pd.DataFrame(), poor_fit_dict
 
+    # Compute new gas for the worst runtime per client
     params_df = pd.DataFrame(rows)
     params_df["new_gas"] = (anchor_rate * params_df["runtime_ms"]) / 1e3
     params_df["new_gas_rounded"] = np.ceil(params_df["new_gas"])
@@ -246,25 +257,17 @@ def compute_state_access_gas_params(
         (anchor_rate * params_df["conf_int_high"]) / 1e3
     )
 
-    # Worst case across clients for each gas parameter
-    worst = params_df.groupby("gas_param")["new_gas_rounded"].max()
-    cold_storage_access = worst.get("GAS_COLD_STORAGE_ACCESS", 0)
-    cold_storage_write = worst.get("GAS_COLD_STORAGE_WRITE", 0)
-    cold_account_code_access = worst.get("GAS_COLD_ACCOUNT_CODE_ACCESS", 0)
-
-    # Derived parameters
-    derived = {
-        "GAS_STORAGE_CLEAR_REFUND": int(
-            np.ceil((cold_storage_write + cold_storage_access) * (4800 / 5000))
-        ),
-        "ACCESS_LIST_STORAGE_KEY_COST": int(cold_storage_access),
-        "ACCESS_LIST_ADDRESS_COST": int(cold_account_code_access),
-    }
-    derived_df = pd.DataFrame(
-        [{"gas_param": k, "new_gas_rounded": v} for k, v in derived.items()]
+    # compute the same features for all_params
+    all_params_df["new_gas"] = (anchor_rate * all_params_df["runtime_ms"]) / 1e3
+    all_params_df["new_gas_rounded"] = np.ceil(all_params_df["new_gas"])
+    all_params_df["new_gas_conf_int_low"] = np.ceil(
+        (anchor_rate * all_params_df["conf_int_low"]) / 1e3
+    )
+    all_params_df["new_gas_conf_int_high"] = np.ceil(
+        (anchor_rate * all_params_df["conf_int_high"]) / 1e3
     )
 
-    return params_df, derived_df, poor_fit_dict
+    return params_df, all_params_df, poor_fit_dict
 
 
 def select_worst_case_estimates(
