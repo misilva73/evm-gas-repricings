@@ -347,6 +347,30 @@ class TestPrepareNonSimpleModelData:
         _, features = prepare_non_simple_model_data(df, ["msg_size", "copy_size"])
         assert features == ["opcount"]
 
+    def test_constant_param_excluded_from_features(self):
+        """A param that exists but has the same value for all rows should not appear in features."""
+        rows = [
+            {"opcount": 10, "test_params": "opcount_10-update_0", "run_duration_ms": 5.0},
+            {"opcount": 20, "test_params": "opcount_20-update_0", "run_duration_ms": 10.0},
+            {"opcount": 30, "test_params": "opcount_30-update_0", "run_duration_ms": 15.0},
+        ]
+        df = pd.DataFrame(rows)
+        _, features = prepare_non_simple_model_data(df, ["update"])
+        assert "update" not in features
+        assert features == ["opcount"]
+
+    def test_constant_param_excluded_but_varying_param_kept(self):
+        """Only constant-value params are excluded; varying ones are kept."""
+        rows = [
+            {"opcount": 10, "test_params": "opcount_10-msg_size_32-update_0", "run_duration_ms": 5.0},
+            {"opcount": 20, "test_params": "opcount_20-msg_size_64-update_0", "run_duration_ms": 10.0},
+            {"opcount": 30, "test_params": "opcount_30-msg_size_128-update_0", "run_duration_ms": 15.0},
+        ]
+        df = pd.DataFrame(rows)
+        _, features = prepare_non_simple_model_data(df, ["msg_size", "update"])
+        assert "msg_size" in features
+        assert "update" not in features
+
     def test_feature_column_dtype_is_float(self):
         df = _make_op_df()
         model_df, features = prepare_non_simple_model_data(df, ["msg_size"])

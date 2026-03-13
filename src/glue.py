@@ -145,13 +145,13 @@ def add_state_glue_results(
         & (results_df["test_name"] == "test_account_access")
         & (results_df["cache_strategy"] == "NO_CACHE")
     ]
-    # Warm CALL
+    # warm CALL
     call_df = results_df[
         (results_df["opcode"] == "CALL")
         & (results_df["test_name"] == "test_ext_account_query_warm")
         & (results_df["cache_strategy"] == "NO_CACHE")
     ]
-    # TODO: missing cold SLOAD
+    # cold SLOAD
     sload_df = results_df[
         (results_df["test_name"] == "test_sload_erc20_balanceof")
         & (results_df["cache_strategy"] == "NO_CACHE")

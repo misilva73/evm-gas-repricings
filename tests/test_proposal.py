@@ -12,6 +12,7 @@ from proposal import (
     compute_worst_gas_proposal,
     find_missing_client_estimations,
     compute_state_access_gas_params,
+    compute_derived_state_access_params,
     find_poor_fit_glue_opcodes,
     _apply_filter,
     _STATE_ACCESS_CURRENT_GAS,
@@ -1159,3 +1160,48 @@ class TestFindPoorFitGlueOpcodes:
         )
         result = find_poor_fit_glue_opcodes(glue_results, glue_by_test)
         assert result["PUSH1"]["test_opcodes"] == ["ADD", "MUL"]
+
+
+# ---------------------------------------------------------------------------
+# Tests for compute_derived_state_access_params
+# ---------------------------------------------------------------------------
+
+
+def _make_params_df(**kwargs):
+    """Build a minimal params_df with gas_param and new_gas_rounded columns."""
+    rows = [{"gas_param": k, "new_gas_rounded": v, "client_name": "geth"} for k, v in kwargs.items()]
+    return pd.DataFrame(rows)
+
+
+class TestComputeDerivedStateAccessParams:
+    def test_access_list_storage_key_equals_cold_storage_access(self):
+        df = _make_params_df(GAS_COLD_STORAGE_ACCESS=3515)
+        result = compute_derived_state_access_params(df)
+        assert result["ACCESS_LIST_STORAGE_KEY_COST"] == 3515
+
+    def test_access_list_address_equals_cold_account_code_access(self):
+        df = _make_params_df(GAS_COLD_ACCOUNT_CODE_ACCESS=1156)
+        result = compute_derived_state_access_params(df)
+        assert result["ACCESS_LIST_ADDRESS_COST"] == 1156
+
+    def test_storage_clear_refund_formula(self):
+        df = _make_params_df(GAS_COLD_STORAGE_WRITE=2000, GAS_COLD_STORAGE_ACCESS=3000)
+        result = compute_derived_state_access_params(df)
+        expected = int(np.ceil((2000 + 3000) * (4800 / 5000)))
+        assert result["GAS_STORAGE_CLEAR_REFUND"] == expected
+
+    def test_missing_params_default_to_zero(self):
+        df = _make_params_df(GAS_WARM_ACCESS=100)
+        result = compute_derived_state_access_params(df)
+        assert result["ACCESS_LIST_STORAGE_KEY_COST"] == 0
+        assert result["ACCESS_LIST_ADDRESS_COST"] == 0
+        assert result["GAS_STORAGE_CLEAR_REFUND"] == 0
+
+    def test_worst_case_across_clients(self):
+        """Takes the max across clients, not just the first row."""
+        df = pd.DataFrame([
+            {"gas_param": "GAS_COLD_STORAGE_ACCESS", "new_gas_rounded": 1000, "client_name": "geth"},
+            {"gas_param": "GAS_COLD_STORAGE_ACCESS", "new_gas_rounded": 3515, "client_name": "besu"},
+        ])
+        result = compute_derived_state_access_params(df)
+        assert result["ACCESS_LIST_STORAGE_KEY_COST"] == 3515

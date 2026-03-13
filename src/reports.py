@@ -23,6 +23,7 @@ from proposal import (
     find_missing_client_estimations,
     find_poor_fit_glue_opcodes,
     compute_state_access_gas_params,
+    compute_derived_state_access_params,
     _STATE_ACCESS_CURRENT_GAS,
     _STATE_ACCESS_PARAM_SOURCES,
 )
@@ -515,16 +516,7 @@ is used. Parameters with no significant fits are listed in the "Errors and cavea
     )
 
     # Derived parameters table
-    cold_storage_access = worst_direct.get("GAS_COLD_STORAGE_ACCESS", 0)
-    cold_storage_write = worst_direct.get("GAS_COLD_STORAGE_WRITE", 0)
-    cold_account_code_access = worst_direct.get("GAS_COLD_ACCOUNT_CODE_ACCESS", 0)
-    derived = {
-        "GAS_STORAGE_CLEAR_REFUND": int(
-            np.ceil((cold_storage_write + cold_storage_access) * (4800 / 5000))
-        ),
-        "ACCESS_LIST_STORAGE_KEY_COST": int(cold_storage_access),
-        "ACCESS_LIST_ADDRESS_COST": int(cold_account_code_access),
-    }
+    derived = compute_derived_state_access_params(params_df)
     derived_df = pd.DataFrame(
         [{"gas_param": k, "new_gas_rounded": v} for k, v in derived.items()]
     )

@@ -122,7 +122,6 @@ if __name__ == "__main__":
         query_source=query_source,
         group_by=["client_name", "test_name"] + MODEL_BY,
     )
-    # TODO: review glue report: is it using the correct statefull runtimes? i.e., cold vs. warm
     generate_glue_opcode_report(
         start_date=start_date,
         end_date=run_time.strftime("%Y-%m-%d"),

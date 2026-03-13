@@ -270,6 +270,29 @@ def compute_state_access_gas_params(
     return params_df, all_params_df, poor_fit_dict
 
 
+def compute_derived_state_access_params(params_df: pd.DataFrame) -> Dict[str, int]:
+    """Compute derived state access gas parameters from directly estimated ones.
+
+    Args:
+        params_df: Per-client worst-case estimates DataFrame with columns
+            ``gas_param`` and ``new_gas_rounded``.
+
+    Returns:
+        Dict mapping derived parameter names to their new gas values.
+    """
+    worst = params_df.groupby("gas_param")["new_gas_rounded"].max().to_dict()
+    cold_storage_access = worst.get("GAS_COLD_STORAGE_ACCESS", 0)
+    cold_storage_write = worst.get("GAS_COLD_STORAGE_WRITE", 0)
+    cold_account_code_access = worst.get("GAS_COLD_ACCOUNT_CODE_ACCESS", 0)
+    return {
+        "GAS_STORAGE_CLEAR_REFUND": int(
+            np.ceil((cold_storage_write + cold_storage_access) * (4800 / 5000))
+        ),
+        "ACCESS_LIST_STORAGE_KEY_COST": int(cold_storage_access),
+        "ACCESS_LIST_ADDRESS_COST": int(cold_account_code_access),
+    }
+
+
 def select_worst_case_estimates(
     results_df: pd.DataFrame,
     params: List[str],
