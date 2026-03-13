@@ -40,13 +40,14 @@ End of April:
     - The inputs are repeated, so for clients that cache results, the run-time will be much faster than a real ecPairing calculation without cache. I think we may need to update this test to vary the inputs
 - [X] [Rafael Matias] Make data from Benchmarkoor SQL-queryable
 - [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780:
-  - [ ] Kamil fills stateful tests with perf-devnet-3 snapshots
-  - [ ] Rafael runs new test suite on benchmarkoor
-  - [ ] Maria updates the repricings analysis code and run it with new data
+  - [X] Kamil fills stateful tests with perf-devnet-3 snapshots
+  - [X] Rafael runs new test suite on benchmarkoor
+  - [X] Maria updates the repricings analysis code and run it with new data
   - [ ] Rafael finishes all clients syncing and takes new snapshot
 - [ ] [Louis Tsai] Make tests compatible with Amsterdam so that we can run benchmarks on BAL-optimized clients
 - [ ] [Rafael Matias] Run amsterdam-compatible tests on BAL-optimized clients (both compute and stateful)
-- [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers for EIP-7904, EIP-8038 and EIP-2780
+  - How many cores should we target? Ask ethpandaops for it. We should anchor it to the validating node spec
+- [ ] [Maria Silva] Run empirical analysis to derive final numbers for EIP-7904, EIP-8038 and EIP-2780
 
 ### Security and community outreach
 
