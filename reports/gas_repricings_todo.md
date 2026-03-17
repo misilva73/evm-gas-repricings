@@ -25,7 +25,7 @@ End of April:
 - ⚪ we have done an external security review with preliminary numbers
 - ⚪ we need to have everything ready for interop
 
-## Current workstreams - goals for end of Feb
+## Current workstreams - goals for end of March
 
 ### Benchmarking
 
