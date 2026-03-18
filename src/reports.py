@@ -15,7 +15,11 @@ pd.options.mode.chained_assignment = None
 
 
 sys.path.append(str(Path(__file__).parent))
-from plotting import create_and_save_new_gas_plot, create_and_save_state_access_gas_plot
+from plotting import (
+    create_and_save_new_gas_plot,
+    create_and_save_new_gas_heatmaps,
+    create_and_save_state_access_gas_plot,
+)
 from runtime_estimation import estimate_run_time_for_operation
 from proposal import (
     select_worst_case_estimates,
@@ -264,13 +268,40 @@ in the "Errors and caveats" section.
             text="Gas costs by client", path="figs/gas_costs_by_client.png"
         )
     )
+    clients = sorted(new_gas_df["client_name"].unique())
+    create_and_save_new_gas_heatmaps(
+        new_gas_df,
+        group_col="param",
+        row_col="opcode",
+        clients=clients,
+        value_col="new_gas",
+        out_dir=out_dir,
+        filename="gas_costs_heatmap.png",
+    )
+    md_file.new_paragraph(
+        "The following heatmaps show the new gas costs (rounded) for each opcode and parameter "
+        "combination, broken down by client."
+    )
+    md_file.new_paragraph("")
+    md_file.new_line(
+        md_file.new_inline_image(
+            text="Gas costs heatmap by client", path="figs/gas_costs_heatmap.png"
+        )
+    )
     # Table: worst runtime and glue adjustment per client and opcode/parameter
     md_file.new_paragraph(
         "The following table shows the worst-case runtime (after glue adjustment) "
         "and the glue adjustment applied for each opcode, parameter, and client."
     )
     md_file.new_paragraph("")
-    detail_cols = ["opcode", "param", "client_name", "runtime_ms", "glue_adjustment", "new_gas_rounded"]
+    detail_cols = [
+        "opcode",
+        "param",
+        "client_name",
+        "runtime_ms",
+        "glue_adjustment",
+        "new_gas_rounded",
+    ]
     if "glue_adjustment" not in new_gas_df.columns:
         new_gas_df["glue_adjustment"] = 0.0
     detail_df = (
@@ -279,7 +310,12 @@ in the "Errors and caveats" section.
         .sort_values(["opcode", "param", "client_name"])
     )
     detail_table_data = [
-        "Opcode", "Parameter", "Client", "Runtime (ms)", "Glue Adj. (ms)", "New Gas (Rounded)"
+        "Opcode",
+        "Parameter",
+        "Client",
+        "Runtime (ms)",
+        "Glue Adj. (ms)",
+        "New Gas (Rounded)",
     ]
     for _, row in detail_df.iterrows():
         detail_table_data.extend(
@@ -359,9 +395,7 @@ in the "Errors and caveats" section.
         md_file.new_paragraph("")
         target_set = set(target_operations)
         for glue_opcode, info in poor_fit_glue.items():
-            affected = sorted(
-                op for op in info["test_opcodes"] if op in target_set
-            )
+            affected = sorted(op for op in info["test_opcodes"] if op in target_set)
             if not affected:
                 continue
             md_file.new_list(
@@ -469,6 +503,14 @@ is used. Parameters with no significant fits are listed in the "Errors and cavea
     glue_opcodes_by_test = pd.read_csv(
         os.path.join(out_dir, "glue_opcodes_by_test.csv")
     )
+    # Ignore CACHE_PREVIOUS_BLOCK for besu
+    results_df = results_df[
+        ~(
+            (results_df["client_name"] == "besu")
+            & (results_df["cache_strategy"] == "CACHE_PREVIOUS_BLOCK")
+        )
+    ]
+    # compute state access params
     params_df, all_params_df, poor_fit_dict = compute_state_access_gas_params(
         results_df,
         anchor_rate,
@@ -572,20 +614,82 @@ is used. Parameters with no significant fits are listed in the "Errors and cavea
                 path="figs/state_access_gas_params_by_client.png",
             )
         )
+        if not all_params_df.empty:
+            heatmap_df = all_params_df.copy()
+            heatmap_df["test_short"] = (
+                heatmap_df["test_name"]
+                .str.replace("test_", "")
+                .str.replace("_benchmark", "")
+            )
+
+            def _variant_label(row):
+                parts = []
+                cs = str(row.get("cache_strategy", ""))
+                am = str(row.get("account_mode", ""))
+                es = row.get("existing_slots", "")
+                if cs not in ("", "N/A", "nan"):
+                    parts.append(cs.replace("CACHE_", "").lower())
+                if am not in ("", "N/A", "nan"):
+                    parts.append(am.replace("_", " ").lower())
+                if es not in ("", "N/A", "nan", None):
+                    es_label = (
+                        "existing"
+                        if str(es) == "True"
+                        else "new" if str(es) == "False" else str(es)
+                    )
+                    parts.append(f"slots={es_label}")
+                return " | ".join(parts) if parts else "default"
+
+            heatmap_df["variant"] = heatmap_df.apply(_variant_label, axis=1)
+            heatmap_df["test_variant"] = (
+                heatmap_df["test_short"] + " | " + heatmap_df["variant"]
+            )
+            heatmap_clients = sorted(heatmap_df["client_name"].unique())
+            create_and_save_new_gas_heatmaps(
+                heatmap_df,
+                group_col="gas_param",
+                row_col="test_variant",
+                clients=heatmap_clients,
+                value_col="new_gas",
+                out_dir=out_dir,
+                filename="state_access_gas_heatmaps.png",
+            )
+            md_file.new_paragraph(
+                "The following heatmaps show the new gas costs for each state access parameter "
+                "broken down by test variant (test name and cache/account configuration) and "
+                "client."
+            )
+            md_file.new_paragraph("")
+            md_file.new_line(
+                md_file.new_inline_image(
+                    text="State access gas heatmaps",
+                    path="figs/state_access_gas_heatmaps.png",
+                )
+            )
         # Table: worst runtime and glue adjustment per client and parameter
         md_file.new_paragraph(
             "The following table shows the worst-case runtime (after glue adjustment) "
             "and the glue adjustment applied for each parameter and client."
         )
         md_file.new_paragraph("")
-        detail_cols = ["gas_param", "client_name", "runtime_ms", "glue_adjustment", "new_gas_rounded"]
+        detail_cols = [
+            "gas_param",
+            "client_name",
+            "runtime_ms",
+            "glue_adjustment",
+            "new_gas_rounded",
+        ]
         detail_df = (
             params_df[detail_cols]
             .drop_duplicates()
             .sort_values(["gas_param", "client_name"])
         )
         detail_table_data = [
-            "Parameter", "Client", "Runtime (ms)", "Glue Adj. (ms)", "New Gas (Rounded)"
+            "Parameter",
+            "Client",
+            "Runtime (ms)",
+            "Glue Adj. (ms)",
+            "New Gas (Rounded)",
         ]
         for _, row in detail_df.iterrows():
             detail_table_data.extend(
@@ -616,7 +720,8 @@ is used. Parameters with no significant fits are listed in the "Errors and cavea
     extra_group_by_cols = [
         f"selected_{col}"
         for col in group_by
-        if col not in ("client_name", "test_name") and f"selected_{col}" in params_df.columns
+        if col not in ("client_name", "test_name")
+        and f"selected_{col}" in params_df.columns
     ]
     config_cols = [
         "gas_param",

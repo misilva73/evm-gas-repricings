@@ -66,7 +66,7 @@ if __name__ == "__main__":
     state_tests = [
         "test_storage_sload_same_key_benchmark",
         "test_sload_erc20_balanceof",
-        "test_sstore_erc20_mint",
+        "test_sstore_erc20_approve",
         "test_ext_account_query_warm",
         "test_account_access",
     ]
@@ -105,8 +105,6 @@ if __name__ == "__main__":
     )
     outfile = os.path.join(out_dir, f"trace_data.csv")
     trace_df.to_csv(outfile, index=False)
-    # TODO: remove this filter once test_sstore_erc20_mint is fixed
-    gas_bench_df = gas_bench_df[gas_bench_df["test_name"]!="test_sstore_erc20_mint"]
     # Run estimations and generate reports
     generate_runtime_report(
         start_date=start_date,

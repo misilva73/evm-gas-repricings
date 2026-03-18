@@ -69,7 +69,64 @@ def create_and_save_new_gas_plot(new_gas_df: pd.DataFrame, out_dir: str) -> None
     plt.close()
 
 
-def create_and_save_state_access_gas_plot(params_df: pd.DataFrame, out_dir: str) -> None:
+def create_and_save_new_gas_heatmaps(
+    df: pd.DataFrame,
+    group_col: str,
+    row_col: str,
+    clients: List[str],
+    value_col: str,
+    out_dir: str,
+    filename: str,
+) -> None:
+    """Save one heatmap per unique value of group_col, stacked in a single PNG.
+
+    Each heatmap shows row_col (y-axis) vs client_name (x-axis) with mean value_col.
+    """
+    groups = sorted(df[group_col].unique())
+    if not groups:
+        return
+    heights = [
+        max(2, len(df[df[group_col] == gp][row_col].unique()) * 0.4) for gp in groups
+    ]
+    fig, axes = plt.subplots(
+        len(groups),
+        1,
+        figsize=(10, sum(heights)),
+        gridspec_kw={"height_ratios": heights},
+    )
+    if len(groups) == 1:
+        axes = [axes]
+    for ax, gp in zip(axes, groups):
+        gp_df = df[df[group_col] == gp].copy()
+        pivot = gp_df.pivot_table(
+            index=row_col, columns="client_name", values=value_col, aggfunc="mean"
+        )
+        available_clients = [c for c in clients if c in pivot.columns]
+        pivot = pivot[available_clients]
+        if pivot.empty:
+            ax.set_visible(False)
+            continue
+        sns.heatmap(
+            pivot,
+            ax=ax,
+            cmap="YlOrRd",
+            annot=True,
+            fmt=".1f",
+            linewidths=0.5,
+            linecolor="white",
+            cbar_kws={"label": "New Gas"},
+        )
+        ax.set_title(f"{gp}: Mean New Gas by Test+Variant vs Client", fontsize=12)
+        ax.set_ylabel("")
+    plt.tight_layout()
+    plot_path = os.path.join(out_dir, "figs", filename)
+    plt.savefig(plot_path, dpi=144, bbox_inches="tight")
+    plt.close()
+
+
+def create_and_save_state_access_gas_plot(
+    params_df: pd.DataFrame, out_dir: str
+) -> None:
     """Plot per-client new gas estimates for state access parameters with confidence intervals."""
     fig, ax = plt.subplots(figsize=(10, max(6, len(params_df) * 0.15)))
     gas_params = params_df["gas_param"].unique()

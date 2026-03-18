@@ -100,7 +100,9 @@ def get_glue_opcodes_by_test(
     )
     # Compute ratios by group
     ratios = grouped.apply(
-        lambda g: g[opcode_cols].diff().mean() / g["opcount"].diff().mean(),
+        lambda g: (lambda gs: gs[opcode_cols].diff().mean() / gs["opcount"].diff().mean())(
+            g.sort_values("opcount")
+        ),
         include_groups=False,
     )
     # Add data to single dataframe + filter

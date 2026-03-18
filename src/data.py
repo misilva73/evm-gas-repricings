@@ -173,7 +173,9 @@ def _query_benchmarkoor(
 
     def fetch_page(page):
         paginated_params = {**params, "limit": page_size, "offset": page * page_size}
-        resp = session.get(f"{BENCHMARKOOR_BASE_URL}/test_stats", params=paginated_params)
+        resp = session.get(
+            f"{BENCHMARKOOR_BASE_URL}/test_stats", params=paginated_params
+        )
         resp.raise_for_status()
         return page, resp.json()["data"]
 
@@ -399,13 +401,20 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
         df["test_opcode"],
     )
     # Set update param
-    sstore_mask = df["test_name"] == "test_sstore_erc20_mint"
-    df.loc[sstore_mask, "test_params"] = df.loc[sstore_mask, "test_params"].str.replace(
-        "no_change_False", "update_1"
-    )
-    df.loc[sstore_mask, "test_params"] = df.loc[sstore_mask, "test_params"].str.replace(
-        "no_change_True", "update_0"
-    )
+    sstore_mint_mask = df["test_name"] == "test_sstore_erc20_mint"
+    df.loc[sstore_mint_mask, "test_params"] = df.loc[
+        sstore_mint_mask, "test_params"
+    ].str.replace("no_change_False", "update_1")
+    df.loc[sstore_mint_mask, "test_params"] = df.loc[
+        sstore_mint_mask, "test_params"
+    ].str.replace("no_change_True", "update_0")
+    sstore_app_mask = df["test_name"] == "test_sstore_erc20_approve"
+    df.loc[sstore_app_mask, "test_params"] = df.loc[
+        sstore_app_mask, "test_params"
+    ].str.replace("write_new_value_True", "update_1")
+    df.loc[sstore_app_mask, "test_params"] = df.loc[
+        sstore_app_mask, "test_params"
+    ].str.replace("write_new_value_False", "update_0")
     account_mask = df["test_name"] == "test_account_access"
     df.loc[account_mask, "test_params"] = df.loc[
         account_mask, "test_params"
@@ -413,7 +422,11 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     df.loc[account_mask, "test_params"] = df.loc[
         account_mask, "test_params"
     ].str.replace("value_sent_0", "update_0")
-    # Add new columns and remove from params
+    # Fix existing_slots param in test_sstore_erc20_approve
+    df.loc[sstore_app_mask, "test_params"] = df.loc[
+        sstore_app_mask, "test_params"
+    ].str.replace("existing_slot", "existing_slots")
+    # Add new columns and remove from params 
     for new_col in ["cache_strategy", "account_mode", "token_name", "existing_slots"]:
         df[new_col] = df["test_params"].str.extract(rf"{new_col}.([^-]+)")
         df["test_params"] = df["test_params"].str.replace(

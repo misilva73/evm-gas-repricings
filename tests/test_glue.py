@@ -146,6 +146,48 @@ def multi_glue_df():
 
 
 @pytest.fixture
+def unsorted_opcount_df():
+    """One group, 8 rows with ADD = 0.5*opcount + small noise.
+
+    diff().mean() reduces to (last − first) / (n − 1), so the estimated
+    ratio depends entirely on which rows happen to be first and last.
+
+    Here opcount=500 is first and opcount=400 is last (Δopcount = −100).
+    Noise of ±10 is added at those two endpoints:
+      ADD[opcount=500] = 260 (true 250, +10 noise)
+      ADD[opcount=400] = 190 (true 200, −10 noise)
+
+    Without sorting:
+      ratio = (190 − 260) / (400 − 500) = −70 / −100 = 0.7  (wrong)
+    After sorting by opcount (new code):
+      diff(ADD).mean() = 50.0, diff(opcount).mean() = 100  → ratio = 0.5  (correct)
+
+    The noise is small enough that Pearson correlation ≈ 0.9995 ≥ 0.95,
+    so the row passes all other filters.
+    """
+    add_values = {oc: 0.5 * oc for oc in range(100, 900, 100)}
+    add_values[400] -= 10  # noise: −10
+    add_values[500] += 10  # noise: +10
+    # Present rows with opcount=500 first and opcount=400 last
+    shuffled_opcounts = [500, 100, 200, 300, 600, 700, 800, 400]
+    rows = [
+        {
+            "test_file": "f.py",
+            "test_name": "test_unsorted",
+            "test_opcode": "PUSH1",
+            "test_params": "p1",
+            "test_title": "test_unsorted_title",
+            "block_limit_million": 30,
+            "opcount": oc,
+            "ADD": add_values[oc],
+            "MUL": 10,
+        }
+        for oc in shuffled_opcounts
+    ]
+    return pd.DataFrame(rows)
+
+
+@pytest.fixture
 def low_ratio_df():
     """ADD scales with opcount but with a very small ratio (0.0004 < 0.0005 threshold).
     Should be filtered out despite high correlation."""
@@ -306,6 +348,21 @@ class TestGetGlueOpcodesByTest:
         assert "glue_opcode" in result.columns
         assert "ADD" in result[result["client"] == "geth"]["glue_opcode"].values
         assert "ADD" in result[result["client"] == "reth"]["glue_opcode"].values
+
+    def test_ratio_correct_when_rows_not_sorted_by_opcount(self, unsorted_opcount_df):
+        """Ratio should be ~0.5 even when rows are presented in non-ascending opcount order.
+
+        Without sorting by opcount before calling diff(), the estimator
+        reduces to (ADD[last] − ADD[first]) / (opcount[last] − opcount[first]).
+        The fixture deliberately places opcount=500 first and opcount=400 last
+        (Δopcount = −100) with +/−100 noise injected at those two endpoints,
+        which would yield ratio ≈ 1.5 for unsorted data.  Sorting first uses
+        the full range Δopcount = 700 and gives ratio ≈ 0.5.
+        """
+        result = get_glue_opcodes_by_test(unsorted_opcount_df)
+        assert "ADD" in _get_glue_opcodes(result, "test_unsorted", "PUSH1")
+        ratio = _get_ratio(result, "test_unsorted", "PUSH1", "ADD")
+        assert ratio == pytest.approx(0.5, abs=0.1)
 
     def test_glue_group_by_default_matches_no_extra_columns(self, proportional_df):
         """Default glue_group_by=[] produces same result as explicit empty list."""

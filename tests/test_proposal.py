@@ -701,9 +701,9 @@ class TestComputeStateAccessGasParams:
         assert np.isclose(row.iloc[0]["runtime_ms"], 0.03)
 
     def test_cold_storage_write_from_update_coef(self):
-        """GAS_COLD_STORAGE_WRITE is estimated from test_sstore_erc20_mint NO_CACHE update coef."""
+        """GAS_COLD_STORAGE_WRITE is estimated from test_sstore_erc20_approve NO_CACHE update coef."""
         df = pd.DataFrame([_sa_row(
-            test_name="test_sstore_erc20_mint",
+            test_name="test_sstore_erc20_approve",
             cache_strategy="NO_CACHE",
             slope=0.02,
             slope_pvalue=0.01,
@@ -786,7 +786,7 @@ class TestComputeStateAccessGasParams:
         """For a given gas_param and client, the worst-case (max runtime) row is selected."""
         df = pd.DataFrame([
             _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.02, slope_pvalue=0.01),
-            _sa_row(test_name="test_sstore_erc20_mint", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.01),
+            _sa_row(test_name="test_sstore_erc20_approve", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.01),
         ])
         params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
@@ -797,7 +797,7 @@ class TestComputeStateAccessGasParams:
         """Rows with p < 0.05 are preferred over rows with p >= 0.05 even if runtime is lower."""
         df = pd.DataFrame([
             _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.01, slope_pvalue=0.02),
-            _sa_row(test_name="test_sstore_erc20_mint", cache_strategy="NO_CACHE", slope=0.09, slope_pvalue=0.20),
+            _sa_row(test_name="test_sstore_erc20_approve", cache_strategy="NO_CACHE", slope=0.09, slope_pvalue=0.20),
         ])
         params_df, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
