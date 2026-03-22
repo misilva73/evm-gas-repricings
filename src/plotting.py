@@ -99,7 +99,7 @@ def create_and_save_new_gas_heatmaps(
     for ax, gp in zip(axes, groups):
         gp_df = df[df[group_col] == gp].copy()
         pivot = gp_df.pivot_table(
-            index=row_col, columns="client_name", values=value_col, aggfunc="mean"
+            index=row_col, columns="client_name", values=value_col, aggfunc="max"
         )
         available_clients = [c for c in clients if c in pivot.columns]
         pivot = pivot[available_clients]
@@ -116,7 +116,7 @@ def create_and_save_new_gas_heatmaps(
             linecolor="white",
             cbar_kws={"label": "New Gas"},
         )
-        ax.set_title(f"{gp}: Mean New Gas by Test+Variant vs Client", fontsize=12)
+        ax.set_title(f"{gp}: New Gas by Test+Variant vs Client", fontsize=12)
         ax.set_ylabel("")
     plt.tight_layout()
     plot_path = os.path.join(out_dir, "figs", filename)

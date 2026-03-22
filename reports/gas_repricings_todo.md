@@ -36,7 +36,7 @@ End of April:
     - [Create address calculation helper](https://github.com/ethereum/execution-specs/pull/2353)
     - [EOA/contract query tests](https://github.com/ethereum/execution-specs/pull/2399)
   - [X] Bloat new ERC20 contracts and deterministic addresses
-  - [ ] Investigate caching issue with `test_alt_bn128_benchmark` and `test_ecrecover`.
+  - [X] Investigate caching issue with `test_alt_bn128_benchmark` and `test_ecrecover`.
     - The inputs are repeated, so for clients that cache results, the run-time will be much faster than a real ecPairing calculation without cache. I think we may need to update this test to vary the inputs
 - [X] [Rafael Matias] Make data from Benchmarkoor SQL-queryable
 - [ ] [Maria Silva] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780:
@@ -48,6 +48,7 @@ End of April:
 - [ ] [Rafael Matias] Run amsterdam-compatible tests on BAL-optimized clients (both compute and stateful)
   - How many cores should we target? Ask ethpandaops for it. We should anchor it to the validating node spec
 - [ ] [Maria Silva] Run empirical analysis to derive final numbers for EIP-7904, EIP-8038 and EIP-2780
+- [ ] Review repricing marker to reduce test runtime
 
 ### Security and community outreach
 

@@ -138,7 +138,7 @@ We also plot some diagnostic graphs for each operation and client combination to
         )
         out_list.extend(op_list)
     # Create and save output dataframe
-    out_df = pd.DataFrame(out_list)
+    out_df = pd.DataFrame([d for d in out_list if d is not None])
     out_df.to_csv(os.path.join(out_dir, f"results.csv"), index=False)
     # Finish and save markdown file
     md_file.new_table_of_contents(depth=1)
@@ -508,6 +508,14 @@ is used. Parameters with no significant fits are listed in the "Errors and cavea
         ~(
             (results_df["client_name"] == "besu")
             & (results_df["cache_strategy"] == "CACHE_PREVIOUS_BLOCK")
+        )
+    ]
+    # Ignore CACHE_TX for test_sstore_erc20_approve
+    results_df = results_df[
+        ~(
+            (results_df["client_name"] == "reth")
+            & (results_df["cache_strategy"] == "CACHE_TX")
+            & (results_df["test_name"] == "test_sstore_erc20_approve")
         )
     ]
     # compute state access params
