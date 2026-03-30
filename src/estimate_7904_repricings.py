@@ -9,6 +9,8 @@ from pathlib import Path
 # Suppress warnings
 warnings.filterwarnings("ignore", module="statsmodels")
 warnings.filterwarnings("ignore", message="Tight layout not applied")
+warnings.filterwarnings("ignore", message="invalid value encountered in divide")
+warnings.filterwarnings("ignore", message="The values in the array are unorderable")
 pd.options.mode.chained_assignment = None
 
 
@@ -33,7 +35,7 @@ PARAM_MULTIPLIERS = {
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2026-01-27"
+    start_date = "2026-03-24"
     # Query source - benchmarkoor or gas_bench
     query_source = "benchmarkoor"
     # Anchor rate for repricings
@@ -91,6 +93,8 @@ if __name__ == "__main__":
     outfile = os.path.join(out_dir, "gas_bench_data.csv")
     gas_bench_df.to_csv(outfile, index=False)
     trace_df = pd.concat([compute_trace_df, state_trace_df], ignore_index=True)
+    outfile = os.path.join(out_dir, f"trace_data.csv")
+    trace_df.to_csv(outfile, index=False)
     # Run estimations and generate reports
     generate_runtime_report(
         start_date=start_date,

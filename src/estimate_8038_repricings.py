@@ -9,6 +9,8 @@ from pathlib import Path
 # Suppress warnings
 warnings.filterwarnings("ignore", module="statsmodels")
 warnings.filterwarnings("ignore", message="Tight layout not applied")
+warnings.filterwarnings("ignore", message="invalid value encountered in divide")
+warnings.filterwarnings("ignore", message="The values in the array are unorderable")
 pd.options.mode.chained_assignment = None
 
 

@@ -118,7 +118,7 @@ def _get_latest_benchmarkoor_suite_hash(
     # Filter weird compute run...
     suites_df = suites_df[suites_df["suite_hash"] != "d74b491048b10299"]
     # TODO: should remove this filter eventually...
-    parsed = suites_df["name"].str.extract(r"^(.+)-(\d+)-([^-]+)$")
+    parsed = suites_df["name"].str.extract(r"^(.+)-(\d+)-(.+)$")
     suites_df["network"] = parsed[0].str.replace("-", "_")
     suites_df["test_type"] = parsed[2]
     suites_df["indexed_at"] = pd.to_datetime(suites_df["indexed_at"])
@@ -312,18 +312,17 @@ def process_compute_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     df = prev_df.copy()
     # Format alt_bn precompiles
     df["test_opcode"] = np.where(
-        (df["test_name"] == "test_alt_bn128") & (df["test_params"].str.contains("add")),
+        (df["test_name"] == "test_alt_bn128_uncachable") & (df["test_params"].str.contains("add")),
         "ECADD",
         df["test_opcode"],
     )
     df["test_opcode"] = np.where(
-        (df["test_name"] == "test_alt_bn128") & (df["test_params"].str.contains("mul")),
+        (df["test_name"] == "test_alt_bn128_uncachable") & (df["test_params"].str.contains("mul")),
         "ECMUL",
         df["test_opcode"],
     )
     df["test_opcode"] = np.where(
-        (df["test_name"] == "test_alt_bn128_benchmark")
-        & (df["test_params"].str.contains("num_pairs")),
+        df["test_name"] == "test_ec_pairing",
         "ECPAIRING",
         df["test_opcode"],
     )
@@ -426,7 +425,7 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     df.loc[sstore_app_mask, "test_params"] = df.loc[
         sstore_app_mask, "test_params"
     ].str.replace("existing_slot", "existing_slots")
-    # Add new columns and remove from params 
+    # Add new columns and remove from params
     for new_col in ["cache_strategy", "account_mode", "token_name", "existing_slots"]:
         df[new_col] = df["test_params"].str.extract(rf"{new_col}.([^-]+)")
         df["test_params"] = df["test_params"].str.replace(
