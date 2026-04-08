@@ -84,8 +84,9 @@ This has two consequences:
 1. **Accept and document**: keep the current behavior, explicitly note `GAS_CREATE` as a deliberate deviation from the principle, and rewrite the revert-behavior section to clarify that `GAS_CREATE` is charged in the caller's frame (not "consumed despite revert").
 2. **Defer the charge**: move the state gas charge into `generic_create`, after the early-exit checks but before `process_create_message`, so state gas is only consumed when account creation actually proceeds to initcode execution. This narrows the principle violation to just the initcode-reverts case.
 3. **Post-state charge**: charge `GAS_CREATE` state gas only on successful account creation (alongside `GAS_CODE_DEPOSIT`). This fully aligns with the principle but requires running initcode before payment, which conflicts with the EVM's pay-before-execute model.
+4. **Charge upfront, refund on failure**: keep the upfront `charge_state_gas` in the caller's frame (preserving pay-before-execute), but refund the state gas back to the reservoir when deployment fails (whether due to early-exit checks in `generic_create` or initcode revert/exceptional halt).
 
-Option (1) is the simplest and most conservative; option (2) is a reasonable middle ground that eliminates the most egregious violations (silent failures) without breaking pay-before-execute.
+Option (1) is the simplest and most conservative; option (2) is a reasonable middle ground that eliminates the most egregious violations (silent failures) without breaking pay-before-execute; option (4) preserves pay-before-execute while fully aligning with the principle.
 
 **Test coverage**: Partial. The `test_create2_address_collision` test covers the address collision path. However, the other three early-exit failure modes in `generic_create` — insufficient balance, nonce overflow, and stack depth limit — are untested for state gas accounting. Tests covering the caller-frame charge behavior (such as `test_reservoir_returned_on_revert`) indirectly demonstrate the revert semantics.
 
@@ -138,7 +139,7 @@ However, doing this through the refund counter would limit the amount of refund 
 
 **Recommendation**: Two options:
 
-1. Instead of mutating `intrinsic_state_gas`, track the refund separately (e.g., via the refund counter or a dedicated post-execution adjustment) and apply it during post-execution accounting. This preserves the invariant that intrinsic costs are immutable and follows the established EVM pattern.
+1. Instead of mutating `intrinsic_state_gas`, introduce two counters: `max_intrinsic_state_gas` (the worst-case amount assuming all authorizations create new accounts, checked by the txpool for validity) and `real_intrinsic_state_gas` (the actual amount determined during execution when the EIP-7702 authorization list is applied, and we learn which accounts already exist). `max_intrinsic_state_gas` remains immutable after transaction validation; `real_intrinsic_state_gas` is computed during execution and feeds into final gas accounting. The difference between the two goes back to the reservoir, avoiding both the mutation of a "should-be-static" value and the capped refund counter path.
 2. Keep the logic of mutating `intrinsic_state_gas`, but clearly state this as a deliberate design choice in the EIP, with a brief rationale explaining why this approach was chosen over the refund counter pattern (immediate refund application, no cap).
 
 **Test coverage**: Indirect. The `test_existing_account_refund` test in `test_state_gas_set_code.py` covers the functional behavior of the existing-account refund mechanism (reservoir is increased, intrinsic cost is decreased). However, no test explicitly verifies the **mutation** of `intrinsic_state_gas` itself — e.g., by checking that the final `tx_state_gas` computation reflects the modified intrinsic value rather than the original.
