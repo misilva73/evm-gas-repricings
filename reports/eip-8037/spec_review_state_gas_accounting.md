@@ -56,7 +56,7 @@ This adds the state gas amount to the **undimensioned** `refund_counter`, which 
 
 **Principle violation**: The state gas reservoir is depleted during execution despite no net state creation. The refund only comes at the end and is capped at 20% of gas used before refund, which may not fully restore the state gas for many restorations.
 
-**Recommendation**: Instead of the refund counter, restore the state gas directly to `state_gas_reservoir` at the point of the `0 → x → 0` restoration. This matches the principle more closely but requires careful handling of reverts.
+**Recommendation**: Instead of the refund counter, at the point of the `0 → x → 0` restoration, restore the state gas directly to `state_gas_used` and decrement the `state_gas_used` counter by the same amount. In implementations where `state_gas` is local to each call frame, a subcall performing `x → 0` on a slot set in the parent can cause the frame-local `state_gas` to go negative, since the subcall "returns" more state gas than it consumed in its own scope. Both the reservoir and the consumed counter need to be adjusted for the principle to hold. In addition, clients may want to make `state_gas_used` global across frames. This requires careful handling of reverts.
 
 **Test coverage**: Partial. The SSTORE restoration refund is tested via `test_sstore_restoration_refund` (which verifies the `refund_counter` path works correctly for the 0→x→0 pattern). However, there is no test targeting the **mid-execution reservoir depletion** scenario — where repeated 0→x→0 cycles drain the reservoir during execution even though the net state effect is zero, and subsequent legitimate state-creating operations fail due to insufficient reservoir.
 
