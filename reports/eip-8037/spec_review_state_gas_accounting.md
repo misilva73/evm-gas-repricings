@@ -79,10 +79,10 @@ This has two consequences:
 
 **Note on current EVM precedent**: Pre-8037, `GAS_CREATE` (32,000) was also charged unconditionally. So this is consistent with existing EVM behavior. However, it **violates the guiding principle**. The state gas component should ideally only be charged if account creation actually succeeds.
 
-**Suggestion**: Once we decide how to address CREATE state costs on failure, we should update the EIP text accordingly. There are three viable paths:
+**Suggestion**: Once we decide how to address CREATE state costs on failure, we should update the EIP text accordingly. There are four viable paths:
 
 1. **Accept and document**: keep the current behavior, explicitly note `GAS_CREATE` as a deliberate deviation from the principle, and rewrite the revert-behavior section to clarify that `GAS_CREATE` is charged in the caller's frame (not "consumed despite revert").
-2. **Defer the charge**: move the state gas charge into `generic_create`, after the early-exit checks but before `process_create_message`, so state gas is only consumed when account creation actually proceeds to initcode execution. This narrows the principle violation to just the initcode-reverts case.
+2. **Defer the charge**: move the state gas charge into `generic_create`, after the early-exit checks but before `process_create_message`, so state gas is only consumed when account creation actually proceeds to initcode execution. This narrows the principle violation to just the initcode-reverts case. Note that this option pairs with whatever decision is made on issue #1 — the initcode-revert case has the same DoS trade-off as the top-level revert case, so both should be resolved consistently.
 3. **Post-state charge**: charge `GAS_CREATE` state gas only on successful account creation (alongside `GAS_CODE_DEPOSIT`). This fully aligns with the principle but requires running initcode before payment, which conflicts with the EVM's pay-before-execute model.
 4. **Charge upfront, refund on failure**: keep the upfront `charge_state_gas` in the caller's frame (preserving pay-before-execute), but refund the state gas back to the reservoir when deployment fails (whether due to early-exit checks in `generic_create` or initcode revert/exceptional halt).
 
@@ -99,11 +99,11 @@ Option (1) is the simplest and most conservative; option (2) is a reasonable mid
 
 **Principle violation**: Net zero state creation, full state gas payment. This is analogous to the `0 → x → 0` SSTORE pattern, but, unlike the SSTORE case, there's no refund mechanism at all for CREATE's `GAS_CREATE` state gas.
 
-**Note on current EVM precedent**: Pre-8037, SELFDESTRUCT *did* carry a gas refund (24,000 gas), but EIP-3529 (London) explicitly removed it to reduce protocol complexity and eliminate refund-based gas token exploits. Adding a state gas refund here — even one scoped to same-TX destruction — would partially reverse the direction set by EIP-3529 and open a new precedent: a SELFDESTRUCT-triggered refund that EIP-3529 deliberately eliminated.
+**Note on current EVM precedent**: Pre-8037, SELFDESTRUCT *did* carry a gas refund (24,000 gas), but EIP-3529 (London) explicitly removed it to reduce protocol complexity and eliminate refund-based gas token exploits. Adding a state gas refund here — even one scoped to same-TX destruction — would be the only SELFDESTRUCT refund post-London, setting a new precedent for what is a fairly niche pattern (same-TX CREATE + SELFDESTRUCT). This would partially reverse the direction set by EIP-3529.
 
 **Recommendation**: Two options:
 
-1. Add a state gas refund (preferably to reservoir) when SELFDESTRUCT destroys an account created in the same transaction. Note that this does open a new precedent by reintroducing a SELFDESTRUCT refund after EIP-3529 removed them.
+1. Add a state gas refund (preferably to reservoir) when SELFDESTRUCT destroys an account created in the same transaction. Note that this would introduce the only SELFDESTRUCT refund post-London, a new precedent that partially reverses EIP-3529's direction — for a pattern that is likely rare in practice.
 2. Accept the principle violation and document it as a deliberate design choice consistent with EIP-3529's simplification goals.
 
 **Test coverage**: Partial. The `test_selfdestruct_to_self_in_create_tx` test exists and covers the SELFDESTRUCT-in-same-TX scenario, but it does not verify whether the `GAS_CREATE` state gas is or is not refunded when the account is destroyed. The test focuses on the SELFDESTRUCT mechanics, not on whether the net-zero state outcome produces a corresponding net-zero state gas charge.
@@ -117,6 +117,8 @@ Option (1) is the simplest and most conservative; option (2) is a reasonable mid
 - A new account is created for A
 
 This is correct as new state is created. But consider the **inverse**: if A was self-destructed but the beneficiary was itself (A), then A's balance is zero but the account may still exist in some client implementations depending on when the destruction is processed. The EELS implementation handles this correctly by checking `is_account_alive`, but the EIP text doesn't discuss this interaction.
+
+**Recommendation**: This edge case should be explicitly documented in the EIP text to ensure all client implementations handle it consistently.
 
 **Test coverage**: None. There is no test covering the interaction between EIP-6780 self-destruct and EIP-8037's `GAS_NEW_ACCOUNT` charge. Specifically, no test verifies that a CALL with value to an account that was created and self-destructed within the same transaction correctly charges `GAS_NEW_ACCOUNT` state gas (because `is_account_alive` returns false after destruction).
 
