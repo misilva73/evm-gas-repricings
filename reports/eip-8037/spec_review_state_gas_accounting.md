@@ -18,6 +18,7 @@ Here is the summary table:
 | 4 | SELFDESTRUCT of same-tx account: no GAS_CREATE refund | Yes | Known (no PR) | Partial |
 | 5 | CALL w/ value to self-destructed account | No (correct) | **New** | None |
 | 6 | Mutable intrinsic_state_gas | No | **New** | Indirect |
+| 7 | Tx inclusion validity: 1D vs 2D check | No (design choice) | **New** (EIPs#11503) | None |
 
 Next, we discuss each issue in more detail, including the problem, principle violation, recommendations, and test coverage.
 
@@ -145,3 +146,26 @@ However, doing this through the refund counter would limit the amount of refund 
 2. Keep the logic of mutating `intrinsic_state_gas`, but clearly state this as a deliberate design choice in the EIP, with a brief rationale explaining why this approach was chosen over the refund counter pattern (immediate refund application, no cap).
 
 **Test coverage**: Indirect. The `test_existing_account_refund` test in `test_state_gas_set_code.py` covers the functional behavior of the existing-account refund mechanism (reservoir is increased, intrinsic cost is decreased). However, no test explicitly verifies the **mutation** of `intrinsic_state_gas` itself — e.g., by checking that the final `tx_state_gas` computation reflects the modified intrinsic value rather than the original.
+
+## 7. Transaction Inclusion Validity: 1D vs 2D Bottleneck Check
+
+**Problem**: `check_transaction` runs as the per-tx pre-execution gate inside `process_transaction` (called for every tx during block state transition). In the current spec, it enforces only the regular-gas bound:
+
+```python
+if min(TX_MAX_GAS_LIMIT, tx.gas) > regular_gas_available:
+    raise GasUsedExceedsLimitError("regular gas used exceeds limit")
+```
+
+The state-gas dimension is not checked per-tx, but, at block end, the validity condition uses `max(block_gas_used, block_state_gas_used) <= gas_limit`.
+
+This is the behavior codified by [EIPs#11503](https://github.com/ethereum/EIPs/pull/11503) and matches current client behavior.
+
+**Principle violation**: None in the gas-accounting sense. But the asymmetry matters at execution time. Pre-8037, the same per-tx pre-execution check (`tx.gas <= block_gas_limit - block_gas_used`) served double duty: it gated inclusion *and* guaranteed the tx's worst-case budget was accounted for in the block. Post-8037, the same check covers only the regular dimension. Consequence: during block execution, `block_state_gas_used` can already exceed `block_gas_limit` by tx N while subsequent txs still pass `check_transaction` and execute, with the block only being rejected at the block-end check. This is wasted execution work, and the spec's per-tx gate no longer matches the block-end validity invariant.
+
+**Recommendation**: Three options:
+
+1. **Adopt EIPs#11503 as-is**: keep the 1D inclusion check and document the gap explicitly in the EIP.
+2. **Strict 2D bottleneck**: also require `tx.gas - intrinsic.regular <= state_gas_available`. Tight rule, but over-rejects txs whose actual state-gas use is far below this worst case.
+3. **Hybrid (intrinsic-only state check)**: also require `intrinsic.state <= state_gas_available`. Catches the structural failure mode (large SetCode authorization lists, CREATE-type intrinsics) without over-rejecting on the execution-time component.
+
+**Test coverage**: None. No test constructs a block where per-tx 1D inclusion succeeds but the block-end 2D check fails. Adding both a "must reject" block test and a positive per-tx inclusion test for the same sequence would make the gap observable.
