@@ -23,7 +23,7 @@ End of June:
 
 ### Benchmarking
 
-- [ ] [Louis] Investigate and fix issues with `test_account_query`
+- [ ] [Louis] Investigate and fix issues with `test_account_access`
 - [ ] [Jochem] Investigate and fix issues with `SSTORE` and `SLOAD` benchmarks
 - [ ] [Rafael] Run stateful tests on Osaka + perf-devnet-3
 - [ ] [Maria] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780
@@ -36,7 +36,7 @@ NA
 
 ### EIPs & Devnet integration
 
-- [ ] [Maria] Investigate state_gas refill mechanism for 8037
+- [X] [Maria] Investigate state_gas refill mechanism for 8037
 - [ ] [Maria + Spencer] Review 8037 EIP, spec and tests and align everything for bal-devnet-4
 - [ ] [Maria] Update EIPs with final numbers
   - [ ] 7904
