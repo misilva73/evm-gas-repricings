@@ -66,17 +66,17 @@ def _make_compute_df(test_name, test_params, test_opcode):
 
 class TestProcessComputeParams:
     def test_ecadd_from_alt_bn128_add(self):
-        df = _make_compute_df("test_alt_bn128", "add-opcount_100", None)
+        df = _make_compute_df("test_alt_bn128_uncachable", "add-opcount_100", None)
         result = process_compute_params(df)
         assert result["test_opcode"].iloc[0] == "ECADD"
 
     def test_ecmul_from_alt_bn128_mul(self):
-        df = _make_compute_df("test_alt_bn128", "mul-opcount_100", None)
+        df = _make_compute_df("test_alt_bn128_uncachable", "mul-opcount_100", None)
         result = process_compute_params(df)
         assert result["test_opcode"].iloc[0] == "ECMUL"
 
     def test_ecpairing_from_alt_bn128_benchmark(self):
-        df = _make_compute_df("test_alt_bn128_benchmark", "num_pairs_4", None)
+        df = _make_compute_df("test_ec_pairing", "num_pairs_4", None)
         result = process_compute_params(df)
         assert result["test_opcode"].iloc[0] == "ECPAIRING"
 
@@ -248,7 +248,7 @@ class TestProcessTestTitleCol:
     def test_alt_bn128_add(self):
         df = _make_title_df(
             [
-                "test_alt_bn128.py__test_alt_bn128[fork_Osaka-blockchain_test-add-opcount_100]"
+                "test_alt_bn128.py__test_alt_bn128_uncachable[fork_Osaka-blockchain_test-add-opcount_100]"
             ]
         )
         result = process_test_title_col(df)
@@ -257,7 +257,7 @@ class TestProcessTestTitleCol:
     def test_alt_bn128_mul(self):
         df = _make_title_df(
             [
-                "test_alt_bn128.py__test_alt_bn128[fork_Osaka-blockchain_test-mul-opcount_100]"
+                "test_alt_bn128.py__test_alt_bn128_uncachable[fork_Osaka-blockchain_test-mul-opcount_100]"
             ]
         )
         result = process_test_title_col(df)
@@ -462,11 +462,11 @@ class TestAddOpcountCol:
 # ---------------------------------------------------------------------------
 
 
-def _make_suites_response(network, test_type, suite_hash):
+def _make_suites_response(network, test_type, suite_hash, fork="Osaka"):
     return {
         "data": [
             {
-                "name": f"{network}-12345678-{test_type}",
+                "name": f"{network}-12345678-{fork}-{test_type}",
                 "suite_hash": suite_hash,
                 "indexed_at": "2026-01-01T00:00:00Z",
             }
@@ -569,7 +569,7 @@ class TestProcessGasBenchData:
                 network="mainnet", test_type="compute", start_date="2026-01-01",
                 source="benchmarkoor", bearer_token="tok", user="u", password="p",
             )
-        mock_qbm.assert_called_once_with("tok", "mainnet", "compute", "2026-01-01")
+        mock_qbm.assert_called_once_with("tok", "mainnet", "compute", "2026-01-01", fork=None)
 
     def test_benchmarkoor_still_queries_trace_data(self):
         raw_df = self._minimal_raw_df()
