@@ -7,7 +7,7 @@ from urllib3.util.retry import Retry
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -55,32 +55,6 @@ def get_current_gas_cost(opcode: str, param: str) -> int | None:
         return None
 
 
-def _query_gas_bench(
-    user: str,
-    password: str,
-    db_name: str,
-    start_date: str,
-) -> pd.DataFrame:
-    print("Querying gas benchmark database....")
-    gas_bench_db_url = (
-        f"postgresql://{user}:{password}@perfnet.core.nethermind.dev:5432/monitoring"
-    )
-    query_str = f"""
-    SELECT
-        test_title,
-        client_name,
-        raw_run_duration_ms AS run_duration_ms,
-        ingestion_timestamp
-    FROM {db_name}
-    WHERE ingestion_timestamp >= '{start_date}'::timestamp
-    AND raw_run_duration_ms > 0
-    """
-    engine = create_engine(gas_bench_db_url)
-    df = pd.read_sql(query_str, con=engine)
-    df["ingestion_timestamp"] = pd.to_datetime(df["ingestion_timestamp"])
-    return df
-
-
 def _get_benchmarkoor_session(bearer_token: str, count_exact: bool = False):
     session = requests.Session()
     retries = Retry(total=3, backoff_factor=2, status_forcelist=[502, 503, 524])
@@ -104,6 +78,7 @@ def _get_latest_benchmarkoor_suite_hash(
     network: str,
     test_type: str,
     page_size: int,
+    fork: str,
 ) -> str:
     session = _get_benchmarkoor_session(bearer_token)
     # Resolve network + test_type to a suite_hash
@@ -114,32 +89,35 @@ def _get_latest_benchmarkoor_suite_hash(
     response.raise_for_status()
     suites_df = pd.DataFrame(response.json()["data"])
     if suites_df.empty:
-        raise ValueError(f"No suite found for network={network}, test_type={test_type}")
-    # Filter weird compute run...
-    suites_df = suites_df[suites_df["suite_hash"] != "d74b491048b10299"]
-    # TODO: should remove this filter eventually...
-    parsed = suites_df["name"].str.extract(r"^(.+)-(\d+)-(.+)$")
+        raise ValueError(f"No suites found")
+    parsed = suites_df["name"].str.extract(r"^(.+)-(\d{2,})-([^-]+)-([^-]+)$")
     suites_df["network"] = parsed[0].str.replace("-", "_")
-    suites_df["test_type"] = parsed[2]
+    suites_df["fork"] = parsed[2]
+    suites_df["test_type"] = parsed[3]
     suites_df["indexed_at"] = pd.to_datetime(suites_df["indexed_at"])
     suites_df = suites_df.loc[
-        suites_df.groupby(["network", "test_type"])["indexed_at"].idxmax()
+        suites_df.groupby(["network", "fork", "test_type"])["indexed_at"].idxmax()
     ]
-    suite_row = suites_df[
-        (suites_df["network"] == network) & (suites_df["test_type"] == test_type)
-    ]
+    mask = (
+        (suites_df["network"] == network)
+        & (suites_df["test_type"] == test_type)
+        & (suites_df["fork"] == fork)
+    )
+    suite_row = suites_df[mask]
     if suite_row.empty:
-        raise ValueError(f"No suite found for network={network}, test_type={test_type}")
+        raise ValueError(
+            f"No suite found for network={network}, test_type={test_type}, fork={fork}"
+        )
     suite_hash = suite_row.iloc[0]["suite_hash"]
     return suite_hash
 
 
 def _get_benchmarkoor_total_pages(
-    bearer_token: str, page_size: int, params: Dict[str, str]
+    bearer_token: str, page_size: int, params: Dict[str, str], table: str = "test_stats"
 ):
     session = _get_benchmarkoor_session(bearer_token, count_exact=True)
     response = session.get(
-        f"{BENCHMARKOOR_BASE_URL}/test_stats", params={**params, "limit": 0}
+        f"{BENCHMARKOOR_BASE_URL}/{table}", params={**params, "limit": 0}
     )
     response.raise_for_status()
     total = response.json()["total"]
@@ -147,18 +125,14 @@ def _get_benchmarkoor_total_pages(
     return total_pages
 
 
-def _query_benchmarkoor(
+def _query_test_runs_from_benchmarkoor(
+    suite_hash: str,
     bearer_token: str,
-    network: str,
-    test_type: str,
     start_date: str,
-    page_size: int = 10_000,
+    page_size: int,
     max_workers: int = 5,
 ) -> pd.DataFrame:
-    print("Querying benchmarkoor database....")
-    suite_hash = _get_latest_benchmarkoor_suite_hash(
-        bearer_token, network, test_type, page_size
-    )
+    print(f"Querying benchmarkoor database for test runs from suite {suite_hash}....")
     # Query test stats
     params = {
         "select": "test_name,client,test_time_ns,run_start",
@@ -205,37 +179,66 @@ def _query_benchmarkoor(
     return df
 
 
-def process_gas_bench_data(
+def _query_traces_from_benchmarkoor(suite_hash: str, bearer_token: str) -> pd.DataFrame:
+    summary_url = f"https://benchmarkoor-api.core.ethpandaops.io/api/v1/files/repricings/results/suites/{suite_hash}/summary.json?redirect=true"
+    headers = {"Authorization": f"Bearer {bearer_token}"}
+    response = requests.get(summary_url, headers=headers)
+    response.raise_for_status()
+    data = response.json()
+    trace_df = pd.DataFrame()
+    for test_dict in data["tests"]:
+        test_series = pd.DataFrame.from_dict(
+            test_dict["opcode_count"], orient="index"
+        ).T
+        test_series["test_title"] = test_dict["name"].split(".txt")[0]
+        trace_df = pd.concat([trace_df, test_series], ignore_index=True)
+    return trace_df
+
+
+def _add_opcount_col(trace_df: pd.DataFrame) -> pd.DataFrame:
+    new_trace_df = trace_df.copy()
+    new_trace_df["opcount"] = new_trace_df.apply(
+        lambda row: (
+            row["STATICCALL"]
+            if row["test_opcode"] in PRECOMPILES
+            else row.get(row["test_opcode"])
+        ),
+        axis=1,
+    )
+    return new_trace_df
+
+
+def process_bench_data(
     network: str,
     test_type: str,
     start_date: str,
-    source: str = "gas_bench",
-    opcodes_sample: List[str] = None,
-    user: str = None,
-    password: str = None,
-    bearer_token: str = None,
-) -> pd.DataFrame:
-    db_name = f"{test_type}_{network}"
-    if source == "gas_bench":
-        df = _query_gas_bench(user, password, db_name, start_date)
-    elif source == "benchmarkoor":
-        df = _query_benchmarkoor(bearer_token, network, test_type, start_date)
-    else:
-        raise ValueError(
-            f"Unknown source: {source!r}. Must be 'gas_bench' or 'benchmarkoor'."
-        )
-    # Fix client names
-    df["client_name"] = df["client_name"].str.replace(
-        "_repricings_stateful_mainnet", ""
+    fork: str,
+    bearer_token: str,
+    opcodes_sample: List[str] = [],
+    page_size: int = 10_000,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    # Query benchmarkoor for raw data
+    suite_hash = _get_latest_benchmarkoor_suite_hash(
+        bearer_token, network, test_type, page_size, fork
     )
-    df["client_name"] = df["client_name"].str.replace("_repricings_compute_mainnet", "")
+    df = _query_test_runs_from_benchmarkoor(
+        suite_hash, bearer_token, start_date, page_size
+    )
+    trace_df = _query_traces_from_benchmarkoor(suite_hash, bearer_token)
     # Process title column
     df = process_test_title_col(df)
+    trace_df = process_test_title_col(trace_df)
+    trace_df = _add_opcount_col(trace_df)
     # Filter opcodes in sample
-    if opcodes_sample is not None:
+    if len(opcodes_sample) > 0:
         df = df[df["test_opcode"].isin(opcodes_sample)]
+        trace_df = trace_df[trace_df["test_opcode"].isin(opcodes_sample)]
+    # Reorder trace_df columns
+    cols = ["test_title", "opcount"] + [
+        c for c in trace_df.columns if c not in ["test_title", "opcount"]
+    ]
+    trace_df = trace_df[cols]
     # Query trace data from gas_bench (always)
-    trace_df = process_test_trace_data(user, password, db_name, opcodes_sample)
     df = df.merge(trace_df[["test_title", "opcount"]], on="test_title", how="left")
     return df, trace_df
 
@@ -312,12 +315,14 @@ def process_compute_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     df = prev_df.copy()
     # Format alt_bn precompiles
     df["test_opcode"] = np.where(
-        (df["test_name"] == "test_alt_bn128_uncachable") & (df["test_params"].str.contains("add")),
+        (df["test_name"] == "test_alt_bn128_uncachable")
+        & (df["test_params"].str.contains("add")),
         "ECADD",
         df["test_opcode"],
     )
     df["test_opcode"] = np.where(
-        (df["test_name"] == "test_alt_bn128_uncachable") & (df["test_params"].str.contains("mul")),
+        (df["test_name"] == "test_alt_bn128_uncachable")
+        & (df["test_params"].str.contains("mul")),
         "ECMUL",
         df["test_opcode"],
     )
@@ -400,20 +405,13 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
         df["test_opcode"],
     )
     # Set update param
-    sstore_mint_mask = df["test_name"] == "test_sstore_erc20_mint"
-    df.loc[sstore_mint_mask, "test_params"] = df.loc[
-        sstore_mint_mask, "test_params"
-    ].str.replace("no_change_False", "update_1")
-    df.loc[sstore_mint_mask, "test_params"] = df.loc[
-        sstore_mint_mask, "test_params"
-    ].str.replace("no_change_True", "update_0")
-    sstore_app_mask = df["test_name"] == "test_sstore_erc20_approve"
-    df.loc[sstore_app_mask, "test_params"] = df.loc[
-        sstore_app_mask, "test_params"
-    ].str.replace("write_new_value_True", "update_1")
-    df.loc[sstore_app_mask, "test_params"] = df.loc[
-        sstore_app_mask, "test_params"
-    ].str.replace("write_new_value_False", "update_0")
+    sstore_mask = df["test_name"] == "test_sstore_bloated"
+    df.loc[sstore_mask, "test_params"] = df.loc[sstore_mask, "test_params"].str.replace(
+        "write_new_value_True", "update_1"
+    )
+    df.loc[sstore_mask, "test_params"] = df.loc[sstore_mask, "test_params"].str.replace(
+        "write_new_value_False", "update_0"
+    )
     account_mask = df["test_name"] == "test_account_access"
     df.loc[account_mask, "test_params"] = df.loc[
         account_mask, "test_params"
@@ -421,10 +419,6 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     df.loc[account_mask, "test_params"] = df.loc[
         account_mask, "test_params"
     ].str.replace("value_sent_0", "update_0")
-    # Fix existing_slots param in test_sstore_erc20_approve
-    df.loc[sstore_app_mask, "test_params"] = df.loc[
-        sstore_app_mask, "test_params"
-    ].str.replace("existing_slot", "existing_slots")
     # Add new columns and remove from params
     for new_col in ["cache_strategy", "account_mode", "token_name", "existing_slots"]:
         df[new_col] = df["test_params"].str.extract(rf"{new_col}.([^-]+)")
@@ -433,7 +427,14 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
             "",
             regex=True,
         )
-    # Fix cache strategy and accoount_mode
+    # Add token name for bloated tests
+    bloated_mask = df["test_title"].str.contains("test_sload_bloated") | df[
+        "test_title"
+    ].str.contains("test_sstore_bloated")
+    df.loc[bloated_mask, "token_name"] = (
+        df.loc[bloated_mask, "test_title"].str.split("[").str[1].str.split("-").str[0]
+    )
+    # Fix cache strategy and account_mode
     df["cache_strategy"] = df["cache_strategy"].str.replace("CacheStrategy.", "")
     df["account_mode"] = df["account_mode"].str.replace("AccountMode.", "")
     # existing_slots for test_storage_sload_same_key_benchmark
@@ -455,39 +456,3 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
         df["test_params"],
     )
     return df
-
-
-def process_test_trace_data(
-    user: str, password: str, db_name: str, opcodes_sample: List[str] = None
-) -> pd.DataFrame:
-    gas_bench_db_url = (
-        f"postgresql://{user}:{password}@perfnet.core.nethermind.dev:5432/monitoring"
-    )
-    db_name_full = "repricings_" + db_name + "_metadata"
-    # Query traces
-    trace_query_str = f"""
-    SELECT test_name as test_title, opcodes as traces
-    FROM {db_name_full}
-    """
-    engine = create_engine(gas_bench_db_url)
-    trace_df = pd.read_sql(trace_query_str, con=engine)
-    traces_expanded = pd.json_normalize(trace_df["traces"])
-    trace_df = pd.concat([trace_df.drop(columns=["traces"]), traces_expanded], axis=1)
-    trace_df = process_test_title_col(trace_df)
-    trace_df = add_opcount_col(trace_df)
-    if opcodes_sample is not None:
-        trace_df = trace_df[trace_df["test_opcode"].isin(opcodes_sample)]
-    return trace_df
-
-
-def add_opcount_col(trace_df: pd.DataFrame) -> pd.DataFrame:
-    new_trace_df = trace_df.copy()
-    new_trace_df["opcount"] = new_trace_df.apply(
-        lambda row: (
-            row["STATICCALL"]
-            if row["test_opcode"] in PRECOMPILES
-            else row.get(row["test_opcode"])
-        ),
-        axis=1,
-    )
-    return new_trace_df

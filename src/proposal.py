@@ -32,23 +32,23 @@ _STATE_ACCESS_PARAM_SOURCES: Dict[str, List[Tuple[dict, str]]] = {
     "GAS_WARM_ACCESS": [
         ({"test_name": "test_storage_sload_same_key_benchmark"}, "slope"),
         (
-            {"test_name": "test_sload_erc20_balanceof", "cache_strategy": "CACHE_TX"},
+            {"test_name": "test_sload_bloated", "cache_strategy": "CACHE_TX"},
             "slope",
         ),
         (
             {
-                "test_name": "test_sload_erc20_balanceof",
+                "test_name": "test_sload_bloated",
                 "cache_strategy": "CACHE_PREVIOUS_BLOCK",
             },
             "slope",
         ),
         (
-            {"test_name": "test_sstore_erc20_approve", "cache_strategy": "CACHE_TX"},
+            {"test_name": "test_sstore_bloated", "cache_strategy": "CACHE_TX"},
             "slope",
         ),
         (
             {
-                "test_name": "test_sstore_erc20_approve",
+                "test_name": "test_sstore_bloated",
                 "cache_strategy": "CACHE_PREVIOUS_BLOCK",
             },
             "slope",
@@ -65,17 +65,17 @@ _STATE_ACCESS_PARAM_SOURCES: Dict[str, List[Tuple[dict, str]]] = {
     ],
     "GAS_COLD_STORAGE_ACCESS": [
         (
-            {"test_name": "test_sload_erc20_balanceof", "cache_strategy": "NO_CACHE"},
+            {"test_name": "test_sload_bloated", "cache_strategy": "NO_CACHE"},
             "slope",
         ),
         (
-            {"test_name": "test_sstore_erc20_approve", "cache_strategy": "NO_CACHE"},
+            {"test_name": "test_sstore_bloated", "cache_strategy": "NO_CACHE"},
             "slope",
         ),
     ],
     "GAS_COLD_STORAGE_WRITE": [
         (
-            {"test_name": "test_sstore_erc20_approve", "cache_strategy": "NO_CACHE"},
+            {"test_name": "test_sstore_bloated", "cache_strategy": "NO_CACHE"},
             "update",
         ),
     ],

@@ -16,7 +16,7 @@ pd.options.mode.chained_assignment = None
 
 sys.path.append(str(Path(__file__).parent))
 import operation_types
-from data import process_gas_bench_data
+from data import process_bench_data
 from reports import generate_state_access_repricings_report, generate_runtime_report
 from glue import generate_glue_opcode_report
 
@@ -32,12 +32,12 @@ if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
     start_date = "2026-03-01"
-    # Query source - benchmarkoor or gas_bench
-    query_source = "benchmarkoor"
+    # fork - osaka, amsterdam or None
+    fork = "osaka"
     # Anchor rate for repricings
     anchor_rate = 60 * 1e6
     # target storage size
-    target_token = "9_39GB_ERC20"
+    target_token = "10GB"
     # Directories
     file_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(file_dir, ".."))
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         "reports",
         "eip-8038",
         "runtime_estimation",
-        f"{start_date}_{run_time.strftime('%Y-%m-%d')}_{query_source}",
+        f"{start_date}_{run_time.strftime('%Y-%m-%d')}",
     )
     os.makedirs(os.path.join(out_dir, "figs"), exist_ok=True)
     # Secrets for acessing gas bench DB
@@ -56,19 +56,17 @@ if __name__ == "__main__":
     password = secrets_dict["gas_bench_password"]
     bearer_token = secrets_dict["benchmarkoor_bearer_token"]
     # Query raw data and save
-    state_gas_bench_df, state_trace_df = process_gas_bench_data(
+    state_gas_bench_df, state_trace_df = process_bench_data(
         network="perf_devnet_3",
         test_type="stateful",
         start_date=start_date,
-        source=query_source,
-        user=user,
-        password=password,
+        fork=fork,
         bearer_token=bearer_token,
     )
     state_tests = [
         "test_storage_sload_same_key_benchmark",
-        "test_sload_erc20_balanceof",
-        "test_sstore_erc20_approve",
+        "test_sload_bloated",
+        "test_sstore_bloated",
         "test_ext_account_query_warm",
         "test_account_access",
     ]
@@ -78,13 +76,11 @@ if __name__ == "__main__":
     filtered_state_trace_df = state_trace_df[
         state_trace_df["test_name"].isin(state_tests)
     ]
-    compute_gas_bench_df, compute_trace_df = process_gas_bench_data(
+    compute_gas_bench_df, compute_trace_df = process_bench_data(
         network="mainnet",
         test_type="compute",
         start_date=start_date,
-        source=query_source,
-        user=user,
-        password=password,
+        fork=fork,
         bearer_token=bearer_token,
     )
     filtered_compute_gas_bench_df = compute_gas_bench_df[
@@ -119,7 +115,6 @@ if __name__ == "__main__":
         out_dir=out_dir,
         params=PARAMS,
         operations=operation_types.STATEFUL + operation_types.CALL,
-        query_source=query_source,
         group_by=["client_name", "test_name"] + MODEL_BY,
     )
     generate_glue_opcode_report(

@@ -155,7 +155,7 @@ def add_state_glue_results(
     ]
     # cold SLOAD
     sload_df = results_df[
-        (results_df["test_name"] == "test_sload_erc20_balanceof")
+        (results_df["test_name"] == "test_sload_bloated")
         & (results_df["cache_strategy"] == "NO_CACHE")
     ]
     # Join all cases
@@ -186,39 +186,39 @@ def add_state_glue_results(
 
 def add_state_missing_glues(glue_opcodes_by_test: pd.DataFrame) -> pd.DataFrame:
     """Add missing state glue opcodes (e.g. BALANCE for CACHE_TX tests)."""
-    # Add a balance to the balance CACHE_TX tests
+    # Add a balance to the account CACHE_TX tests
     if "cache_strategy" not in glue_opcodes_by_test.columns:
-        balance_cache_tests = pd.DataFrame()
+        account_tests = pd.DataFrame()
     else:
-        balance_cache_tests = (
+        account_tests = (
             glue_opcodes_by_test[
-                (glue_opcodes_by_test["test_opcode"] == "BALANCE")
+                (glue_opcodes_by_test["test_name"] == "test_account_access")
                 & (glue_opcodes_by_test["cache_strategy"] == "CACHE_TX")
             ]
             .drop(columns=["glue_opcode", "corr", "ratio"])
             .drop_duplicates()
         )
-        balance_cache_tests["glue_opcode"] = "BALANCE"
-        balance_cache_tests["corr"] = 1.0
-        balance_cache_tests["ratio"] = 1.0
-    # Add a sload to the sload CACHE_TX tests
+        account_tests["glue_opcode"] = "BALANCE"
+        account_tests["corr"] = 1.0
+        account_tests["ratio"] = 1.0
+    # Add a sload to the sload/sstore CACHE_TX tests
     if "cache_strategy" not in glue_opcodes_by_test.columns:
-        sload_cache_tests = pd.DataFrame()
+        storage_cache_tests = pd.DataFrame()
     else:
-        sload_cache_tests = (
+        storage_cache_tests = (
             glue_opcodes_by_test[
-                (glue_opcodes_by_test["test_opcode"] == "SLOAD")
+                (glue_opcodes_by_test["test_name"].isin(["test_sload_bloated", "test_sstore_bloated"]))
                 & (glue_opcodes_by_test["cache_strategy"] == "CACHE_TX")
             ]
             .drop(columns=["glue_opcode", "corr", "ratio"])
             .drop_duplicates()
         )
-        sload_cache_tests["glue_opcode"] = "SLOAD"
-        sload_cache_tests["corr"] = 1.0
-        sload_cache_tests["ratio"] = 1.0
+        storage_cache_tests["glue_opcode"] = "SLOAD"
+        storage_cache_tests["corr"] = 1.0
+        storage_cache_tests["ratio"] = 1.0
     # join all new glues
     glue_opcodes_by_test = pd.concat(
-        [glue_opcodes_by_test, balance_cache_tests, sload_cache_tests], ignore_index=True
+        [glue_opcodes_by_test, account_tests, storage_cache_tests], ignore_index=True
     )
     return glue_opcodes_by_test
 

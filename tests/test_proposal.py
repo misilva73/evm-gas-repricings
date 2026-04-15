@@ -594,7 +594,7 @@ class TestSelectWorstCaseWithGlue:
 def _sa_row(
     opcode="SLOAD",
     client="geth",
-    test_name="test_sload_erc20_balanceof",
+    test_name="test_sload_bloated",
     cache_strategy="NO_CACHE",
     account_mode=np.nan,
     existing_slots=np.nan,
@@ -688,9 +688,9 @@ class TestComputeStateAccessGasParams:
     )
 
     def test_cold_storage_access_from_sload_no_cache(self):
-        """GAS_COLD_STORAGE_ACCESS is estimated from test_sload_erc20_balanceof NO_CACHE slope."""
+        """GAS_COLD_STORAGE_ACCESS is estimated from test_sload_bloated NO_CACHE slope."""
         df = pd.DataFrame([_sa_row(
-            test_name="test_sload_erc20_balanceof",
+            test_name="test_sload_bloated",
             cache_strategy="NO_CACHE",
             slope=0.03,
             slope_pvalue=0.01,
@@ -701,9 +701,9 @@ class TestComputeStateAccessGasParams:
         assert np.isclose(row.iloc[0]["runtime_ms"], 0.03)
 
     def test_cold_storage_write_from_update_coef(self):
-        """GAS_COLD_STORAGE_WRITE is estimated from test_sstore_erc20_approve NO_CACHE update coef."""
+        """GAS_COLD_STORAGE_WRITE is estimated from test_sstore_bloated NO_CACHE update coef."""
         df = pd.DataFrame([_sa_row(
-            test_name="test_sstore_erc20_approve",
+            test_name="test_sstore_bloated",
             cache_strategy="NO_CACHE",
             slope=0.02,
             slope_pvalue=0.01,
@@ -785,8 +785,8 @@ class TestComputeStateAccessGasParams:
     def test_worst_case_selected_across_test_configs(self):
         """For a given gas_param and client, the worst-case (max runtime) row is selected."""
         df = pd.DataFrame([
-            _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.02, slope_pvalue=0.01),
-            _sa_row(test_name="test_sstore_erc20_approve", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.01),
+            _sa_row(test_name="test_sload_bloated", cache_strategy="NO_CACHE", slope=0.02, slope_pvalue=0.01),
+            _sa_row(test_name="test_sstore_bloated", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.01),
         ])
         params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
@@ -796,8 +796,8 @@ class TestComputeStateAccessGasParams:
     def test_prefers_good_fit_over_poor_fit(self):
         """Rows with p < 0.05 are preferred over rows with p >= 0.05 even if runtime is lower."""
         df = pd.DataFrame([
-            _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.01, slope_pvalue=0.02),
-            _sa_row(test_name="test_sstore_erc20_approve", cache_strategy="NO_CACHE", slope=0.09, slope_pvalue=0.20),
+            _sa_row(test_name="test_sload_bloated", cache_strategy="NO_CACHE", slope=0.01, slope_pvalue=0.02),
+            _sa_row(test_name="test_sstore_bloated", cache_strategy="NO_CACHE", slope=0.09, slope_pvalue=0.20),
         ])
         params_df, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         cold_access = params_df[params_df["gas_param"] == "GAS_COLD_STORAGE_ACCESS"]
@@ -807,7 +807,7 @@ class TestComputeStateAccessGasParams:
     def test_poor_fit_tracked_when_no_good_fits(self):
         """gas_param is added to poor_fit_dict when all matching rows have p >= 0.05."""
         df = pd.DataFrame([
-            _sa_row(test_name="test_sload_erc20_balanceof", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.10),
+            _sa_row(test_name="test_sload_bloated", cache_strategy="NO_CACHE", slope=0.05, slope_pvalue=0.10),
         ])
         _, _, poor_fit = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
         assert "GAS_COLD_STORAGE_ACCESS" in poor_fit
@@ -817,7 +817,7 @@ class TestComputeStateAccessGasParams:
         """new_gas_rounded = ceil(anchor_rate * runtime_ms / 1000)."""
         slope = 0.033333  # ms
         df = pd.DataFrame([_sa_row(
-            test_name="test_sload_erc20_balanceof",
+            test_name="test_sload_bloated",
             cache_strategy="NO_CACHE",
             slope=slope,
             slope_pvalue=0.01,
@@ -851,9 +851,9 @@ class TestComputeStateAccessGasParams:
     def test_multiple_clients_each_get_own_row(self):
         """Each client produces its own worst-case row per gas parameter."""
         df = pd.DataFrame([
-            _sa_row(client="geth", test_name="test_sload_erc20_balanceof",
+            _sa_row(client="geth", test_name="test_sload_bloated",
                     cache_strategy="NO_CACHE", slope=0.02, slope_pvalue=0.01),
-            _sa_row(client="reth", test_name="test_sload_erc20_balanceof",
+            _sa_row(client="reth", test_name="test_sload_bloated",
                     cache_strategy="NO_CACHE", slope=0.03, slope_pvalue=0.01),
         ])
         params_df, _, _ = compute_state_access_gas_params(df, self.ANCHOR, self.EMPTY_GLUE_RESULTS, self.EMPTY_GLUE_BY_TEST)
@@ -864,7 +864,7 @@ class TestComputeStateAccessGasParams:
         """Glue opcode runtime is subtracted from slope before computing gas."""
         df = pd.DataFrame([_sa_row(
             opcode="SLOAD",
-            test_name="test_sload_erc20_balanceof",
+            test_name="test_sload_bloated",
             cache_strategy="NO_CACHE",
             slope=0.05,
             slope_pvalue=0.01,
@@ -875,7 +875,7 @@ class TestComputeStateAccessGasParams:
             "client": "geth", "glue_opcode": "PUSH1", "runtime": 0.005, "p_value": 0.0, "rsquared": 0.9,
         }])
         glue_by_test = pd.DataFrame([{
-            "test_file": "test_sload", "test_name": "test_sload_erc20_balanceof",
+            "test_file": "test_sload", "test_name": "test_sload_bloated",
             "test_opcode": "SLOAD", "test_params": "default",
             "glue_opcode": "PUSH1", "corr": 0.99, "ratio": 2.0,
         }])
@@ -956,7 +956,7 @@ class TestComputeStateAccessGasParams:
         df = pd.DataFrame([
             _sa_row(
                 opcode="SLOAD",
-                test_name="test_sload_erc20_balanceof",
+                test_name="test_sload_bloated",
                 cache_strategy="NO_CACHE",
                 slope=0.05,
                 slope_pvalue=0.01,
@@ -978,7 +978,7 @@ class TestComputeStateAccessGasParams:
         )
         glue_by_test = pd.DataFrame([{
             "test_file": "test_sload",
-            "test_name": "test_sload_erc20_balanceof",
+            "test_name": "test_sload_bloated",
             "test_opcode": "SLOAD",
             "test_params": "default",
             "glue_opcode": "BALANCE",
@@ -996,7 +996,7 @@ class TestComputeStateAccessGasParams:
         df = pd.DataFrame([
             _sa_row(
                 opcode="SLOAD",
-                test_name="test_sload_erc20_balanceof",
+                test_name="test_sload_bloated",
                 cache_strategy="NO_CACHE",
                 slope=0.05,
                 slope_pvalue=0.01,
@@ -1015,7 +1015,7 @@ class TestComputeStateAccessGasParams:
         )
         glue_by_test = pd.DataFrame([{
             "test_file": "test_sload",
-            "test_name": "test_sload_erc20_balanceof",
+            "test_name": "test_sload_bloated",
             "test_opcode": "SLOAD",
             "test_params": "default",
             "glue_opcode": "BALANCE",

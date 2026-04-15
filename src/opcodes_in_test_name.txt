@@ -39,3 +39,5 @@ test_p256verify
 test_sload_empty_erc20_balanceof
 test_sstore_erc20_approve
 test_sstore_variants
+test_sstore_bloated
+test_sload_bloated

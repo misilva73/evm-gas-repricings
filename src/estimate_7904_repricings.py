@@ -16,7 +16,7 @@ pd.options.mode.chained_assignment = None
 
 sys.path.append(str(Path(__file__).parent))
 import operation_types
-from data import process_gas_bench_data
+from data import process_bench_data
 from reports import generate_repricings_report, generate_runtime_report
 from glue import generate_glue_opcode_report
 
@@ -36,10 +36,10 @@ if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
     start_date = "2026-03-24"
-    # Query source - benchmarkoor or gas_bench
-    query_source = "benchmarkoor"
+    # fork - osaka, amsterdam or None
+    fork = "amsterdam"
     # Anchor rate for repricings
-    anchor_rate = 60 * 1e6
+    anchor_rate = 100 * 1e6
     # Directories
     file_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(file_dir, ".."))
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         "reports",
         "eip-7904",
         "runtime_estimation",
-        f"{start_date}_{run_time.strftime('%Y-%m-%d')}_{query_source}",
+        f"{start_date}_{run_time.strftime('%Y-%m-%d')}",
     )
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(os.path.join(out_dir, "figs"), exist_ok=True)
@@ -59,22 +59,18 @@ if __name__ == "__main__":
     password = secrets_dict["gas_bench_password"]
     bearer_token=secrets_dict["benchmarkoor_bearer_token"]
     # Query raw data and save
-    compute_gas_bench_df, compute_trace_df = process_gas_bench_data(
+    compute_gas_bench_df, compute_trace_df = process_bench_data(
         network="mainnet",
         test_type="compute",
         start_date=start_date,
-        source=query_source,
-        user=user,
-        password=password,
+        fork=fork,
         bearer_token=bearer_token,
     )
-    state_gas_bench_df, state_trace_df = process_gas_bench_data(
+    state_gas_bench_df, state_trace_df = process_bench_data(
         network="mainnet",
         test_type="stateful",
         start_date=start_date,
-        source=query_source,
-        user=user,
-        password=password,
+        fork=fork,
         bearer_token=bearer_token,
     )
     gas_bench_df = pd.concat(
@@ -104,7 +100,6 @@ if __name__ == "__main__":
         out_dir=out_dir,
         params=PARAMS,
         operations=operation_types.SIMPLE_EIP_7904+operation_types.VARIABLE_EIP_7904,
-        query_source=query_source,
     )
     generate_glue_opcode_report(
         start_date=start_date,
