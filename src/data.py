@@ -112,6 +112,24 @@ def _get_latest_benchmarkoor_suite_hash(
     return suite_hash
 
 
+def _get_all_runs_ids_from_benchmarkoor_suite_hash(
+    suite_hash: str, bearer_token: str, run_type: str
+) -> List[str]:
+    session = _get_benchmarkoor_session(bearer_token)
+    params = {
+        "select": "run_id,",
+        "suite_hash": f"eq.{suite_hash}",
+        "status": "eq.completed",
+    }
+    response = session.get(f"{BENCHMARKOOR_BASE_URL}/runs", params=params)
+    response.raise_for_status()
+    df = pd.DataFrame(response.json()["data"])
+    df["run_type"] = df["run_id"].str.split("-").str[-1]
+    df = df[df["run_type"] == run_type]
+    run_ids = df["run_id"].tolist()
+    return run_ids
+
+
 def _get_benchmarkoor_total_pages(
     bearer_token: str, page_size: int, params: Dict[str, str], table: str = "test_stats"
 ):
@@ -135,7 +153,7 @@ def _query_test_runs_from_benchmarkoor(
     print(f"Querying benchmarkoor database for test runs from suite {suite_hash}....")
     # Query test stats
     params = {
-        "select": "test_name,client,test_time_ns,run_start",
+        "select": "run_id,test_name,client,test_time_ns,run_start",
         "test_time_ns": "gt.0",
         "suite_hash": f"eq.{suite_hash}",
     }
@@ -214,6 +232,7 @@ def process_bench_data(
     start_date: str,
     fork: str,
     bearer_token: str,
+    run_type: str | None = None,
     opcodes_sample: List[str] = [],
     page_size: int = 10_000,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -224,6 +243,11 @@ def process_bench_data(
     df = _query_test_runs_from_benchmarkoor(
         suite_hash, bearer_token, start_date, page_size
     )
+    if run_type is not None:
+        run_ids = _get_all_runs_ids_from_benchmarkoor_suite_hash(
+            suite_hash, bearer_token, run_type
+        )
+        df = df[df["run_id"].isin(run_ids)]
     trace_df = _query_traces_from_benchmarkoor(suite_hash, bearer_token)
     # Process title column
     df = process_test_title_col(df)
@@ -333,22 +357,12 @@ def process_compute_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     )
     # Format BLS12 precompiles
     df["test_opcode"] = np.where(
-        df["test_name"] == "test_bls12_381",
-        df["test_params"].str.split("-").str[0].str.upper(),
+        df["test_name"] == "test_bls12_381_uncachable",
+        df["test_params"].str.upper(),
         df["test_opcode"],
     )
     df["test_opcode"] = np.where(
-        df["test_name"] == "test_bls12_g1_msm",
-        "BLS12_G1MSM",
-        df["test_opcode"],
-    )
-    df["test_opcode"] = np.where(
-        df["test_name"] == "test_bls12_g2_msm",
-        "BLS12_G2MSM",
-        df["test_opcode"],
-    )
-    df["test_opcode"] = np.where(
-        df["test_name"] == "test_bls12_pairing",
+        df["test_name"] == "test_bls12_pairing_uncachable",
         "BLS12_PAIRING_CHECK",
         df["test_opcode"],
     )
@@ -373,6 +387,12 @@ def process_compute_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     )
     df["test_opcode"] = np.where(
         df["test_opcode"] == "BLS12_FP_TO_G2", "BLS12_MAP_FP2_TO_G2", df["test_opcode"]
+    )
+    # Remove opcode names from test_params
+    df["test_params"] = np.where(
+        df["test_name"].isin(["test_bls12_381_uncachable", "test_point_evaluation_uncachable"]),
+        None,
+        df["test_params"],
     )
     return df
 

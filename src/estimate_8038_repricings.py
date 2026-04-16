@@ -34,6 +34,8 @@ if __name__ == "__main__":
     start_date = "2026-03-01"
     # fork - osaka, amsterdam or None
     fork = "osaka"
+    # run_type - None, full, nobatchio, or sequential
+    run_type = None
     # Anchor rate for repricings
     anchor_rate = 60 * 1e6
     # target storage size
@@ -62,6 +64,7 @@ if __name__ == "__main__":
         start_date=start_date,
         fork=fork,
         bearer_token=bearer_token,
+        run_type=run_type,
     )
     state_tests = [
         "test_storage_sload_same_key_benchmark",
@@ -82,6 +85,7 @@ if __name__ == "__main__":
         start_date=start_date,
         fork=fork,
         bearer_token=bearer_token,
+        run_type=run_type,
     )
     filtered_compute_gas_bench_df = compute_gas_bench_df[
         ~compute_gas_bench_df["test_opcode"].isin(

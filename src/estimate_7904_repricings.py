@@ -37,9 +37,11 @@ if __name__ == "__main__":
     # Start date for querying
     start_date = "2026-03-24"
     # fork - osaka, amsterdam or None
-    fork = "amsterdam"
+    fork = "osaka"
+    # run_type - None, full, nobatchio, or sequential
+    run_type = None
     # Anchor rate for repricings
-    anchor_rate = 100 * 1e6
+    anchor_rate = 150 * 1e6
     # Directories
     file_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(file_dir, ".."))
@@ -65,6 +67,7 @@ if __name__ == "__main__":
         start_date=start_date,
         fork=fork,
         bearer_token=bearer_token,
+        run_type=run_type,
     )
     state_gas_bench_df, state_trace_df = process_bench_data(
         network="mainnet",
@@ -72,6 +75,7 @@ if __name__ == "__main__":
         start_date=start_date,
         fork=fork,
         bearer_token=bearer_token,
+        run_type=run_type,
     )
     gas_bench_df = pd.concat(
         [compute_gas_bench_df, state_gas_bench_df], ignore_index=True

@@ -82,22 +82,22 @@ class TestProcessComputeParams:
         assert result["test_opcode"].iloc[0] == "ECPAIRING"
 
     def test_bls12_g1msm(self):
-        df = _make_compute_df("test_bls12_g1_msm", "opcount_100", None)
+        df = _make_compute_df("test_bls12_381_uncachable", "bls12_g1msm", None)
         result = process_compute_params(df)
         assert result["test_opcode"].iloc[0] == "BLS12_G1MSM"
 
     def test_bls12_g2msm(self):
-        df = _make_compute_df("test_bls12_g2_msm", "opcount_100", None)
+        df = _make_compute_df("test_bls12_381_uncachable", "bls12_g2msm", None)
         result = process_compute_params(df)
         assert result["test_opcode"].iloc[0] == "BLS12_G2MSM"
 
     def test_bls12_pairing_check(self):
-        df = _make_compute_df("test_bls12_pairing", "opcount_100", None)
+        df = _make_compute_df("test_bls12_pairing_uncachable", "opcount_100", None)
         result = process_compute_params(df)
         assert result["test_opcode"].iloc[0] == "BLS12_PAIRING_CHECK"
 
     def test_bls12_381_opcode_from_params(self):
-        df = _make_compute_df("test_bls12_381", "g1add-opcount_100", None)
+        df = _make_compute_df("test_bls12_381_uncachable", "g1add", None)
         result = process_compute_params(df)
         assert result["test_opcode"].iloc[0] == "G1ADD"
 
@@ -266,14 +266,14 @@ class TestProcessTestTitleCol:
 
     def test_bls12_g1_msm(self):
         df = _make_title_df(
-            ["test_bls12.py__test_bls12_g1_msm[fork_Osaka-blockchain_test-opcount_100]"]
+            ["test_bls12.py__test_bls12_381_uncachable[fork_Osaka-blockchain_test-bls12_g1msm]"]
         )
         result = process_test_title_col(df)
         assert result["test_opcode"].iloc[0] == "BLS12_G1MSM"
 
     def test_bls12_g2_msm(self):
         df = _make_title_df(
-            ["test_bls12.py__test_bls12_g2_msm[fork_Osaka-blockchain_test-opcount_100]"]
+            ["test_bls12.py__test_bls12_381_uncachable[fork_Osaka-blockchain_test-bls12_g2msm]"]
         )
         result = process_test_title_col(df)
         assert result["test_opcode"].iloc[0] == "BLS12_G2MSM"
@@ -281,7 +281,7 @@ class TestProcessTestTitleCol:
     def test_bls12_pairing(self):
         df = _make_title_df(
             [
-                "test_bls12.py__test_bls12_pairing[fork_Osaka-blockchain_test-opcount_100]"
+                "test_bls12.py__test_bls12_pairing_uncachable[fork_Osaka-blockchain_test-opcount_100]"
             ]
         )
         result = process_test_title_col(df)
