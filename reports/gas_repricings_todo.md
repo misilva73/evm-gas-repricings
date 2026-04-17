@@ -10,6 +10,8 @@ End of April:
 
 End of May:
 
+- ⚪ we have reviewed the benchmark tests to insure we have a good coverage of the repriced operations
+- ⚪ we have run the full benchmark suite against the BAL + repricings branch and have no operations performing at less than 100Mgas/s
 - ⚪ we have a backward compatibility analysis with final numbers
 - ⚪ we have a page in our website where the ecosystem can check if their contract is affected by the repricings
 - ⚪ we have kicked-off an external security review with final numbers
