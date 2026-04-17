@@ -23,11 +23,11 @@ End of June:
 
 ### Benchmarking
 
-- [ ] [Louis] Investigate and fix issues with `test_account_access`
-- [ ] [Jochem] Investigate and fix issues with `SSTORE` and `SLOAD` benchmarks
-- [ ] [Rafael] Run stateful tests on Osaka + perf-devnet-3
-- [ ] [Maria] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780
-- [ ] [Rafael] Run amsterdam-compatible tests on BAL-optimized clients (both compute and stateful)
+- [X] [Louis] Investigate and fix issues with `test_account_access`
+- [X] [Jochem] Investigate and fix issues with `SSTORE` and `SLOAD` benchmarks
+- [X] [Rafael] Run stateful tests on Osaka + perf-devnet-3
+- [X] [Maria] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780
+- [X] [Rafael] Run amsterdam-compatible tests on BAL-optimized clients (both compute and stateful)
 - [ ] [Maria] Run empirical analysis to derive final numbers for EIP-7904, EIP-8038 and EIP-2780
 
 ### Security and community outreach
