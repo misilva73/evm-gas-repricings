@@ -18,7 +18,7 @@ The following costs correspond to our latest estimates of gas costs, using compu
 |SDIV|constant|5|6|0.2|
 |SMOD|constant|5|6|0.2|
 
-Note: `KECCAK256`, `ECRECOVER`, `BLS12_G1ADD` and `BLS12_G2ADD` are not included as their estimated cost are lower than then current costs.
+Note: `KECCAK256`, `ECRECOVER`, `ECPAIRING`, `BLS12_G1ADD` and `BLS12_G2ADD` are not included as their estimated cost are lower than then current costs.
 
 
 ## State access: Directly estimated parameters
