@@ -460,9 +460,6 @@ GAS_STORAGE_CLEAR_REFUND     = (GAS_COLD_STORAGE_WRITE + GAS_COLD_STORAGE_ACCESS
 ACCESS_LIST_STORAGE_KEY_COST = GAS_COLD_STORAGE_ACCESS
 ACCESS_LIST_ADDRESS_COST     = GAS_COLD_ACCOUNT_CODE_ACCESS
 ```
-
-For more information on how each test result is mapped to a parameter, check this
-[estimation plan](../../estimation_plan.md).
 """
     )
 

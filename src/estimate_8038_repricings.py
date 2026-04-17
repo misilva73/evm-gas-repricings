@@ -80,7 +80,7 @@ if __name__ == "__main__":
         state_trace_df["test_name"].isin(state_tests)
     ]
     compute_gas_bench_df, compute_trace_df = process_bench_data(
-        network="mainnet",
+        network="perf_devnet_3",
         test_type="compute",
         start_date=start_date,
         fork=fork,

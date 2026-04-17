@@ -205,6 +205,8 @@ def _query_traces_from_benchmarkoor(suite_hash: str, bearer_token: str) -> pd.Da
     data = response.json()
     trace_df = pd.DataFrame()
     for test_dict in data["tests"]:
+        if "opcode_count" not in test_dict:
+            continue
         test_series = pd.DataFrame.from_dict(
             test_dict["opcode_count"], orient="index"
         ).T

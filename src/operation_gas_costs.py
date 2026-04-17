@@ -25,6 +25,8 @@ def get_fusaka_dict():
         "POINT_EVALUATION": 50_000,
         "BLS12_G1ADD": 375,
         "BLS12_G2ADD": 600,
+        "P256VERIFY":6_900,
+
     }
     # ToDo: add cost for SELFDESTRUCT
     for op in [
