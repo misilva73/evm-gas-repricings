@@ -31,6 +31,8 @@ End of June:
 - [X] [Maria] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780
 - [X] [Rafael] Run amsterdam-compatible tests on BAL-optimized clients (both compute and stateful)
 - [ ] [Maria] Run empirical analysis to derive final numbers for EIP-7904, EIP-8038 and EIP-2780
+- [ ] [Jochem + Carlos] Improve State Actor tool
+- [ ] [Jochem + Carlos] Run State Actor tool to create a mainnet snapshot with all the relevant tests for the repricings
 
 ### Security and community outreach
 
