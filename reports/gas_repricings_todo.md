@@ -21,6 +21,19 @@ End of June:
 - ⚪ we have reached out to all affected entities from the backward compatibility analysis
 - ⚪ we have a public devnet with final numbers that the community can test
 
+## Key goals for interop
+
+- [Kamil] Investigate why `test_ec_pairing` is failing and fix it
+- [Kamil] Investigate why reth is crashing in the middle of the mainnet-24350000-amsterdam-compute runs and fix it
+- [Toni] Stabilize optimizations for all clients and merge them into bal-devnet-3
+- [Louis] Update tests and benchmarking tooling to run on bal-devnet-3
+- [Carlos] Finish State Actor tool and update mainnet snapshot with the needed contracts and accounts to run stateful tests
+- [Rafael] Do the following runs (once all the above is done):
+  - mainnet-amsterdam-compute
+  - mainnet-amsterdam-stateful
+  - perf-devnet-3-amsterdam-stateful
+- [Maria] Analyse results and derive final numbers for EIP-7904, EIP-8038 and EIP-2780
+
 ## Current workstreams - goals for end of April
 
 ### Benchmarking
@@ -41,7 +54,7 @@ NA
 ### EIPs & Devnet integration
 
 - [X] [Maria] Investigate state_gas refill mechanism for 8037
-- [ ] [Maria + Spencer] Review 8037 EIP, spec and tests and align everything for bal-devnet-4
+- [X] [Maria + Spencer] Review 8037 EIP, spec and tests and align everything for bal-devnet-4
 - [ ] [Maria] Update EIPs with final numbers
   - [ ] 7904
   - [ ] 8038
