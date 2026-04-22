@@ -30,7 +30,7 @@ with the [Benchmarkoor](https://github.com/ethpandaops/benchmarkoor) tool from E
 
 
 The data includes all the tests for operations repriced in EIP-8038 run
-between 2026-03-01 and 2026-04-21.
+between 2026-03-01 and 2026-04-22.
 
 For each operation and client, an NNLS linear regression model is fitted to estimate the
 operation run time as a function of the operation count and other operation-specific parameters.

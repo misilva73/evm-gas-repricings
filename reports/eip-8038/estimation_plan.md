@@ -1,6 +1,6 @@
 # Estimating state access parameters for EIPs 8038 and 2780
 
-#### Maria Silva, February 2026
+#### Maria Silva, April 2026
 
 ## Parameter overview
 
@@ -12,15 +12,15 @@ For EIP-8038 and EIP-2780, we need the following parameters:
 | `GAS_COLD_ACCOUNT_CODE_ACCESS` | Cold touch of an account with code | 2,600 | `*CALL` opcodes, `BALANCE`, `SELFDESTRUCT`, `EXT*` opcodes and ETH transfers |
 | `GAS_COLD_ACCOUNT_NOCODE_ACCESS` | Cold touch of an account without code | 2,600 | `*CALL` opcodes, `BALANCE`, `SELFDESTRUCT`, `EXT*` opcodes and ETH transfers |
 | `GAS_WARM_ACCESS` | Touch of an already-warm account or storage slot | 100 | `SSTORE`, `SLOAD`, `*CALL` opcodes, `BALANCE`, `EXT*` opcodes and ETH transfers |
-| `GAS_COLD_STORAGE_WRITE` | Surcharge for when writing to a storage slot changes its value for the first time | 2,900<sup>2</sup> | `SSTORE` |
+| `GAS_COLD_STORAGE_WRITE` | Surcharge for when writing to a storage slot changes its value for the first time | 2,800<sup>2</sup> | `SSTORE` |
 | `GAS_COLD_ACCOUNT_WRITE` | Surcharge for when writing to an account changes one account leaf value for the first time | 6,700<sup>3</sup> | `*CALL` opcodes and ETH transfers |
 | `GAS_STORAGE_CLEAR_REFUND` | Gas refunded when a storage slot is reset to zero | 4,800 | `SSTORE` |
 | `ACCESS_LIST_STORAGE_KEY_COST` | Gas charged per storage key included in a transaction's access list | 1,900 | `SSTORE` and `SLOAD` |
 | `ACCESS_LIST_ADDRESS_COST` | Gas charged per address included in a transaction's access list | 2,400 | `*CALL` opcodes, `BALANCE`, `SELFDESTRUCT` and `EXT*` opcodes |
 
-<sup>1</sup> 2,200 = `GAS_COLD_SLOAD` (2,100) + `GAS_WARM_ACCESS` (100)
+<sup>1</sup> 2,200 = `GAS_COLD_SLOAD` (2,100) + `GAS_WARM_ACCESS` (100) -> this assumes the worst case storage access, which is achieved via `SSTORE`
 
-<sup>2</sup> 2,900 = `GAS_STORAGE_UPDATE` (5,000) - `GAS_COLD_SLOAD` (2,100)
+<sup>2</sup> 2,800 = `GAS_STORAGE_UPDATE` (5,000) - `GAS_COLD_SLOAD` (2,100) - `GAS_WARM_ACCESS` (100)
 
 <sup>3</sup> 6,700 = positive_value_cost (9,000) - stipend (2,300)
 
@@ -34,19 +34,13 @@ The minimum-cost access path; represents in-memory lookup after the slot or acco
 
 | Benchmark | Variant | What it measures | Slot/account state | Warming method |
 |---|---|---|---|---|
-| `test_storage_access_warm_benchmark` | `READ` | Warm SLOAD (fixed slot, loop) | Non-existing slot (slot 0, never written) | First-touch in same execution context |
 | `test_storage_sload_same_key_benchmark` | `storage_keys_pre_set=True` | Best-case warm SLOAD (same key, repeated) | Existing slot (set in pre-state) | First-touch in same execution context |
 | `test_storage_sload_same_key_benchmark` | `storage_keys_pre_set=False` | Best-case warm SLOAD (same key, repeated) | Non-existing slot (never written) | First-touch in same execution context |
 | `test_ext_account_query_warm` | all opcodes × account types | Warm BALANCE, EXTCODESIZE, EXTCODEHASH, CALLs | Parametrized: absent, existing EOA, existing contract | First-touch in same execution context |
-| `test_extcodecopy_warm` | all `copy_size` values | Warm EXTCODECOPY | Existing contract (deployed in pre-state) | First-touch in same execution context |
-| `test_account_query` | `access_warm=True` | Warm account queries against CREATE2 contracts | Existing contracts (deployed in setup phase) | **Access list** |
-| `test_ether_transfers` | `warm_access=True` | Warm ETH transfers (transaction-level) | Existing EOAs (created via `fund_eoa` in pre-state) | **Access list** |
-| `test_sload_erc20_balanceof` | `existing_slots=True/False`, `cache_strategy=CACHE_TX`, per `token_name` | Two SLOAD to different slots (first is cold, second is warm) | Existing or non-existing ERC20 balance slots; setup done beforehand in bespoke ERC20s | **In-transaction**: first `balanceOf` warms slot |
-| `test_sload_erc20_balanceof` | `existing_slots=True/False`, `cache_strategy=CACHE_PREVIOUS_BLOCK`, per `token_name` | EVM-cold but client-cached SLOAD on bloatnet | Existing or non-existing ERC20 balance slots; setup done beforehand in bespoke ERC20s | **Previous block**: setup block reads slots and populates cache; depends on client implementation -> less reliable |
-| `test_sstore_erc20_approve` | `cache_strategy=CACHE_TX`, per `token_name` | Cold SLOAD + warm SSTORE; 0→nonzero on bloatnet | Non-existing slots (new allowance entries) | **In-transaction**: `allowance()` call warms slot before `approve()` writes it |
-| `test_sstore_erc20_approve` | `cache_strategy=CACHE_PREVIOUS_BLOCK`, per `token_name` | EVM-cold but client-cached SSTORE; nonzero→same on bloatnet (setup block wrote the same slots 0→nonzero) | Non-existing slots (new allowance entries) | **Previous block**: setup block runs the same `approve()` calls first (writing 0→nonzero), so the execution block re-approves the same values (nonzero→same); depends on client implementation -> less reliable |
-| `test_sstore_erc20_mint` | `cache_strategy=CACHE_TX`, `existing_slots=True/False`, `no_change=True/False`, per `token_name` | warm SSTORE with many variants | Existing or non-existing ERC20 balance slots | **In-transaction**: `balanceOf()` call warms slot before `mint()` writes it |
-| `test_sstore_erc20_mint` | `cache_strategy=CACHE_PREVIOUS_BLOCK`, `existing_slots=True/False`, `no_change=True/False`, per `token_name` | warm SSTORE with many variants | Existing or non-existing ERC20 balance slots | **Previous block**: setup block reads slots and populates cache; depends on client implementation -> less reliable |
+| `test_sload_bloated` | `existing_slots=True/False`, `cache_strategy=CACHE_TX`, per `storage_size` | Two SLOAD to different slots (first is cold, second is warm) on bloatnet | Existing or non-existing slots; setup done beforehand in bespoke contract | **In-transaction**: first SLOAD warms slot |
+| `test_sload_bloated` | `existing_slots=True/False`, `cache_strategy=CACHE_PREVIOUS_BLOCK`, per `storage_size` | EVM-cold but client-cached SLOAD on bloatnet | Existing or non-existing slots; setup done beforehand in bespoke contract | **Previous block**: setup block reads slots and populates cache; depends on client implementation -> less reliable |
+| `test_sstore_bloated` | `cache_strategy=CACHE_TX`, `existing_slots=True/False`, `update=True/False`, per `storage_size` | Warm SSTORE with many variants on bloatnet | Existing or non-existing ERC20 balance slots | **In-transaction**: SLOAD warms slot before SSTORE writes it |
+| `test_sstore_bloated` | `cache_strategy=CACHE_PREVIOUS_BLOCK`, `existing_slots=True/False`, `update=True/False`, per `storage_size` | Warm SSTORE with many variants on bloatnet | Existing or non-existing ERC20 balance slots | **Previous block**: setup block reads slots and populates cache; depends on client implementation -> less reliable |
 | `test_account_access` | all opcodes × account types, `value_sent=0`, `cache_strategy=CACHE_TX`  | Warm BALANCE, EXTCODESIZE, EXTCODEHASH, CALLs on bloatnet | Existing contracts (`CreatePreimageLayout`, ENS registry seed), existing EOAs (Spamoor, from `0x1000`), absent accounts (`keccak256("random")` seed) | **In-transaction**: `BALANCE` pre-call warms address |
 | `test_account_access` |  all opcodes × account types, `value_sent=0`, `cache_strategy=CACHE_PREVIOUS_BLOCK` | EVM-cold but client-cached access to accounts on bloatnet | Existing contracts (deployed by ENS registry, iterated via `CreatePreimageLayout`) or Existing EOAs (previously initialized in bloatnet) | **Previous block**: setup block reads accounts and populates cache; depends on client implementation -> less reliable |
 
@@ -57,12 +51,12 @@ The minimum-cost access path; represents in-memory lookup after the slot or acco
 - Target opcode: SLOAD, SSTORE, BALANCE, EXTCODESIZE, EXTCODEHASH, and CALL opcodes
 - Existing/non-existing
 
-From the available tests, we cannot use the tests warmed through the Access List strategy as it is not a reliable way to ensure the data is cached, which excludes `test_account_query` and `test_ether_transfers`. As for the remaining tests, we will consider the following tests:
+We will consider the following tests:
 
 - `test_storage_sload_same_key_benchmark` with `storage_keys_pre_set=True` will be used to benchmark warm SLOADs to the same slot. This should be a lower bound for accessing a warm slot.
-- `test_ext_account_query_warm` will be used to benchmark warm account accesses (BALANCE,
- CALL opcodes, and EXTCODE* opcodes) to the same account. Our benchmarks are only collecting data for existing EOAs (i.e., the variant `initial_storage=True`, `initial_balance=True`, and `empty_code=True`), so this should also be a lower bound for accessing a warm account.
-- `test_sstore_erc20_mint` will be used to benchmark warm SSTORE to different slots. We will consider both warming strategies (`CACHE_TX` and `CACHE_PREVIOUS_BLOCK`), `existing_slots=True/False` configs and compare the difference. We will also use the different `token_name`'s to check whether warm performance is affected by storage size (although we expect it not to have an impact).
+- `test_ext_account_query_warm` will be used to benchmark warm account accesses (BALANCE, CALL opcodes, and EXTCODE* opcodes) to the same account. Our benchmarks are only collecting data for existing EOAs (i.e., the variant `initial_storage=True`, `initial_balance=True`, and `empty_code=True`), so this should also be a lower bound for accessing a warm account.
+- `test_sload_bloated` will be used to benchmark warm SLOAD to different slots on bloatnet. We will consider both warming strategies (`CACHE_TX` and `CACHE_PREVIOUS_BLOCK`), filtering to `existing_slots=True` so that the warm read observes a populated slot. We will also use the different `storage_size`'s to check whether warm performance is affected by storage size (although we expect it not to have an impact).
+- `test_sstore_bloated` will be used to benchmark warm SSTORE to different slots on bloatnet. We will consider both warming strategies (`CACHE_TX` and `CACHE_PREVIOUS_BLOCK`), filtering to `existing_slots=True` so that the warm write observes a populated slot. We will also use the different `storage_size`'s to check whether warm performance is affected by storage size.
 - `test_account_access` with `value_sent=0` will be used to benchmark warm account accesses (BALANCE, CALL opcodes, and EXTCODE* opcodes) to different accounts. Similarly to slots, we will consider both warming strategies (`CACHE_TX` and `CACHE_PREVIOUS_BLOCK`) and all account types (existing EOA, existing contract, non-existing account) and compare the difference.
 
 ### `GAS_COLD_STORAGE_ACCESS`
@@ -73,16 +67,12 @@ Cost of the cold trie traversal to reach a storage slot.
 
 | Benchmark | Variant | What it measures | Slot state | Warming method |
 |---|---|---|---|---|
-| `test_storage_access_cold_benchmark` | `READ` | Cold SLOAD on clean state | Non-existing slots (uses `Op.GAS` as key — unique per iteration, never written) | N/A (each iteration hits a different slot) |
-| `test_storage_access_cold` | `absent_slots=True`, `READ` | Cold SLOAD via EIP-7702 delegation | Non-existing slots | N/A (each iteration hits a different slot) |
-| `test_storage_access_cold` | `absent_slots=False`, `READ` | Cold SLOAD via EIP-7702 delegation | **Existing slots** (initialized in setup block via SSTORE) | **Always warm** (setup SSTORE caches the slot) |
-| `test_sload_erc20_balanceof` | `existing_slots=True/False`, `cache_strategy=NO_CACHE`, per `token_name` | Cold SLOAD on bloatnet to different slots | Both existing and non-existing slots | N/A (each call targets a different slot + setup is done on bloatnet) |
-| `test_storage_sload_benchmark` | `storage_keys_pre_set=False`, cold | Cold SLOAD via EIP-7702 delegation | Non-existing slots | N/A (each iteration hits a different slot) |
-| `test_storage_sload_benchmark` | `storage_keys_pre_set=True`, cold | Cold SLOAD via EIP-7702 delegation | **Existing slots** (initialized in setup block) | **Always warm** (setup SSTORE caches the slot) |
+| `test_sload_bloated` | `existing_slots=True/False`, `cache_strategy=NO_CACHE`, per `storage_size` | Cold SLOAD on bloatnet to different slots | Both existing and non-existing slots | N/A (each call targets a different slot + setup is done on bloatnet) |
+| `test_sstore_bloated` | `existing_slots=True/False`, `update=True/False`, `cache_strategy=NO_CACHE`, per `storage_size` | Cold SSTORE on bloatnet to different slots; slope captures the cold access portion | Both existing and non-existing slots | N/A (each call targets a different slot + setup is done on bloatnet) |
 
 #### Estimation
 
-We expect the storage size to have a significant impact on the runtime of a cold SLOAD. Because of this, we need to use `test_sload_erc20_balanceof` to estimate `GAS_COLD_STORAGE_ACCESS`. In this case, we will have one model estimation per slot status (existing/non-existing) for the `test_sload_erc20_balanceof` with `cache_strategy=NO_CACHE`. We will also use the different `token_name`'s to check how much cold performance deteriorates with storage size.
+We expect the storage size to have a significant impact on the runtime of a cold SLOAD. Because of this, we need to use the bloatnet tests (`test_sload_bloated` and `test_sstore_bloated`) to estimate `GAS_COLD_STORAGE_ACCESS`. In this case, we will fit one model per slot status (existing/non-existing) for each test with `cache_strategy=NO_CACHE`; the slope captures the cold access component in both tests. We will also use the different `storage_size`'s to check how much cold performance deteriorates with storage size.
 
 ### `GAS_COLD_ACCOUNT_CODE_ACCESS`
 
@@ -92,13 +82,11 @@ Cost of the cold trie traversal to reach an account that has code, on top of the
 
 | Benchmark | Variant | What it measures | Account state | Warming method |
 |---|---|---|---|---|
-| `test_account_query` | `access_warm=False`, all opcodes | Cold access to CREATE2-deployed contracts | Existing contracts (deployed in setup phase) | **Always warm** (setup deploys the contracts, caching them) |
-| `test_ether_transfers` | `delegated_account`, `warm_access=False` | Cold ETH transfer to delegated accounts (transaction-level) | Existing delegated EOA with balance=0 (created via `fund_eoa` with delegation to a contract) | **Always warm** (setup creates accounts via `fund_eoa`, caching them) |
 | `test_account_access` | `account_mode=EXISTING_CONTRACT or NON_EXISTING_ACCOUNT`, `value_sent=0`, all EXT* + CALL opcodes, `cache_strategy=NO_CACHE` | Cold access to contracts on bloatnet via BALANCE, EXTCODESIZE, EXTCODEHASH, CALLs | Existing contracts (deployed by ENS registry, iterated via `CreatePreimageLayout`) | N/A (each iteration targets a different contract address) |
 
 #### Estimation
 
-From the available tests, only `test_account_access` can be used for estimating a cold touch to an account with code reliably. To estimate `GAS_COLD_ACCOUNT_CODE_ACCESS` we will fit one model for each existing/non-existing variant (`account_mode=EXISTING_CONTRACT` vs. `account_mode=NON_EXISTING_ACCOUNT`) and opcode (BALANCE, EXTCODESIZE, EXTCODEHASH, and CALL opcodes). We will use `value_sent=0` to avoid any account writes.
+`test_account_access` is the test used for estimating a cold touch to an account with code. To estimate `GAS_COLD_ACCOUNT_CODE_ACCESS` we will fit one model for each existing/non-existing variant (`account_mode=EXISTING_CONTRACT` vs. `account_mode=NON_EXISTING_ACCOUNT`) and opcode (BALANCE, EXTCODESIZE, EXTCODEHASH, and CALL opcodes). We will use `value_sent=0` to avoid any account writes.
 
 ### `GAS_COLD_ACCOUNT_NOCODE_ACCESS`
 
@@ -108,16 +96,11 @@ Cost of the cold trie traversal to reach an account without code.
 
 | Benchmark | Variant | What it measures | Account state | Warming method |
 |---|---|---|---|---|
-| `test_ether_transfers` | `non_empty_account`, `warm_access=False` | Cold ETH transfer to EOAs (transaction-level) | Existing EOA with balance=1 (created via `fund_eoa`) | **Always warm** (setup creates accounts via `fund_eoa`, caching them) |
-| `test_ether_transfers` | `empty_account`, `warm_access=False` | Cold ETH transfer to EOAs (transaction-level) | Existing EOA with balance=0 (created via `fund_eoa` — **not truly absent**) | **Always warm** (setup creates accounts via `fund_eoa`, caching them) |
-| `test_ext_account_query_cold` | `BALANCE`, `absent_accounts=True` | Cold BALANCE on absent EOAs | **Absent accounts** (computed addresses, never allocated) | N/A (each iteration targets a different address) |
-| `test_ext_account_query_cold` | `BALANCE`, `absent_accounts=False` | Cold BALANCE on existing EOAs | Existing EOAs (created via CALL with value in setup block) | **Always warm** (setup creates accounts via CALL with value, caching them) |
-| `test_contract_calling_many_addresses` | `transfer_amount=0`, `access_warm=False` | Cold CALL to non-existent addresses (opcode-level) | **Absent accounts** (addresses starting at 2^80-1, never allocated) | N/A (each iteration targets a different address) |
-| `test_account_access` | `account_mode=EXISTING_EOA or NON_EXISTING_ACCOUNT`, `value_sent=0`, BALANCE + CALL opcodes, `cache_strategy=NO_CACHE` | Cold access to existing EOAs on bloatnet | Existing EOAs (Spamoor-created, addresses starting at `0x1000`) | N/A (each iteration targets a different address) |
+| `test_account_access` | `account_mode=EXISTING_EOA or NON_EXISTING_ACCOUNT`, `value_sent=0`, BALANCE + CALL opcodes, `cache_strategy=NO_CACHE` | Cold access to existing EOAs on bloatnet | Existing EOAs (Spamoor-created, addresses starting at `0x1000`) or absent accounts (addresses starting at `keccak256("random")`, never allocated) | N/A (each iteration targets a different address) |
 
 #### Estimation
 
-From all the available test, we will focus again on `test_account_access`. Similarly to `GAS_COLD_ACCOUNT_CODE_ACCESS`, we will fit one model for each existing/non-existing variant (`account_mode=EXISTING_EOA` vs. `account_mode=NON_EXISTING_ACCOUNT`) and opcode (BALANCE + CALL opcodes). We will use `value_sent=0` to avoid any account writes.
+We use `test_account_access` for this parameter as well. Similarly to `GAS_COLD_ACCOUNT_CODE_ACCESS`, we will fit one model for each existing/non-existing variant (`account_mode=EXISTING_EOA` vs. `account_mode=NON_EXISTING_ACCOUNT`) and opcode (BALANCE + CALL opcodes). We will use `value_sent=0` to avoid any account writes.
 
 ### `GAS_COLD_STORAGE_WRITE`
 
@@ -127,19 +110,15 @@ Additional cost when an SSTORE changes a slot's value for the first time, beyond
 
 | Benchmark | Variant | What it measures | Slot state | Warming method |
 |---|---|---|---|---|
-| `test_storage_access_cold_benchmark` | `WRITE_NEW_VALUE` | Cold SSTORE; 0→nonzero | Non-existing slots (uses `Op.GAS` as key — unique per iteration) | N/A (each iteration hits a different slot) |
-| `test_sstore_erc20_approve` | `cache_strategy=NO_CACHE`, per `token_name` | Cold SSTORE; 0→nonzero on bloatnet | Non-existing slots (new allowance entries) | N/A (each iteration targets a different slot) |
-| `test_sstore_erc20_mint` | `existing_slots=False`, `no_change=False`, `cache_strategy=NO_CACHE`, per token_name | Cold SSTORE; 0→nonzero via `mint()` on bloatnet | Non-existing ERC20 balance slots (incrementing addresses from `keccak256("random")`) | N/A (each iteration targets a different slot) |
-| `test_sstore_erc20_mint` | `existing_slots=True`, `no_change=False`, `cache_strategy=NO_CACHE`, per token_name | Cold SSTORE; nonzero→different via `mint()` on bloatnet | **Existing** ERC20 balance slots (address counter starts at 1, hitting populated slots) | N/A (each iteration targets a different slot) |
-| `test_sstore_variants` | `initial_value=0, write_value=nonzero`, `access_warm=False` | Cold SSTORE; 0→nonzero via EIP-7702 | Non-existing slots | N/A (each iteration hits a different slot) |
-| `test_sstore_variants` | `initial_value=nonzero, write_value=diff`, `access_warm=False` | Cold SSTORE; nonzero→different via EIP-7702 | **Existing slots** (initialized in setup phase) | N/A (each iteration hits a different slot) |
-| `test_sstore_variants` | `initial_value=nonzero, write_value=same`, `access_warm=False` | Cold SSTORE nonzero→same via EIP-7702 (no value change — baseline) | **Existing slots** (initialized in setup phase) | N/A (each iteration hits a different slot) |
+| `test_sstore_bloated` | `existing_slots=False`, `update=True`, `cache_strategy=NO_CACHE`, per `storage_size` | Cold SSTORE; 0→nonzero via `mint()` on bloatnet | Non-existing ERC20 balance slots (incrementing addresses from `keccak256("random")`) | N/A (each iteration targets a different slot) |
+| `test_sstore_bloated` | `existing_slots=True`, `update=True`, `cache_strategy=NO_CACHE`, per `storage_size` | Cold SSTORE; nonzero→different via `mint()` on bloatnet | **Existing** ERC20 balance slots (address counter starts at 1, hitting populated slots) | N/A (each iteration targets a different slot) |
+| `test_sstore_bloated` | `update=False`, `cache_strategy=NO_CACHE`, per `storage_size` | Cold SSTORE with no value change; isolates cold access from the write surcharge | Both existing and non-existing slots | N/A (each iteration targets a different slot) |
 
 #### Estimation
 
-Similarly to a cold access to storage, we expect the size of contract's storage to have a significant impact on the run time of writing to a storage slot. With this in mind, we will focus on the `test_sstore_erc20_mint` with `no_change=False` and `cache_strategy=NO_CACHE`, as it is the most flexible that targets different storage sizes.
+Similarly to a cold access to storage, we expect the size of contract's storage to have a significant impact on the run time of writing to a storage slot. With this in mind, we will focus on `test_sstore_bloated` with `cache_strategy=NO_CACHE`, as it is the most flexible that targets different storage sizes.
 
-Concretely, we will fit one model for each existing/non-existing variant and take the worst-case. We will do this analysis for each storage size to map how performance scales with increasing storage.
+The regression fits both the slope (captures cold access) and the `update` coefficient (captures the write surcharge) simultaneously. `GAS_COLD_STORAGE_WRITE` is derived from the `update` coefficient. We will do this analysis for each storage size to map how performance scales with increasing storage.
 
 ### `GAS_COLD_ACCOUNT_WRITE`
 
@@ -149,18 +128,15 @@ Surcharge when a transaction or CALL changes an account's balance (or creates a 
 
 | Benchmark | Variant | What it measures | Account state | Warming method |
 |---|---|---|---|---|
-| `test_ether_transfers` | `transfer_amount=1`, `non_empty_account` | ETH transfer to existing EOA | Existing EOA with balance=1 (created via `fund_eoa`) | **Always warm** (setup creates accounts via `fund_eoa`, caching them) |
-| `test_ether_transfers` | `transfer_amount=1`, `empty_account` | ETH transfer to zero-balance EOA | Existing EOA with balance=0 (created via `fund_eoa` — **not truly absent**) | **Always warm** (setup creates accounts via `fund_eoa`, caching them) |
-| `test_contract_calling_many_addresses` | `transfer_amount=1`, `access_warm=False` | Cold value-bearing CALL creating accounts (opcode-level) | **Absent accounts** (addresses starting at 2^80-1, never allocated) | N/A (each iteration targets a different address) |
 | `test_account_access` | `account_mode=EXISTING_EOA`, `value_sent=1`, CALL + CALLCODE, `cache_strategy=NO_CACHE` | Cold value-bearing CALL to existing EOAs on bloatnet | Existing EOAs (Spamoor-created, addresses starting at `0x1000`) | N/A (each iteration targets a different address) |
 | `test_account_access` | `account_mode=EXISTING_CONTRACT`, `value_sent=1`, CALL + CALLCODE, `cache_strategy=NO_CACHE` | Cold value-bearing CALL to existing contracts on bloatnet | Existing contracts (deployed by ENS registry, iterated via `CreatePreimageLayout`) | N/A (each iteration targets a different address) |
 | `test_account_access` | `account_mode=NON_EXISTING_ACCOUNT`, `value_sent=1`, CALL + CALLCODE, `cache_strategy=NO_CACHE` | Cold value-bearing CALL creating absent accounts on bloatnet | **Absent accounts** (addresses starting at `keccak256("random")`, never allocated) | N/A (each iteration targets a different address) |
 
 #### Estimation
 
-The `test_account_access` is the only test that gives us all the needed configurations. We will focus on the variant `value_sent=1` and `cache_strategy=NO_CACHE`. For each opcode and account_mode, we will fit a model and take the worst-case.
+`test_account_access` is the test used for estimating this parameter. We will focus on the variant `cache_strategy=NO_CACHE`. The regression fits both the slope (captures cold access) and the `update` coefficient (captures the write surcharge when `value_sent=1`) simultaneously. `GAS_COLD_ACCOUNT_WRITE` is derived from the `update` coefficient, so the cold access component does not need to be subtracted after the fact.
 
-An important caveat is that the `GAS_COLD_ACCOUNT_WRITE` is a surcharge over the account access cost. Because of this, we will need to subtract the time estimated for one cold account access from the time estimated for one cold account write.
+We fit separate models for the nocode-access path (`account_mode != EXISTING_CONTRACT`) and the code-access path (`account_mode != EXISTING_EOA`), and take the worst case across them.
 
 ### `GAS_STORAGE_CLEAR_REFUND`
 
@@ -206,17 +182,17 @@ When a measurement bundles multiple components (e.g., a cold read followed by a 
 
 #### Storage opcodes
 
-To estimate the storage access parameters, we will fit the following models for each slot mode (`existing_slots=True/False`), storage size (`token_name`) and client combination:
+To estimate the storage access parameters, we will fit the following models for each slot mode (`existing_slots=True/False`), storage size (`storage_size`) and client combination:
 
 | Test | Filter | Additional regression variables | What is estimated |
 |:---|:---|:---|:---|
-| `test_storage_sload_same_key_benchmark` | `pre_set=True` | — | `GAS_WARM_ACCESS` |
-| `test_sload_erc20_balanceof` | `cache_strategy=CACHE_TX` | - | `GAS_WARM_ACCESS` |
-| `test_sload_erc20_balanceof` | `cache_strategy=CACHE_PREVIOUS_BLOCK` | - | `GAS_WARM_ACCESS` |
-| `test_sstore_erc20_mint` | `cache_strategy=CACHE_TX`, `no_change=True` | - | `GAS_WARM_ACCESS` |
-| `test_sstore_erc20_mint` | `cache_strategy=CACHE_PREVIOUS_BLOCK`, `no_change=True` | - | `GAS_WARM_ACCESS` |
-| `test_sload_erc20_balanceof` | `cache_strategy=NO_CACHE` | - | `GAS_COLD_STORAGE_ACCESS` |
-| `test_sstore_erc20_mint` | `cache_strategy=NO_CACHE` | `update` (`no_change=False`)  |`GAS_COLD_STORAGE_ACCESS`, `GAS_COLD_STORAGE_WRITE` |
+| `test_storage_sload_same_key_benchmark` | — | — | `GAS_WARM_ACCESS` |
+| `test_sload_bloated` | `cache_strategy=CACHE_TX`, `existing_slots=True` | - | `GAS_WARM_ACCESS` |
+| `test_sload_bloated` | `cache_strategy=CACHE_PREVIOUS_BLOCK`, `existing_slots=True` | - | `GAS_WARM_ACCESS` |
+| `test_sstore_bloated` | `cache_strategy=CACHE_TX`, `existing_slots=True` | - | `GAS_WARM_ACCESS` |
+| `test_sstore_bloated` | `cache_strategy=CACHE_PREVIOUS_BLOCK`, `existing_slots=True` | - | `GAS_WARM_ACCESS` |
+| `test_sload_bloated` | `cache_strategy=NO_CACHE` | - | `GAS_COLD_STORAGE_ACCESS` |
+| `test_sstore_bloated` | `cache_strategy=NO_CACHE` | `update` | `GAS_COLD_STORAGE_ACCESS`, `GAS_COLD_STORAGE_WRITE` |
 
 #### Account opcodes
 
@@ -233,10 +209,10 @@ To estimate the account access parameters, we will fit the following models for 
 ### Mapping coefficients to gas parameters
 
 - `GAS_WARM_ACCESS`: this is derived from the slope of all the models estimating this parameter. If `cache_strategy=CACHE_TX`, then we will have a SLOAD or BALANCE as glue opcodes. In this case, we know these opcodes are cold, and thus we will discount the runtime of the respective cold variants.
-- `GAS_COLD_STORAGE_ACCESS`: this is derived from the slope of the `test_sload_erc20_balanceof` and `test_sstore_erc20_mint` models.
+- `GAS_COLD_STORAGE_ACCESS`: this is derived from the slope of the `test_sload_bloated` and `test_sstore_bloated` models.
 - `GAS_COLD_ACCOUNT_NOCODE_ACCESS`: this is derived from the slope of the `test_account_access` models filtered by `account_mode!=EXISTING_CONTRACT`.
 - `GAS_COLD_ACCOUNT_CODE_ACCESS`: this is derived from the slope of the `test_account_access` models filtered by `account_mode!=EXISTING_EOA`.
-- `GAS_COLD_STORAGE_WRITE`: this is derived from the coefficient of the `update` parameter from the `test_sstore_erc20_mint` models.
+- `GAS_COLD_STORAGE_WRITE`: this is derived from the coefficient of the `update` parameter from the `test_sstore_bloated` models.
 - `GAS_COLD_ACCOUNT_WRITE`: this is derived from the coefficient of the `update` parameter from the `test_account_access` models.
 - `GAS_STORAGE_CLEAR_REFUND`: is derived from `GAS_COLD_STORAGE_WRITE` and `GAS_COLD_STORAGE_ACCESS` (`GAS_STORAGE_CLEAR_REFUND = (GAS_COLD_STORAGE_WRITE+GAS_COLD_STORAGE_ACCESS) * (4800/5000)`)
 - `ACCESS_LIST_STORAGE_KEY_COST`: is set to `GAS_COLD_STORAGE_ACCESS`

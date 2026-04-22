@@ -392,7 +392,9 @@ def process_compute_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     )
     # Remove opcode names from test_params
     df["test_params"] = np.where(
-        df["test_name"].isin(["test_bls12_381_uncachable", "test_point_evaluation_uncachable"]),
+        df["test_name"].isin(
+            ["test_bls12_381_uncachable", "test_point_evaluation_uncachable"]
+        ),
         None,
         df["test_params"],
     )
@@ -403,17 +405,20 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     df = prev_df.copy()
     # Set test_opcode for bloatnet storage tests not handled by process_test_title_col
     df["test_opcode"] = np.where(
-        df["test_name"] == "test_sload_erc20_balanceof", "SLOAD", df["test_opcode"]
-    )
-    df["test_opcode"] = np.where(
-        df["test_name"] == "test_sstore_erc20_mint", "SSTORE", df["test_opcode"]
-    )
-    df["test_opcode"] = np.where(
-        df["test_name"] == "test_storage_sload_benchmark", "SLOAD", df["test_opcode"]
-    )
-    df["test_opcode"] = np.where(
-        df["test_name"] == "test_storage_sload_same_key_benchmark",
+        df["test_name"].isin(
+            [
+                "test_sload_erc20_balanceof",
+                "test_sload_bloated",
+                "test_storage_sload_benchmark",
+                "test_storage_sload_same_key_benchmark",
+            ]
+        ),
         "SLOAD",
+        df["test_opcode"],
+    )
+    df["test_opcode"] = np.where(
+        df["test_name"].isin(["test_sstore_erc20_mint", "test_sstore_bloated"]),
+        "SSTORE",
         df["test_opcode"],
     )
     df["test_opcode"] = np.where(
