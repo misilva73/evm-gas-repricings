@@ -8,11 +8,11 @@ theme: gaia
 
 <!-- _class: lead invert -->
 
-# Soldøgn kickoff
+# Soldøgn Kickoff
 
-## Glamsterdam Repricings
+## Execution Layer Track
 
-# ⛽
+# ⛽ 💙 ⚽
 
 Maria Silva & Toni Wahrstätter
 
@@ -20,7 +20,7 @@ Maria Silva & Toni Wahrstätter
 
 ## EIP Overview ✅
 
-- **4 EIPs** are already included in **bal-devenet-4**:
+- **bal-devenet-4** already includes BALs (EIP-7928) and some repricing EIPs:
   - State growth: EIP-8037
   - Data: EIP-7976, EIP-7981
   - Refunds: EIP-7778
@@ -32,7 +32,7 @@ Maria Silva & Toni Wahrstätter
 
 ## EIP Overview 🔨
 
-- **3 EIPs** are not yet finalized:
+- **3 Repricing EIPs** are not yet finalized:
   - Compute: EIP-7904
   - State Access: EIP-8038
   - ETH Transfers: EIP-2780 (depends on 8038)
@@ -49,7 +49,7 @@ Maria Silva & Toni Wahrstätter
 
 ---
 
-## Stabilize EIP-8037
+## Stabilize EIP-8037 (State Growth)
 
 1. We discuss and agree on **open questions** by Monday
 
@@ -67,9 +67,9 @@ Maria Silva & Toni Wahrstätter
 
 1. **Review rough benchmarks** on the [bal-dashboard](https://nerolation.github.io/bal-dashboard/) by Monday — sanity-check results and fix obvious bugs
 
-2. **Deep-dive individual optimizations** by Wednesday, with main focus on **batch I/O** (directly shapes repricings downstream: 8038, 8037, 2780, …)
+2. **Deep-dive individual optimizations** by Tuesday, with main focus on **batch I/O** (directly shapes repricings downstream: 8038, 8037, 2780, …)
 
-3. Cut **stable optimization releases** by Thursday → unblocks meaningful benchmarks for the 7904 / 8038 repricings
+3. Cut **stable optimization releases** by Wednesday → unblocks meaningful benchmarks for the 7904 / 8038 repricings
 
 ---
 
@@ -219,7 +219,16 @@ table { width: 100%; }
 | New slot | 32 B | Size of RLP-encoded slot value (up to 32 B). Ignores the 32 B slot key stored alongside as the leaf's path. Should it be 64 B? |
 | Authorization | 23 B | Byte-exact: delegation designator `0xef0100 ‖ address` (3 + 20 B) written to the authority's code slot by EIP-7702 |
 
+---
+
 #### Does this look correct? 🤔
+
+
+<!-- _class: lead invert -->
+
+# 🐈
+
+## Thank you
 
 ---
 
@@ -240,14 +249,6 @@ table { width: 100%; }
 | **`codeHash`** (RLP 32 B hash) | 33 B | 32 B hash + 1 B RLP prefix (`0xa0`). Equals `keccak256("")` for fresh EOA |
 | **framing** (2 RLP list headers) | ~4 B | Account body list `[nonce, balance, storageRoot, codeHash]` ≈ 76 B → 2 B header. Leaf node list `[path, value]` ≈ 110 B → 2 B header |
 | **Total** | **~88–113 B** | Two 32 B hashes dominate (~60%); present even with no code / no storage |
-
----
-
-<!-- _class: lead invert -->
-
-# 🐈
-
-## Thank you
 
 ---
 
@@ -401,40 +402,43 @@ h2 { font-size: 48px; }
 
 | Parameter | Current | New | Change |
 |---|---:|---:|---:|
-| GAS_COLD_ACCOUNT_CODE_ACCESS | 2 600 | 21 457 | +7.3× |
-| GAS_COLD_ACCOUNT_NOCODE_ACCESS | 2 600 | 10 591 | +3.1× |
-| GAS_COLD_ACCOUNT_WRITE | 6 700 | 224 268 | **+32.5×** |
-| GAS_COLD_STORAGE_ACCESS | 2 200 | 191 667 | **+86×** |
-| GAS_COLD_STORAGE_WRITE | 2 900 | 149 032 | **+50×** |
+| ACCOUNT_CODE_ACCESS | 2 600 | 21 457 | +7.3× |
+| ACCOUNT_NOCODE_ACCESS | 2 600 | 10 591 | +3.1× |
+| ACCOUNT_WRITE | 6 700 | 224 268 | **+32.5×** |
+| STORAGE_ACCESS | 2 200 | 191 667 | **+86×** |
+| STORAGE_WRITE | 2 800 | 149 032 | **+52×** |
 
-Derived: `STORAGE_CLEAR_REFUND` 4 800 → 327 072; `ACCESS_LIST_STORAGE_KEY_COST` 1 900 → 191 667
+> Increases are significant! But they are measured from bloatnet and don't take BALs into account...
 
 ---
 
 <style scoped>
-section { font-size: 24px; }
-h2 { font-size: 48px; }
+section { font-size: 22px; }
+h2 { font-size: 44px; }
+table { width: 100%; }
 </style>
 
-## Where the worst-case is driven by one client
+## Slow vs fast clients per parameter
 
-| Parameter | Worst | Worst gas | 2nd | 2nd gas | Ratio |
-|---|---|---:|---|---:|---:|
-| GAS_COLD_ACCOUNT_CODE_ACCESS | besu | 21 457 | reth | 5 496 | **3.9×** |
-| GAS_COLD_ACCOUNT_NOCODE_ACCESS | nethermind | 10 591 | besu | 10 366 | 1.02× |
-| GAS_COLD_ACCOUNT_WRITE | erigon | 224 268 | reth | 117 838 | **1.9×** |
-| GAS_COLD_STORAGE_ACCESS | erigon | 191 667 | reth | 184 711 | 1.04× |
-| GAS_COLD_STORAGE_WRITE | reth | 149 032 | erigon | 104 522 | 1.4× |
+| Parameter | Slow group | Fast group | Slow/Fast |
+|---|---|---|---:|
+| ACCOUNT_CODE_ACCESS | besu<br>21 457 | reth, geth, nethermind, erigon<br>271 – 5 496 | **~9×** |
+| ACCOUNT_NOCODE_ACCESS | besu, nethermind<br>10 366 – 10 591 | geth, erigon, reth<br>83 – 2 531 | **~11×** |
+| ACCOUNT_WRITE ¹ | erigon, reth<br>117 838 – 224 268 | geth, nethermind<br>4 550 – 5 056 | **~36×** |
+| STORAGE_ACCESS | erigon, reth<br>184 711 – 191 667 | geth, nethermind, besu<br>9 925 – 12 722 | **~17×** |
+| STORAGE_WRITE ¹ | erigon, reth<br>104 522 – 149 032 | geth, nethermind<br>3 890 – 8 389 | **~21×** |
 
-> Half the parameters are set by a **single client** 2–4× above the runner-up.
+> Each parameter splits clients into a slow and fast group **~10–35× apart**. The slow group is **besu (± nethermind)** on account access and **erigon + reth** on writes / storage access.
+
+¹ besu excluded (no statistically significant fit).
 
 ---
 
 ## EIP-8038 — takeaways
 
 - Per-client spread is **much larger** than for 7904: orders of magnitude between fastest and slowest.
+
 - Proposal is driven by **different outlier clients per parameter** — besu, erigon, nethermind and reth each drive at least one worst-case.
-- `GAS_COLD_ACCOUNT_CODE_ACCESS` (besu, 3.9×) is the biggest single-client effects.
 
 ---
 
