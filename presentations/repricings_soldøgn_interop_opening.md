@@ -1,7 +1,7 @@
 ---
 marp: true
 title: Glamsterdam Repricings @ Soldøgn
-author: Maria Silva
+author: Maria Silva & Toni Wahrstätter
 footer: ❄️ Soldøgn Interop 2026
 theme: gaia
 ---
@@ -14,7 +14,7 @@ theme: gaia
 
 # ⛽
 
-Maria Silva
+Maria Silva & Toni Wahrstätter
 
 ---
 
@@ -60,6 +60,16 @@ Maria Silva
 4. We update **client implementations** and merge to glamsterdam-devnet-1 by Thursday
 
 5. We **test and finalize** implementation details by Friday
+
+---
+
+## Stabilize EIP-7928 (BAL)
+
+1. **Review rough benchmarks** on the [bal-dashboard](https://nerolation.github.io/bal-dashboard/) by Monday — sanity-check results and fix obvious bugs
+
+2. **Deep-dive individual optimizations** by Wednesday, with main focus on **batch I/O** (directly shapes repricings downstream: 8038, 8037, 2780, …)
+
+3. Cut **stable optimization releases** by Thursday → unblocks meaningful benchmarks for the 7904 / 8038 repricings
 
 ---
 
