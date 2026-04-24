@@ -27,7 +27,7 @@ End of June:
 - [Kamil] Investigate why reth is crashing in the middle of the mainnet-24350000-amsterdam-compute runs and fix it
 - [Toni] Stabilize optimizations for all clients and merge them into bal-devnet-3
 - [Louis] Update tests and benchmarking tooling to run on bal-devnet-3
-- [Carlos] Finish State Actor tool and update mainnet snapshot with the needed contracts and accounts to run stateful tests
+- [Jochem] Update mainnet snapshot with the needed contracts and accounts to run stateful tests
 - [Rafael] Do the following runs (once all the above is done):
   - mainnet-amsterdam-compute
   - mainnet-amsterdam-stateful
