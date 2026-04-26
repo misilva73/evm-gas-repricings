@@ -65,11 +65,13 @@ Maria Silva & Toni Wahrstätter
 
 ## Stabilize EIP-7928 (BAL)
 
-1. **Review rough benchmarks** on the [bal-dashboard](https://nerolation.github.io/bal-dashboard/) by Monday — sanity-check results and fix obvious bugs
+1. **Review rough benchmarks** on the [bal-dashboard](https://nerolation.github.io/bal-dashboard/) by Monday: sanity-check results and fix obvious bugs
 
 2. **Deep-dive individual optimizations** by Tuesday, with main focus on **batch I/O** (directly shapes repricings downstream: 8038, 8037, 2780, …)
 
 3. Cut **stable optimization releases** by Wednesday → unblocks meaningful benchmarks for the 7904 / 8038 repricings
+
+4. Confirm **eth/71 (EIP-8159)** status, and optionally **snap/2 (EIP-8189)**, by Thursday → enables sync testing (snap/2 not required yet)
 
 ---
 
