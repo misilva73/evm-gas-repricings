@@ -20,7 +20,7 @@ Maria Silva & Toni Wahrstätter
 
 ## EIP Overview ✅
 
-- **bal-devenet-4** already includes BALs (EIP-7928) and some repricing EIPs:
+- **bal-devnet-4** already includes BALs (EIP-7928) and some repricing EIPs:
   - State growth: EIP-8037
   - Data: EIP-7976, EIP-7981
   - Refunds: EIP-7778
@@ -37,7 +37,7 @@ Maria Silva & Toni Wahrstätter
   - State Access: EIP-8038
   - ETH Transfers: EIP-2780 (depends on 8038)
 
-- We are **prelim numbers**, but there is still work to do to finalize them → more info on extended slides
+- We **have prelim numbers**, but there is still work to do to finalize them → more info on extended slides
 
 ---
 
@@ -51,17 +51,21 @@ Maria Silva & Toni Wahrstätter
 
 ## Stabilize EIP-8037 (State Growth)
 
-1. We discuss and agree on **open questions** by Monday
+1. Discuss and agree on **open questions** by Monday
 
-2. We update **specs** and EIP by Tuesday
+2. Update **specs** and EIP by Tuesday
 
-3. We expand **test coverage** by Wednesday
+3. Expand **test coverage** by Wednesday
 
-4. We update **client implementations** and merge to glamsterdam-devnet-1 by Thursday
+4. Update **client implementations** and merge to glamsterdam-devnet-1 by Thursday
 
-5. We **test and finalize** implementation details by Friday
+5. **Test and finalize** implementation details by Friday
 
 ---
+
+<style scoped>
+section { font-size: 34px; }
+</style>
 
 ## Stabilize EIP-7928 (BAL)
 
@@ -77,15 +81,15 @@ Maria Silva & Toni Wahrstätter
 
 ## Get final numbers on EIP-7904 and EIP-8038
 
-1. Clients work on **optimizations** and merge to bal-devenet-3 by Wednesday (BAL + client outliers)
+1. Work on **optimizations** and merge to bal-devnet-3 by Wednesday (BAL + client outliers)
 
-2. We make all **testing and benchmarking tooling** ready by Wednesday (bal-devnet-3 transition + Jochemnet)
+2. Make all **testing and benchmarking tooling** ready by Wednesday (bal-devnet-3 transition + Jochemnet)
 
-3. We collect **data** during Thursday
+3. Collect **data** during Thursday
 
-4. We decide on a target performance anchor by Thursday (e.g. 100M gas/s)
+4. Decide on a target performance anchor by Thursday (e.g. 100M gas/s)
 
-5. We analyze and agree on **final numbers** by Friday
+5. Analyze and agree on **final numbers** by Friday
 
 ---
 
@@ -158,7 +162,7 @@ table { width: 100%; }
 | **Dynamic `cpsb`** (current spec) | Auto-tracks gas-limit changes; bounds state growth without a new EIP each bump | More complicated for testing infra; transitional feature; couple gas costs with block limit |
 | **Fixed `cpsb`** (flat repricing) | Constant within a fork → existing fixture pattern works; simpler spec and implementation; best wallet UX | highest risk of over/undershooting cost increase; no growth guarantee under price-inelastic demand |
 | **Scheduled `cpsb`** (BPO-style bumps) | Constant within a fork → existing fixture pattern works; still allows `cpsb` to adapt to gas limits; derisked by BPO forks | need to pre-commit to gas limit schedule; requires building the SGPO tooling; coordination burden on clients for minor forks |
-| **Fixed `cpsb`** + ad hoc forks | Constant within a fork → existing fixture pattern works; the most flexible to adapt to gas limits and observed demand | Highest coordination burden on clients and testing for forks; need monitoring tooling and decision matrix for when to fork |
+| **Fixed `cpsb`** + ad hoc forks | Constant within a fork → existing fixture pattern works; the most flexible to adapt to gas limits and observed demand | highest coordination burden on clients and testing for forks; need monitoring tooling and decision matrix for when to fork |
 
 ---
 
@@ -221,10 +225,9 @@ table { width: 100%; }
 | New slot | 32 B | Size of RLP-encoded slot value (up to 32 B). Ignores the 32 B slot key stored alongside as the leaf's path. Should it be 64 B? |
 | Authorization | 23 B | Byte-exact: delegation designator `0xef0100 ‖ address` (3 + 20 B) written to the authority's code slot by EIP-7702 |
 
----
-
 #### Does this look correct? 🤔
 
+---
 
 <!-- _class: lead invert -->
 
@@ -309,7 +312,7 @@ h2 { font-size: 48px; }
 | **P256VERIFY** | constant | 6900 | 15958 | +1.31 |
 | POINT_EVALUATION | constant | 50000 | 84081 | +0.68 |
 
-**Note:** `ADDMOD`, `BLS12_G1ADD`, `BLS12_G2ADD`, `DIV`, `KECCAK256`, and `ECRECOVER` have no price changes. `ECPAIRING` had no good fit on this run.
+**Note:** `ADDMOD`, `DIV`, and `KECCAK256` (constant) have no price changes. `BLS12_G1ADD` (375 → 324), `BLS12_G2ADD` (600 → 433), and `KECCAK256` (msg_size, 6 → 1) decrease. `ECPAIRING` had no good fit on this run.
 
 ---
 
@@ -330,6 +333,31 @@ h2 { font-size: 48px; }
   - 2–3.5× above the next client
   - Need to investigate if this can be optimized.
 - All other operations have more stable costs across clients.
+
+---
+
+<style scoped>
+section { font-size: 22px; }
+h2 { font-size: 40px; }
+table { width: 100%; }
+</style>
+
+## Osaka — what drives each worst-case
+
+| Opcode | Worst-case test |
+|---|---|
+| ECRECOVER | `test_ecrecover` |
+| POINT_EVALUATION | `test_point_evaluation_uncachable` |
+| P256VERIFY | `test_p256verify_uncachable` |
+| BLS12_G1ADD / BLS12_G2ADD | `test_bls12_381_uncachable` |
+| ECADD | `test_alt_bn128_uncachable` |
+| KECCAK256 | `test_keccak_diff_mem_msg_sizes` |
+| BLAKE2F | `test_blake2f_uncachable` |
+| ADDMOD / MULMOD | `test_mod_arithmetic` |
+| DIV / SDIV | `test_arithmetic` |
+| MOD / SMOD | `test_mod` |
+
+> Test that drives the worst case across clients. Most clients agree, with these exceptions: **BLAKE2F** — besu, erigon, geth, nethermind use `test_blake2f_benchmark`; **P256VERIFY** — besu uses `test_p256verify`; **POINT_EVALUATION** — besu and geth use `test_point_evaluation`.
 
 ---
 
@@ -385,7 +413,7 @@ h2 { font-size: 48px; }
 
 - For these heavy ops, the +67% anchor rate does **not** compensate → Amsterdam worst-case gas is **~0.5×** Osaka's.
 
-- On **cheap arithmetic opcode**  besu's speed-up is only **~1.5–2×**, so the anchor bump roughly cancels out → gas stays **flat or slightly up**.
+- On **cheap arithmetic opcodes**, besu's speed-up is only **~1.5–2×**, so the anchor bump roughly cancels out → gas stays **flat or slightly up**.
 
 ---
 
@@ -436,11 +464,25 @@ table { width: 100%; }
 
 ---
 
-## EIP-8038 — takeaways
+<style scoped>
+section { font-size: 20px; }
+h2 { font-size: 40px; }
+table { width: 100%; }
+</style>
 
-- Per-client spread is **much larger** than for 7904: orders of magnitude between fastest and slowest.
+## Worst-case config per client × parameter
 
-- Proposal is driven by **different outlier clients per parameter** — besu, erigon, nethermind and reth each drive at least one worst-case.
+All rows use **NO_CACHE**. `ACCOUNT_*` params from `test_account_access`; `STORAGE_*` params from `test_sstore_bloated` (SSTORE).
+
+| Parameter | besu | erigon | geth | nethermind | reth |
+|---|---|---|---|---|---|
+| ACCOUNT_CODE_ACCESS | CALLCODE<br>contract | STATICCALL<br>new | CALLCODE<br>contract | CALLCODE<br>new | CALLCODE<br>contract |
+| ACCOUNT_NOCODE_ACCESS | CALLCODE<br>new | DELEGATECALL<br>EOA | CALLCODE<br>new | CALLCODE<br>EOA | CALLCODE<br>EOA |
+| ACCOUNT_WRITE | CALL<br>EOA ¹ | CALL<br>new | CALL<br>contract | CALL<br>new | CALL<br>EOA |
+| STORAGE_ACCESS | SSTORE<br>existing slot | SSTORE<br>fresh slot | SSTORE<br>fresh slot | SSTORE<br>existing slot | SSTORE<br>fresh slot |
+| STORAGE_WRITE | SSTORE<br>existing slot ¹ | SSTORE<br>existing slot | SSTORE<br>existing slot | SSTORE<br>existing slot | SSTORE<br>existing slot |
+
+Legend: `contract` = EXISTING_CONTRACT, `EOA` = EXISTING_EOA, `new` = NON_EXISTING_ACCOUNT; `existing/fresh slot` = `existing_slots` true/false. ¹ no significant fit.
 
 ---
 
