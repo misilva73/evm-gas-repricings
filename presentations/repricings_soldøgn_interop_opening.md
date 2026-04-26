@@ -113,6 +113,25 @@ Maria Silva
 
 ---
 
+<style scoped>
+section { font-size: 30px; display: flex; flex-direction: column; }
+h2 { font-size: 48px; }
+h1 { text-align: center; font-size: 40px; margin: 0; }
+.fistbump { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 110px; }
+</style>
+
+## Why are we here?
+
+1. Discuss spec gaps, any open issues and questions.
+2. Highlight current key pain points discovered when testing the EIP.
+3. Collaborate and harden the EIP-8037 spec.
+
+<div class="fistbump">🛠️🤝</div>
+
+# End goal: finalize the EIP-8037 spec!
+
+---
+
 ## To-do's for EIP-8037
 
 1. Discuss alternatives and trade-offs for the dynamic `cpsb`. Make a final decision.
@@ -184,6 +203,30 @@ table { width: 100%; }
 ---
 
 <style scoped>
+section { font-size: 24px; }
+h2 { font-size: 40px; }
+table { width: 100%; }
+</style>
+
+## Key testing issue: refunding into the reservoir
+
+State gas refunds always fill the reservoir, including original charge from compute gas via the spillover mechanism!
+
+### Test matrix = `refund rules × rule combinations × cpsb bands`
+
+| Dimension | Today | Trend |
+|---|---|---|
+| **Refund rules** | 8 | growing every devnet |
+| **Rule combinations** | ~10 worth testing | grows with rule count |
+| **cpsb bands** | 17 discrete (100M–1G block_gl) | set by 8037 quantization scheme |
+
+- Each cpsb band can change the execution path for each test.
+- Future EIPs that touch state accounting further compound the matrix.
+- **Is the best solution journaling?** Defer state accounting checks to end of call/create frame (or end of tx). Removes the need for these rules!
+
+---
+
+<style scoped>
 section { font-size: 25px; }
 h2 { font-size: 50px; }
 table { width: 100%; }
@@ -238,9 +281,11 @@ table { width: 100%; }
 ---
 
 <style scoped>
-section { font-size: 20px; }
-h2 { font-size: 40px; }
-table { width: 100%; }
+section { font-size: 18px; padding-top: 40px; }
+h2 { font-size: 36px; margin-bottom: 12px; }
+table { width: 100%; font-size: 17px; }
+th, td { padding: 6px 10px; }
+table th:nth-child(2), table td:nth-child(2) { white-space: nowrap; min-width: 90px; }
 </style>
 
 ## Breakdown of the 112B new-account leaf
