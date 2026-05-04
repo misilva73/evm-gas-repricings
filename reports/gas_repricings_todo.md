@@ -4,9 +4,9 @@
 
 End of April:
 
-- ⚪ we have final numbers for all EIPs
-- ⚪ we have a BAL + repricings devnet, and we start testing
-- ⚪ we have kicked-off an internal security review with final numbers
+- 🟢 we have final numbers for all EIPs
+- 🔴 we have a BAL + repricings devnet, and we start testing
+- 🟡 we have kicked-off an internal security review with final numbers
 
 End of May:
 
@@ -21,48 +21,37 @@ End of June:
 - ⚪ we have reached out to all affected entities from the backward compatibility analysis
 - ⚪ we have a public devnet with final numbers that the community can test
 
-## Key goals for interop
-
-- [Kamil] Investigate why `test_ec_pairing` is failing and fix it
-- [Kamil] Investigate why reth is crashing in the middle of the mainnet-24350000-amsterdam-compute runs and fix it
-- [Toni] Stabilize optimizations for all clients and merge them into bal-devnet-3
-- [Louis] Update tests and benchmarking tooling to run on bal-devnet-3
-- [Jochem] Update mainnet snapshot with the needed contracts and accounts to run stateful tests
-- [Rafael] Do the following runs (once all the above is done):
-  - mainnet-amsterdam-compute
-  - mainnet-amsterdam-stateful
-  - perf-devnet-3-amsterdam-stateful
-- [Maria] Analyse results and derive final numbers for EIP-7904, EIP-8038 and EIP-2780
-
-## Current workstreams - goals for end of April
+## Current workstreams - goals for end of May
 
 ### Benchmarking
 
-- [X] [Louis] Investigate and fix issues with `test_account_access`
-- [X] [Jochem] Investigate and fix issues with `SSTORE` and `SLOAD` benchmarks
-- [X] [Rafael] Run stateful tests on Osaka + perf-devnet-3
-- [X] [Maria] Run empirical analysis to derive preliminary numbers for EIP-8038 and EIP-2780
-- [X] [Rafael] Run amsterdam-compatible tests on BAL-optimized clients (both compute and stateful)
-- [ ] [Maria] Run empirical analysis to derive final numbers for EIP-7904, EIP-8038 and EIP-2780
+- [ ] [Louis] Update benchmark release for bal-devnet-5
+- [ ] [Rafael] Do larger run on bal-devnet-5
+- [ ] [Maria] Analyze bal-devnet-5 results and compare with interop numbers
+- [ ] [Carlos] Move bloatnet to bal-devent-5 + EIP-8038 + EIP-7904 and run stress test
+- [ ] [Louis] Create full benchmarking release for bal-devent-5 + EIP-8038 + EIP-7904
+- [ ] [Rafael] Run full benchmarks for bal-devent-5 + EIP-8038 + EIP-7904 (need client implementations)
 - [ ] [Jochem + Carlos] Improve State Actor tool
 - [ ] [Jochem + Carlos] Run State Actor tool to create a mainnet snapshot with all the relevant tests for the repricings
 
 ### Security and community outreach
 
-NA
+- [ ] Run backward compatibility analysis for:
+  - [ ] 7904 with interop numbers
+  - [ ] 8038 with interop numbers
+  - [ ] 8037 with bal-devnet-5 spec
+- [ ] Update Carl's tool with new backward compatibility analysis
+- [ ] [Butta] Reach out to affected entities
+- [ ] Kick-off internal security review on all repricing EIPs
+- [ ] Create public testnet with all repricing EIPs for the community to test contract implementations
 
 ### EIPs & Devnet integration
 
-- [X] [Maria] Investigate state_gas refill mechanism for 8037
-- [X] [Maria + Spencer] Review 8037 EIP, spec and tests and align everything for bal-devnet-4
-- [ ] [Maria] Update EIPs with final numbers
-  - [ ] 7904
-  - [ ] 8038
-  - [ ] 2780
+- [ ] [Maria + Spencer] Investigate and fix missing edge cases for 8037
+- [ ] [Maria] Update EIPs with interop numbers (7904 + 8038)
+- [ ] [Maria] Review and update 2780 EIP
 - [ ] [Guru] Finish and merge spec and tests for 2780
 - [ ] [Spencer] Finish and merge spec and tests for 8038
-- [ ] [Toni] Implement BAL optimizations in all the major clients
-- [ ] [Toni] Decide if state reads remain in BAL
 
 ## EIP trackers
 
