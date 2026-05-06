@@ -12,7 +12,6 @@ from glue import (
     add_state_missing_glues,
 )
 
-
 # EIP-8038 state access parameter current gas costs
 _STATE_ACCESS_CURRENT_GAS = {
     "GAS_WARM_ACCESS": 100,
@@ -31,47 +30,7 @@ _STATE_ACCESS_CURRENT_GAS = {
 _STATE_ACCESS_PARAM_SOURCES: Dict[str, List[Tuple[dict, str]]] = {
     "GAS_WARM_ACCESS": [
         ({"test_name": "test_storage_sload_same_key_benchmark"}, "slope"),
-        (
-            {
-                "test_name": "test_sload_bloated",
-                "cache_strategy": "CACHE_TX",
-                "existing_slots": True,
-            },
-            "slope",
-        ),
-        (
-            {
-                "test_name": "test_sload_bloated",
-                "cache_strategy": "CACHE_PREVIOUS_BLOCK",
-                "existing_slots": True,
-            },
-            "slope",
-        ),
-        (
-            {
-                "test_name": "test_sstore_bloated",
-                "cache_strategy": "CACHE_TX",
-                "existing_slots": True,
-            },
-            "slope",
-        ),
-        (
-            {
-                "test_name": "test_sstore_bloated",
-                "cache_strategy": "CACHE_PREVIOUS_BLOCK",
-                "existing_slots": True,
-            },
-            "slope",
-        ),
         ({"test_name": "test_ext_account_query_warm"}, "slope"),
-        ({"test_name": "test_account_access", "cache_strategy": "CACHE_TX"}, "slope"),
-        (
-            {
-                "test_name": "test_account_access",
-                "cache_strategy": "CACHE_PREVIOUS_BLOCK",
-            },
-            "slope",
-        ),
     ],
     "GAS_COLD_STORAGE_ACCESS": [
         (

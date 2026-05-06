@@ -118,6 +118,7 @@ def create_and_save_new_gas_heatmaps(
         )
         ax.set_title(f"{gp}: New Gas by Test+Variant vs Client", fontsize=12)
         ax.set_ylabel("")
+        ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
     plt.tight_layout()
     plot_path = os.path.join(out_dir, "figs", filename)
     plt.savefig(plot_path, dpi=144, bbox_inches="tight")
@@ -157,7 +158,7 @@ def create_and_save_state_access_gas_plot(
         )
     ax.set_xscale("log")
     ax.set_yticks(range(len(gas_params)))
-    ax.set_yticklabels(gas_params)
+    ax.set_yticklabels(gas_params, rotation=0)
     ax.set_xlabel("New Gas Cost (Rounded) - Log Scale", fontsize=12)
     ax.set_ylabel("Gas Parameter", fontsize=12)
     ax.set_title(
