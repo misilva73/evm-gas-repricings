@@ -2,8 +2,8 @@
 
 Comparison of `new_gas_rounded` between two runtime-estimation runs:
 
-- **interop**: `reports/eip-8038/runtime_estimation/2026-04-28_2026-05-01_interop/new_gas.csv`
-- **latest**: `reports/eip-8038/runtime_estimation/2026-05-02_2026-05-05/new_gas.csv`
+- **interop**: [Suite eebce6708690c47b](https://benchmarkoor.core.ethpandaops.io/suites/eebce6708690c47b)
+- **latest**: [Suite 4a822a2f30c18ece](https://benchmarkoor.core.ethpandaops.io/suites/4a822a2f30c18ece)
 
 Δ = latest − interop. %Δ relative to interop. Erigon excluded.
 
