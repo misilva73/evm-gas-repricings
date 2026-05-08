@@ -4,53 +4,62 @@
 
 End of April:
 
-- 🟢 we have final numbers for all EIPs
+- 🟡 we have final numbers for all EIPs
 - 🔴 we have a BAL + repricings devnet, and we start testing
 - 🟡 we have kicked-off an internal security review with final numbers
 
 End of May:
 
+- ⚪ we have final numbers for EIP-8038
+- ⚪ we have a backward compatibility analysis for 7904 and 8037
+- ⚪ we have a page in our website where the ecosystem can check if their contract is affected by 7904 and 8037
+- ⚪ we have reached out to all affected entities from the 7904 and 8037 backward compatibility analysis
 - ⚪ we have reviewed the benchmark tests to insure we have a good coverage of the repriced operations
-- ⚪ we have run the full benchmark suite against the BAL + repricings branch and have no operations performing at less than 100Mgas/s
-- ⚪ we have a backward compatibility analysis with final numbers
-- ⚪ we have a page in our website where the ecosystem can check if their contract is affected by the repricings
 - ⚪ we have kicked-off an external security review with final numbers
 
 End of June:
 
-- ⚪ we have reached out to all affected entities from the backward compatibility analysis
+- ⚪ we have run the full benchmark suite against the BAL + repricings branch and have no operations performing at less than 100Mgas/s
+- ⚪ we have a backward compatibility analysis for 8038 and 2780
+- ⚪ we have a page in our website where the ecosystem can check if their contract is affected by 8038 and 2780
+- ⚪ we have reached out to all affected entities from the 8038 and 2780 backward compatibility analysis
 - ⚪ we have a public devnet with final numbers that the community can test
 
 ## Current workstreams - goals for end of May
 
 ### Benchmarking
 
-- [ ] [Louis] Update benchmark release for bal-devnet-5
-- [ ] [Rafael] Do larger run on bal-devnet-5
-- [ ] [Maria] Analyze bal-devnet-5 results and compare with interop numbers
-- [ ] [Carlos] Move bloatnet to bal-devent-5 + EIP-8038 + EIP-7904 and run stress test
-- [ ] [Louis] Create full benchmarking release for bal-devent-5 + EIP-8038 + EIP-7904
-- [ ] [Rafael] Run full benchmarks for bal-devent-5 + EIP-8038 + EIP-7904 (need client implementations)
-- [ ] [Jochem + Carlos] Improve State Actor tool
-- [ ] [Jochem + Carlos] Run State Actor tool to create a mainnet snapshot with all the relevant tests for the repricings
+- [ ] [Carlos] Follow-up with clients on performance improvements from interop
+  - Reth: account and storage writes
+  - Nethermind: storage reads
+  - Geth: storage writes
+  - Besu: account and storage writes
+- [ ] [Louis] Make repricing benchmark release for bal-devnet-7
+- [ ] [Rafael] Do larger run on bal-devnet-7
+- [ ] [Maria] Analyze bal-devnet-7 results and compare with interop numbers
+- [ ] [Carlos] Move bloatnet to bal-devent-7 + EIP-8038 + EIP-7904 and run stress test
+- [ ] [Louis] Create full benchmarking release for bal-devent-7 + EIP-8038 + EIP-7904
+- [ ] [Rafael] Run full benchmarks for bal-devent-7 + EIP-8038 + EIP-7904 (need client implementations)
+- [ ] [Jochem + Carlos] Finish State Actor tool
+- [ ] [Jochem + Carlos] Run State Actor tool to create a mainnet-size snapshot with all the relevant tests for the repricings
+  - Contract sizes: 1 mb, 50 mb, 1 gb, 5 gb, 10 gb, 20 gb
 
 ### Security and community outreach
 
-- [ ] Run backward compatibility analysis for:
+- [ ] [Carl] Run backward compatibility analysis for:
   - [ ] 7904 with interop numbers
-  - [ ] 8038 with interop numbers
-  - [ ] 8037 with bal-devnet-5 spec
-- [ ] Update Carl's tool with new backward compatibility analysis
+  - [ ] 8037 with bal-devnet-7 spec
+- [ ] [Carl] Update website with new backward compatibility analysis
 - [ ] [Butta] Reach out to affected entities
-- [ ] Kick-off internal security review on all repricing EIPs
-- [ ] Create public testnet with all repricing EIPs for the community to test contract implementations
+- [ ] [Tyler] Kick-off internal security review on all repricing EIPs
 
 ### EIPs & Devnet integration
 
 - [ ] [Maria + Spencer] Investigate and fix missing edge cases for 8037
-- [ ] [Maria] Update EIPs with interop numbers (7904 + 8038)
+- [ ] [Maria] Update EIPs with interop numbers (7904 + partial 8038 + partial 2780)
 - [ ] [Maria] Review and update 2780 EIP
 - [ ] [Guru] Finish and merge spec and tests for 2780
+- [ ] [Maria] Update EIP-8038 with final numbers
 - [ ] [Spencer] Finish and merge spec and tests for 8038
 
 ## EIP trackers
