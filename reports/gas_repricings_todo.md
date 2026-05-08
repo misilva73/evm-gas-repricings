@@ -34,12 +34,13 @@ End of June:
   - Nethermind: storage reads
   - Geth: storage writes
   - Besu: account and storage writes
+- [ ] [Jochem] Improve infra for clients to test optimization performance (reach out to clients)
 - [ ] [Louis] Make repricing benchmark release for bal-devnet-7
 - [ ] [Rafael] Do larger run on bal-devnet-7
 - [ ] [Maria] Analyze bal-devnet-7 results and compare with interop numbers
-- [ ] [Carlos] Move bloatnet to bal-devent-7 + EIP-8038 + EIP-7904 and run stress test
-- [ ] [Louis] Create full benchmarking release for bal-devent-7 + EIP-8038 + EIP-7904
-- [ ] [Rafael] Run full benchmarks for bal-devent-7 + EIP-8038 + EIP-7904 (need client implementations)
+- [ ] [Carlos] Move bloatnet to bal-devnet-7 + EIP-8038 + EIP-7904 and run stress test
+- [ ] [Louis] Create full benchmarking release for bal-devnet-7 + EIP-8038 + EIP-7904
+- [ ] [Rafael] Run full benchmarks for bal-devnet-7 + EIP-8038 + EIP-7904 (need client implementations)
 - [ ] [Jochem + Carlos] Finish State Actor tool
 - [ ] [Jochem + Carlos] Run State Actor tool to create a mainnet-size snapshot with all the relevant tests for the repricings
   - Contract sizes: 1 mb, 50 mb, 1 gb, 5 gb, 10 gb, 20 gb
