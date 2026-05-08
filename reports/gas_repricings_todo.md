@@ -56,7 +56,10 @@ End of June:
 ### EIPs & Devnet integration
 
 - [ ] [Maria + Spencer] Investigate and fix missing edge cases for 8037
+  - [Tracking Issue](https://github.com/ethereum/execution-specs/issues/2804#event-25277615905)
 - [ ] [Maria] Update EIPs with interop numbers (7904 + partial 8038 + partial 2780)
+  - [7904 PR](https://github.com/ethereum/EIPs/pull/11622)
+  - [Partial 8038 PR](https://github.com/ethereum/EIPs/pull/11623)
 - [ ] [Maria] Review and update 2780 EIP
 - [ ] [Guru] Finish and merge spec and tests for 2780
 - [ ] [Maria] Update EIP-8038 with final numbers
