@@ -35,7 +35,7 @@ PARAM_MULTIPLIERS = {
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2026-04-28"
+    start_date = "2026-05-01"
     # fork - osaka, amsterdam or None
     fork = "amsterdam"
     # run_type - None, full, nobatchio, or sequential
@@ -89,6 +89,8 @@ if __name__ == "__main__":
     ]
     # Filter bn128_add_infinities test config -> it is not the worse case for this opcode!
     gas_bench_df = gas_bench_df[gas_bench_df["test_params"] != "bn128_add_infinities"]
+    # Filter ethrex
+    gas_bench_df = gas_bench_df[gas_bench_df["client_name"] != "ethrex"]
     # Save data
     outfile = os.path.join(out_dir, "gas_bench_data.csv")
     gas_bench_df.to_csv(outfile, index=False)
