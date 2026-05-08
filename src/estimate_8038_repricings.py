@@ -31,7 +31,7 @@ MODEL_BY = [
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Start date for querying
-    start_date = "2026-05-02"
+    start_date = "2026-05-01"
     # fork - osaka, amsterdam or None
     fork = "amsterdam"
     # run_type - None, full, nobatchio, or sequential
@@ -77,32 +77,9 @@ if __name__ == "__main__":
     filtered_state_gas_bench_df = state_gas_bench_df[
         state_gas_bench_df["test_name"].isin(state_tests)
     ]
-    filtered_state_gas_bench_df = filtered_state_gas_bench_df[
-        (filtered_state_gas_bench_df["cache_strategy"] == "NO_CACHE")
-        | (filtered_state_gas_bench_df["cache_strategy"].isna())
-    ]
-    filtered_state_gas_bench_df = filtered_state_gas_bench_df[
-        ~(
-            (filtered_state_gas_bench_df["existing_slots"] == "False")
-            & (filtered_state_gas_bench_df["test_name"] == "test_sstore_bloated")
-        )
-    ]
-    filtered_state_gas_bench_df = filtered_state_gas_bench_df[
-        ~filtered_state_gas_bench_df["client_name"].isin(["erigon"])
-    ]
     # Trace filters
     filtered_state_trace_df = state_trace_df[
         state_trace_df["test_name"].isin(state_tests)
-    ]
-    filtered_state_trace_df = filtered_state_trace_df[
-        (filtered_state_trace_df["cache_strategy"] == "NO_CACHE")
-        | (filtered_state_trace_df["cache_strategy"].isna())
-    ]
-    filtered_state_trace_df = filtered_state_trace_df[
-        ~(
-            (filtered_state_trace_df["existing_slots"] == "False")
-            & (filtered_state_trace_df["test_name"] == "test_sstore_bloated")
-        )
     ]
     # Compute gas bench and trace data
     compute_gas_bench_df, compute_trace_df = process_bench_data(
