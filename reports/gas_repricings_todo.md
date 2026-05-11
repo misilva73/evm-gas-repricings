@@ -38,11 +38,12 @@ End of June:
 - [ ] [Louis] Make repricing benchmark release for bal-devnet-7
 - [ ] [Rafael] Do larger run on bal-devnet-7
 - [ ] [Maria] Analyze bal-devnet-7 results and compare with interop numbers
+- [ ] [Louis] Review entire benchmark suite and ensure we are not missing worst cases (we should ask help from clients)
 - [ ] [Carlos] Move bloatnet to bal-devnet-7 + EIP-8038 + EIP-7904 and run stress test
 - [ ] [Louis] Create full benchmarking release for bal-devnet-7 + EIP-8038 + EIP-7904
 - [ ] [Rafael] Run full benchmarks for bal-devnet-7 + EIP-8038 + EIP-7904 (need client implementations)
-- [ ] [Jochem + Carlos] Finish State Actor tool
-- [ ] [Jochem + Carlos] Run State Actor tool to create a mainnet-size snapshot with all the relevant tests for the repricings
+- [X] [Carlos] Finish State Actor tool
+- [ ] [Carlos] Run State Actor tool to create a mainnet-size snapshot with all the relevant tests for the repricings
   - Contract sizes: 1 mb, 50 mb, 1 gb, 5 gb, 10 gb, 20 gb
 
 ### Security and community outreach
