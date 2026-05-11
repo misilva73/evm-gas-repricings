@@ -16,7 +16,6 @@ sys.path.append(str(Path(__file__).parent))
 from operation_gas_costs import get_fusaka_dict
 from operation_types import PRECOMPILES, CALL, STATEFUL
 
-
 BENCHMARKOOR_BASE_URL = (
     "https://benchmarkoor-api.core.ethpandaops.io/api/v1/index/query"
 )
@@ -237,20 +236,29 @@ def process_bench_data(
     run_type: str | None = None,
     opcodes_sample: List[str] = [],
     page_size: int = 10_000,
+    suites: List[str] = [],
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # Query benchmarkoor for raw data
-    suite_hash = _get_latest_benchmarkoor_suite_hash(
-        bearer_token, network, test_type, page_size, fork
-    )
-    df = _query_test_runs_from_benchmarkoor(
-        suite_hash, bearer_token, start_date, page_size
-    )
-    if run_type is not None:
-        run_ids = _get_all_runs_ids_from_benchmarkoor_suite_hash(
-            suite_hash, bearer_token, run_type
+    if len(suites) == 0:
+        suite_hash = _get_latest_benchmarkoor_suite_hash(
+            bearer_token, network, test_type, page_size, fork
         )
-        df = df[df["run_id"].isin(run_ids)]
-    trace_df = _query_traces_from_benchmarkoor(suite_hash, bearer_token)
+        suite_hash_list = [suite_hash]
+    else:
+        suite_hash_list = suites
+    df = pd.DataFrame()
+    for suite_hash in suite_hash_list:
+        suite_df = _query_test_runs_from_benchmarkoor(
+            suite_hash, bearer_token, start_date, page_size
+        )
+        if run_type is not None:
+            run_ids = _get_all_runs_ids_from_benchmarkoor_suite_hash(
+                suite_hash, bearer_token, run_type
+            )
+            suite_df = suite_df[suite_df["run_id"].isin(run_ids)]
+        df = pd.concat([df, suite_df], ignore_index=True)
+    print(f"Querying traces from suite {suite_hash_list[0]} ...")
+    trace_df = _query_traces_from_benchmarkoor(suite_hash_list[0], bearer_token)
     # Process title column
     df = process_test_title_col(df)
     trace_df = process_test_title_col(trace_df)

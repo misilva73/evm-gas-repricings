@@ -70,7 +70,7 @@ if __name__ == "__main__":
         run_type=run_type,
     )
     state_gas_bench_df, state_trace_df = process_bench_data(
-        network="perf_devnet_3",
+        network="jochemnet",
         test_type="stateful",
         start_date=start_date,
         fork=fork,
