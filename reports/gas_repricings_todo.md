@@ -34,6 +34,7 @@ End of June:
   - Nethermind: storage reads
   - Geth: storage writes
   - Besu: account and storage writes
+  - Erigon: everything
 - [ ] [Jochem] Improve infra for clients to test optimization performance (reach out to clients)
 - [ ] [Louis] Make repricing benchmark release for bal-devnet-7
 - [ ] [Rafael] Do larger run on bal-devnet-7
