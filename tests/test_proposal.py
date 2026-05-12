@@ -717,13 +717,11 @@ class TestComputeStateAccessGasParams:
         assert len(write_row) == 1
         assert np.isclose(write_row.iloc[0]["runtime_ms"], 0.05)
 
-    def test_warm_access_from_account_access_cache_tx(self):
-        """GAS_WARM_ACCESS is estimated from test_account_access CACHE_TX slope."""
+    def test_warm_access_from_ext_account_query_warm(self):
+        """GAS_WARM_ACCESS is estimated from test_ext_account_query_warm slope."""
         df = pd.DataFrame([_sa_row(
             opcode="BALANCE",
-            test_name="test_account_access",
-            cache_strategy="CACHE_TX",
-            account_mode="EXISTING_EOA",
+            test_name="test_ext_account_query_warm",
             slope=0.005,
             slope_pvalue=0.01,
         )])

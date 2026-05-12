@@ -30,6 +30,14 @@ MODEL_BY = [
 
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
+    # Networks for the compute and stateful benchmark runs
+    compute_network = "perf_devnet_3"
+    stateful_network = "jochemnet"
+    # Optional explicit Benchmarkoor suite hashes. When non-empty, the
+    # matching (network, fork) lookup is skipped and these suites are
+    # loaded directly.
+    compute_suites = []
+    stateful_suites = []
     # Start date for querying
     start_date = "2026-05-01"
     # fork - osaka, amsterdam or None
@@ -59,12 +67,13 @@ if __name__ == "__main__":
     bearer_token = secrets_dict["benchmarkoor_bearer_token"]
     # Query raw data and save
     state_gas_bench_df, state_trace_df = process_bench_data(
-        network="jochemnet",
+        network=stateful_network,
         test_type="stateful",
         start_date=start_date,
         fork=fork,
         bearer_token=bearer_token,
         run_type=run_type,
+        suites=stateful_suites,
     )
     state_tests = [
         "test_storage_sload_same_key_benchmark",
@@ -83,12 +92,13 @@ if __name__ == "__main__":
     ]
     # Compute gas bench and trace data
     compute_gas_bench_df, compute_trace_df = process_bench_data(
-        network="perf_devnet_3",
+        network=compute_network,
         test_type="compute",
         start_date=start_date,
         fork=fork,
         bearer_token=bearer_token,
         run_type=run_type,
+        suites=compute_suites,
     )
     filtered_compute_gas_bench_df = compute_gas_bench_df[
         ~compute_gas_bench_df["test_opcode"].isin(
