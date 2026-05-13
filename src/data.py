@@ -112,19 +112,35 @@ def _get_latest_benchmarkoor_suite_hash(
 
 
 def _get_all_runs_ids_from_benchmarkoor_suite_hash(
-    suite_hash: str, bearer_token: str, run_type: str
+    suite_hash: str, bearer_token: str, run_type: str | None, start_date: str , page_size: int
 ) -> List[str]:
     session = _get_benchmarkoor_session(bearer_token)
     params = {
         "select": "run_id,",
         "suite_hash": f"eq.{suite_hash}",
         "status": "eq.completed",
+        "limit": page_size,
     }
-    response = session.get(f"{BENCHMARKOOR_BASE_URL}/runs", params=params)
-    response.raise_for_status()
-    df = pd.DataFrame(response.json()["data"])
-    df["run_type"] = df["run_id"].str.split("-").str[-1]
-    df = df[df["run_type"] == run_type]
+    if start_date is not None:
+        start_ts = int(pd.Timestamp(start_date).timestamp())
+        params["timestamp"] = f"gt.{start_ts}"
+    all_data = []
+    offset = 0
+    while True:
+        paginated_params = {**params, "offset": offset}
+        response = session.get(f"{BENCHMARKOOR_BASE_URL}/runs", params=paginated_params)
+        response.raise_for_status()
+        page_data = response.json()["data"]
+        if not page_data:
+            break
+        all_data.extend(page_data)
+        if len(page_data) < page_size:
+            break
+        offset += page_size
+    df = pd.DataFrame(all_data)
+    if run_type is not None:
+        df["run_type"] = df["run_id"].str.split("-").str[-1]
+        df = df[df["run_type"] == run_type]
     run_ids = df["run_id"].tolist()
     return run_ids
 
@@ -143,45 +159,40 @@ def _get_benchmarkoor_total_pages(
 
 
 def _query_test_runs_from_benchmarkoor(
-    suite_hash: str,
+    run_ids: List[str],
     bearer_token: str,
-    start_date: str,
     page_size: int,
     max_workers: int = 5,
 ) -> pd.DataFrame:
-    print(f"Querying benchmarkoor database for test runs from suite {suite_hash}....")
     # Query test stats
     params = {
         "select": "run_id,test_name,client,test_time_ns,run_start",
         "test_time_ns": "gt.0",
-        "suite_hash": f"eq.{suite_hash}",
     }
-    if start_date is not None:
-        start_ts = int(pd.Timestamp(start_date).timestamp())
-        params["run_start"] = f"gt.{start_ts}"
-    total_pages = _get_benchmarkoor_total_pages(bearer_token, page_size, params)
-    session = _get_benchmarkoor_session(bearer_token)
+    df = pd.DataFrame()
+    for run_id in tqdm(run_ids, desc="Fetching test_stats"):
+        params["run_id"] = f"eq.{run_id}"
+        total_pages = _get_benchmarkoor_total_pages(bearer_token, page_size, params)
+        session = _get_benchmarkoor_session(bearer_token)
 
-    def fetch_page(page):
-        paginated_params = {**params, "limit": page_size, "offset": page * page_size}
-        resp = session.get(
-            f"{BENCHMARKOOR_BASE_URL}/test_stats", params=paginated_params
-        )
-        resp.raise_for_status()
-        return page, resp.json()["data"]
-
-    all_data = [None] * total_pages
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(fetch_page, page): page for page in range(total_pages)
-        }
-        for future in tqdm(
-            as_completed(futures), total=total_pages, desc="Fetching test_stats"
-        ):
-            page, data = future.result()
-            all_data[page] = data
-
-    df = pd.DataFrame([row for page_data in all_data for row in page_data])
+        def fetch_page(page):
+            paginated_params = {**params, "limit": page_size, "offset": page * page_size}
+            resp = session.get(
+                f"{BENCHMARKOOR_BASE_URL}/test_stats", params=paginated_params
+            )
+            resp.raise_for_status()
+            return page, resp.json()["data"]
+        
+        all_data = [None] * total_pages
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(fetch_page, page): page for page in range(total_pages)
+            }
+            for future in as_completed(futures):
+                page, data = future.result()
+                all_data[page] = data
+        run_df = pd.DataFrame([row for page_data in all_data for row in page_data])
+        df = pd.concat([df, run_df])
     df["run_duration_ms"] = df["test_time_ns"] / 1_000_000
     df = df.drop(columns=["test_time_ns"])
     df = df.rename(
@@ -248,14 +259,13 @@ def process_bench_data(
         suite_hash_list = suites
     df = pd.DataFrame()
     for suite_hash in suite_hash_list:
-        suite_df = _query_test_runs_from_benchmarkoor(
-            suite_hash, bearer_token, start_date, page_size
-        )
-        if run_type is not None:
-            run_ids = _get_all_runs_ids_from_benchmarkoor_suite_hash(
-                suite_hash, bearer_token, run_type
+        print(f"Querying benchmarkoor database for test runs from suite {suite_hash}....")
+        run_ids = _get_all_runs_ids_from_benchmarkoor_suite_hash(
+                suite_hash, bearer_token, run_type, start_date, page_size
             )
-            suite_df = suite_df[suite_df["run_id"].isin(run_ids)]
+        suite_df = _query_test_runs_from_benchmarkoor(
+            run_ids, bearer_token, page_size
+        )
         df = pd.concat([df, suite_df], ignore_index=True)
     print(f"Querying traces from suite {suite_hash_list[0]} ...")
     trace_df = _query_traces_from_benchmarkoor(suite_hash_list[0], bearer_token)
@@ -454,6 +464,13 @@ def process_stateful_params(prev_df: pd.DataFrame) -> pd.DataFrame:
     df.loc[account_mask, "test_params"] = df.loc[
         account_mask, "test_params"
     ].str.replace("value_sent_0", "update_0")
+    create_mask = df["test_name"] == "test_create"
+    df.loc[create_mask, "test_params"] = df.loc[
+        create_mask, "test_params"
+    ].str.replace("0 bytes with value", "update_1")
+    df.loc[create_mask, "test_params"] = df.loc[
+        create_mask, "test_params"
+    ].str.replace("0 bytes without value", "update_0")
     # Add new columns and remove from params
     for new_col in ["cache_strategy", "account_mode", "token_name", "existing_slots"]:
         df[new_col] = df["test_params"].str.extract(rf"{new_col}.([^-]+)")

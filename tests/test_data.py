@@ -576,9 +576,8 @@ class TestQueryTestRunsFromBenchmarkoor:
         with patch("requests.Session") as MockSession:
             MockSession.return_value = self._mock_session(rows)
             df = _query_test_runs_from_benchmarkoor(
-                suite_hash="abc123",
+                run_ids=["run-1"],
                 bearer_token="token",
-                start_date="2026-01-01",
                 page_size=100,
             )
         assert set(
@@ -597,9 +596,8 @@ class TestQueryTestRunsFromBenchmarkoor:
         with patch("requests.Session") as MockSession:
             MockSession.return_value = self._mock_session(rows)
             df = _query_test_runs_from_benchmarkoor(
-                suite_hash="abc123",
+                run_ids=["run-1"],
                 bearer_token="token",
-                start_date="2026-01-01",
                 page_size=100,
             )
         assert df["run_duration_ms"].iloc[0] == pytest.approx(2.0)
@@ -616,9 +614,8 @@ class TestQueryTestRunsFromBenchmarkoor:
         with patch("requests.Session") as MockSession:
             MockSession.return_value = self._mock_session(rows)
             df = _query_test_runs_from_benchmarkoor(
-                suite_hash="abc123",
+                run_ids=["run-1"],
                 bearer_token="token",
-                start_date="2026-01-01",
                 page_size=100,
             )
         assert pd.api.types.is_datetime64_any_dtype(df["ingestion_timestamp"])
@@ -657,6 +654,9 @@ class TestProcessBenchData:
         with patch(
             "data._get_latest_benchmarkoor_suite_hash", return_value="abc123"
         ), patch(
+            "data._get_all_runs_ids_from_benchmarkoor_suite_hash",
+            return_value=["run-1"],
+        ), patch(
             "data._query_test_runs_from_benchmarkoor",
             return_value=self._minimal_raw_df(),
         ), patch(
@@ -677,6 +677,9 @@ class TestProcessBenchData:
         with patch(
             "data._get_latest_benchmarkoor_suite_hash", return_value="abc123"
         ) as mock_resolve, patch(
+            "data._get_all_runs_ids_from_benchmarkoor_suite_hash",
+            return_value=["run-1"],
+        ), patch(
             "data._query_test_runs_from_benchmarkoor",
             return_value=self._minimal_raw_df(),
         ), patch(
@@ -698,6 +701,9 @@ class TestProcessBenchData:
         with patch(
             "data._get_latest_benchmarkoor_suite_hash", return_value="abc123"
         ), patch(
+            "data._get_all_runs_ids_from_benchmarkoor_suite_hash",
+            return_value=["run-1"],
+        ) as mock_run_ids, patch(
             "data._query_test_runs_from_benchmarkoor",
             return_value=self._minimal_raw_df(),
         ) as mock_runs, patch(
@@ -711,12 +717,18 @@ class TestProcessBenchData:
                 fork="Osaka",
                 bearer_token="tok",
             )
-        mock_runs.assert_called_once_with("abc123", "tok", "2026-01-01", 10_000)
+        mock_run_ids.assert_called_once_with(
+            "abc123", "tok", None, "2026-01-01", 10_000
+        )
+        mock_runs.assert_called_once_with(["run-1"], "tok", 10_000)
         mock_traces.assert_called_once_with("abc123", "tok")
 
     def test_merges_opcount_into_main_df(self):
         with patch(
             "data._get_latest_benchmarkoor_suite_hash", return_value="abc123"
+        ), patch(
+            "data._get_all_runs_ids_from_benchmarkoor_suite_hash",
+            return_value=["run-1"],
         ), patch(
             "data._query_test_runs_from_benchmarkoor",
             return_value=self._minimal_raw_df(),
@@ -759,6 +771,9 @@ class TestProcessBenchData:
         )
         with patch(
             "data._get_latest_benchmarkoor_suite_hash", return_value="abc123"
+        ), patch(
+            "data._get_all_runs_ids_from_benchmarkoor_suite_hash",
+            return_value=["run-1"],
         ), patch(
             "data._query_test_runs_from_benchmarkoor", return_value=raw_df
         ), patch(
