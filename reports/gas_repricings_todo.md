@@ -35,9 +35,12 @@ End of June:
   - Geth: storage writes
   - Besu: account and storage writes
   - Erigon: everything
-- [ ] [Jochem] Improve infra for clients to test optimization performance (reach out to clients)
-- [ ] [Louis] Make repricing benchmark release for bal-devnet-7
-- [ ] [Rafael] Do larger run on bal-devnet-7
+- [ ] Investigate failing clients:
+  - [Stefan] Compute - Keep track of Erigon to see if it works
+  - [Jochem + Stefan] Stateful - Reth, Besu, Erigon (keep track)
+- [X] [Jochem] Improve infra for clients to test optimization performance (reach out to clients)
+- [X] [Louis] Make repricing benchmark release for bal-devnet-7
+- [X] [Rafael] Do larger run on bal-devnet-7
 - [ ] [Maria] Analyze bal-devnet-7 results and compare with interop numbers
 - [ ] [Louis] Review entire benchmark suite and ensure we are not missing worst cases (we should ask help from clients)
 - [ ] [Carlos] Move bloatnet to bal-devnet-7 + EIP-8038 + EIP-7904 and run stress test
@@ -46,11 +49,12 @@ End of June:
 - [X] [Carlos] Finish State Actor tool
 - [ ] [Carlos] Run State Actor tool to create a mainnet-size snapshot with all the relevant tests for the repricings
   - Contract sizes: 1 mb, 50 mb, 1 gb, 5 gb, 10 gb, 20 gb
+- [ ] [Rafael] Take a look into schelk when Rafael gets back and move away from ZFS
 
 ### Security and community outreach
 
 - [ ] [Carl] Run backward compatibility analysis for:
-  - [ ] 7904 with interop numbers
+  - [ ] ~~7904 with interop numbers~~
   - [ ] 8037 with bal-devnet-7 spec
 - [ ] [Carl] Update website with new backward compatibility analysis
 - [ ] [Butta] Reach out to affected entities
@@ -58,7 +62,7 @@ End of June:
 
 ### EIPs & Devnet integration
 
-- [ ] [Maria + Spencer] Investigate and fix missing edge cases for 8037
+- [X] [Maria + Spencer] Investigate and fix missing edge cases for 8037
   - [Tracking Issue](https://github.com/ethereum/execution-specs/issues/2804#event-25277615905)
 - [ ] [Maria] Update EIPs with interop numbers (7904 + partial 8038 + partial 2780)
   - [7904 PR](https://github.com/ethereum/EIPs/pull/11622)
