@@ -36,10 +36,10 @@ if __name__ == "__main__":
     # Optional explicit Benchmarkoor suite hashes. When non-empty, the
     # matching (network, fork) lookup is skipped and these suites are
     # loaded directly.
-    compute_suites = []
-    stateful_suites = []
+    compute_suites = ["3182dda7b93dee61"]
+    stateful_suites = ["a11611f320a39015"]
     # Start date for querying
-    start_date = "2026-05-01"
+    start_date = "2026-05-22"
     # fork - osaka, amsterdam or None
     fork = "amsterdam"
     # run_type - None, full, nobatchio, or sequential
@@ -113,6 +113,7 @@ if __name__ == "__main__":
     gas_bench_df = pd.concat(
         [filtered_compute_gas_bench_df, filtered_state_gas_bench_df], ignore_index=True
     )
+    gas_bench_df = gas_bench_df[gas_bench_df["client_name"]!="ethrex"]
     outfile = os.path.join(out_dir, f"gas_bench_data.csv")
     gas_bench_df.to_csv(outfile, index=False)
     trace_df = pd.concat(
@@ -131,7 +132,7 @@ if __name__ == "__main__":
         ],
         out_dir=out_dir,
         params=PARAMS,
-        operations=operation_types.STATEFUL + operation_types.CALL,
+        operations=operation_types.STATEFUL + operation_types.CALL + operation_types.CREATE,
         group_by=["client_name", "test_name"] + MODEL_BY,
     )
     generate_glue_opcode_report(

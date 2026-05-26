@@ -20,7 +20,6 @@ from data import process_bench_data
 from reports import generate_repricings_report, generate_runtime_report
 from glue import generate_glue_opcode_report
 
-
 PARAMS = [
     "num_rounds",
     "num_pairs",
@@ -40,10 +39,10 @@ if __name__ == "__main__":
     # Optional explicit Benchmarkoor suite hashes. When non-empty, the
     # matching (network, fork) lookup is skipped and these suites are
     # loaded directly.
-    compute_suites = []
-    stateful_suites = []
+    compute_suites = ["3182dda7b93dee61"]
+    stateful_suites = ["a11611f320a39015"]
     # Start date for querying
-    start_date = "2026-05-01"
+    start_date = "2026-05-22"
     # fork - osaka, amsterdam or None
     fork = "amsterdam"
     # run_type - None, full, nobatchio, or sequential
@@ -67,7 +66,7 @@ if __name__ == "__main__":
         secrets_dict = json.load(file)
     user = secrets_dict["gas_bench_username"]
     password = secrets_dict["gas_bench_password"]
-    bearer_token=secrets_dict["benchmarkoor_bearer_token"]
+    bearer_token = secrets_dict["benchmarkoor_bearer_token"]
     # Query raw data and save
     compute_gas_bench_df, compute_trace_df = process_bench_data(
         network=compute_network,
@@ -115,7 +114,7 @@ if __name__ == "__main__":
         gas_bench_df=gas_bench_df,
         out_dir=out_dir,
         params=PARAMS,
-        operations=operation_types.SIMPLE_EIP_7904+operation_types.VARIABLE_EIP_7904,
+        operations=operation_types.SIMPLE_EIP_7904 + operation_types.VARIABLE_EIP_7904,
     )
     generate_glue_opcode_report(
         start_date=start_date,

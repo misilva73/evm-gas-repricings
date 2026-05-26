@@ -23,6 +23,7 @@ _STATE_ACCESS_CURRENT_GAS = {
     "GAS_STORAGE_CLEAR_REFUND": 4_800,
     "ACCESS_LIST_STORAGE_KEY_COST": 1_900,
     "ACCESS_LIST_ADDRESS_COST": 2_400,
+    "GAS_CREATE_ACCESS": 7_000,
 }
 
 # Maps gas parameter -> list of (filter_dict, coefficient_column) pairs.
@@ -84,6 +85,14 @@ _STATE_ACCESS_PARAM_SOURCES: Dict[str, List[Tuple[dict, str]]] = {
                 "account_mode__ne": "EXISTING_EOA",
             },
             "update",
+        ),
+    ],
+    "GAS_CREATE_ACCESS": [
+        (
+            {
+                "test_name": "test_create",
+            },
+            "slope",
         ),
     ],
 }
