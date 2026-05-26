@@ -4,7 +4,7 @@
 
 This report summarizes the latest runtime-estimation results for [EIP-7904](https://eips.ethereum.org/EIPS/eip-7904) and [EIP-8038](https://eips.ethereum.org/EIPS/eip-8038), based on the benchmark suite re-run between 2026-05-22 and 2026-05-26.
 
-The runtime estimates were fit on data from two Benchmarkoor suites: a [compute suite (`3182dda7b93dee61`)](https://benchmarkoor.core.ethpandaops.io/suites/3182dda7b93dee61) for the EIP-7904 operations, and a [stateful suite (`a11611f320a39015`)](https://benchmarkoor.core.ethpandaops.io/suites/a11611f320a39015) for the EIP-8038 parameters, both run on `jochemnet` and `bal-devet-7`.
+The runtime estimates were fit on data from two Benchmarkoor suites: a [compute suite (`3182dda7b93dee61`)](https://benchmarkoor.core.ethpandaops.io/suites/3182dda7b93dee61) for the EIP-7904 operations, and a [stateful suite (`a11611f320a39015`)](https://benchmarkoor.core.ethpandaops.io/suites/a11611f320a39015) for the EIP-8038 parameters, both run on `jochemnet` and `bal-devnet-7`.
 
 **Key findings:**
 
@@ -15,12 +15,12 @@ The runtime estimates were fit on data from two Benchmarkoor suites: a [compute 
 
 **ToDo's:**
 
-- Geth: merge optimizations to bal-devnet-3, so we can see your real performance
+- Geth: merge optimizations to bal-devnet-3, so we can see your real performance.
 - Erigon: great progress so far! But we still need to work on state optimizations. Writes are still the worst, followed by `GAS_COLD_ACCOUNT_CODE_ACCESS`.
-- Besu: Contnue work on write optimizations. `GAS_COLD_STORAGE_WRITE` is the worst, followed by `GAS_COLD_STORAGE_WRITE`.
-- Reth: writes are still high in our analysis. We need to check what is hapenning there.
+- Besu: Continue work on write optimizations. `GAS_COLD_STORAGE_WRITE` is the worst, followed by `GAS_COLD_ACCOUNT_WRITE`. Stefan is also working on testing ahead-of-time compilation for Besu - it should speed up their performance.
+- Reth: writes are still high in our analysis. Waiting for Rafael to return from OOO to figure out the ZFS issues.
 - Nethermind: no actions - fairly good across the board.
-- Bech crew: figure out how to extract the number of eth transfers from test_ether_transfers_onchain_receivers
+- Bench crew: figure out how to extract the number of ETH transfers from `test_ether_transfers_onchain_receivers`.
 
 ## Background and methodology
 
