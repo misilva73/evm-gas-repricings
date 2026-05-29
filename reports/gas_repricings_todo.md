@@ -35,9 +35,10 @@ End of June:
   - Geth: storage writes
   - Besu: account and storage writes
   - Erigon: everything
-- [ ] Investigate failing clients:
+- [X] Investigate failing clients:
   - [Stefan] Compute - Keep track of Erigon to see if it works
   - [Jochem + Stefan] Stateful - Reth, Besu, Erigon (keep track)
+- [ ] [Louis] Improvements on `test_account_access`: move it to `CREATE2` + add `KECCAK` test for target size input
 - [X] [Jochem] Improve infra for clients to test optimization performance (reach out to clients)
 - [X] [Louis] Make repricing benchmark release for bal-devnet-7
 - [X] [Rafael] Do larger run on bal-devnet-7
@@ -58,7 +59,7 @@ End of June:
   - [ ] 8037 with bal-devnet-7 spec
 - [ ] [Carl] Update website with new backward compatibility analysis
 - [ ] [Butta] Reach out to affected entities
-- [ ] [Tyler] Kick-off internal security review on all repricing EIPs
+- [ ] [Nikos] Kick-off internal security review on all repricing EIPs
 
 ### EIPs & Devnet integration
 
