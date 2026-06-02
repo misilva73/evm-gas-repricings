@@ -34,7 +34,7 @@ PARAM_MULTIPLIERS = {
 if __name__ == "__main__":
     run_time = datetime.datetime.now()
     # Networks for the compute and stateful benchmark runs
-    compute_network = "perf_devnet_3"
+    compute_network = "jochemnet"
     stateful_network = "jochemnet"
     # Optional explicit Benchmarkoor suite hashes. When non-empty, the
     # matching (network, fork) lookup is skipped and these suites are
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     compute_suites = ["3182dda7b93dee61"]
     stateful_suites = ["a11611f320a39015"]
     # Start date for querying
-    start_date = "2026-05-22"
+    start_date = "2026-05-30"
     # fork - osaka, amsterdam or None
     fork = "amsterdam"
     # run_type - None, full, nobatchio, or sequential
