@@ -26,7 +26,7 @@ End of June:
 - ⚪ we have reached out to all affected entities from the 8037, 8038 and 2780 backward compatibility analysis
 - ⚪ we have a public devnet with final numbers that the community can test
 
-## Current workstreams - goals for end of May
+## Current workstreams - goals for end of June
 
 ### Benchmarking
 
