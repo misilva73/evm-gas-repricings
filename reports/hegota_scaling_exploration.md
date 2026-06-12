@@ -2,7 +2,7 @@
 
 ### Maria Silva, June 2026
 
-This report works out what Hegota needs to change to keep scaling the gas limit after Glamsterdam. It builds on the propagation/execution crossover from our [block composition throughput report](./block_composition_throughput.md) and the floor/BAL pricing menu from the [Hegota bandwidth repricing report](./bandwidth_repricing_hegota.md), takes the [Glamsterdam repricing bundle](./glamsterdam_gas_repricing_bundles.md) as the frozen execution anchor, and informs the Hegota settings for the calldata floor (EIP-7976/7981), `CPSB` (EIP-8037), and bandwidth pricing (EIP-7999). The starting point is a single observation: the 21,000-gas ETH transfer bounds *both* dimensions of the slot.
+This report works out what Hegota needs to change to keep scaling the gas limit after Glamsterdam. The starting point is a single observation: the 21,000-gas ETH transfer bounds *both* dimensions of the slot.
 
 - On the execution side, the Glamsterdam repricings pushed costs as far as the transfer cap permits, fixing worst-case execution at 100 Mgas/s.
 - On the bandwidth side, a block full of transfers is itself a data payload (envelopes, signatures, and BAL entries) that no pricing instrument can touch without touching 21k.
