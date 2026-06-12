@@ -30,10 +30,12 @@ End of June:
 
 ### Benchmarking
 
-- [ ] [Rafael] Move benchmarkoor infra to schelk and test
+- [X] [Rafael] Move benchmarkoor infra to schelk and test
 - [ ] [Rafael + Jochem] Integrate State Actor to benchmarkoor and test
 - [ ] [Louis] Improvements on `test_account_access`: move it to `CREATE2` + add `KECCAK` test for target size input
 - [ ] [Louis] Review entire benchmark suite and ensure we are not missing worst cases (we should ask help from clients)
+  - Fix tests after bal-devnet-7 merge
+  - Improve CREATE worst cases: ([Issue](https://github.com/ethereum/execution-specs/issues/1577))
 - [ ] [Carlos] Move bloatnet to bal-devnet-7 + EIP-8038 + EIP-7904 and run stress test
 - [ ] [Louis] Create full benchmarking release for bal-devnet-7 + EIP-8038 + EIP-7904
 - [ ] [Rafael] Run full benchmarks for bal-devnet-7 + EIP-8038 + EIP-7904 (need client implementations)
@@ -42,7 +44,7 @@ End of June:
 
 - [ ] [Carlos] Run backward compatibility analysis for:
   - [ ] 8037 with bal-devnet-7 spec
-  - [ ] 8038 with 3x increase (testing)
+  - [ ] 8038 with latest numbers (testing)
   - [ ] 2780 with final numbers
 - [ ] [Maria] Figure out the best way to serve backward compatibility analysis to community
 - [ ] [Butta] Reach out to affected entities
