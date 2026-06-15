@@ -142,11 +142,11 @@ Extend the 7623-style floor to **every payload byte**, including BAL bytes. Ever
 **Pros**
 
 - Smallest impact on users — only bites blocks **already over the calldata floor**.
+- A step towards multidimensional metering for bandwidth
 
 **Cons**
 
 - New gas-accounting mechanism: a runtime floor accumulator on **every cold-access path**.
-- Likely **redundant after [EIP-7999](https://eips.ethereum.org/EIPS/eip-7999)**.
 
 ---
 
@@ -172,11 +172,11 @@ Give calldata a **single rate** at 94 gas/byte. With a single rate, the worst ca
 **Pros**
 
 - **Simplest mechanism**: one rate, no BAL accounting, no `max()`.
-- Cleanest & most defensible: BAL-producing ops already priced right.
 
 **Cons**
 
 - Charges **every calldata byte** the floor rate: a **~6× rise** on the 16 standard rate.
+- We loose throughput until we implement mutidim metering
 
 ---
 
