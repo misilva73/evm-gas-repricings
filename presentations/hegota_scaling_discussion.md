@@ -207,7 +207,7 @@ Give calldata a **single rate** at 94 gas/byte. With a single rate, the worst ca
 ## Topic 2 — The questions
 
 - At 500M, history (headers + bodies + receipts) grows at **~2.5 TiB/yr** (scaling the measured ~180 GiB/yr-at-36M linearly).
-- This will be higher after BALs.
+- This will be higher after BALs and logs from ETH transfers.
 
 #### This is rate feasible? Do we need to be more aggressive with hsitory expiry?
 
