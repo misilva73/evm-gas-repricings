@@ -11,10 +11,10 @@ We therefore use the transfer-full block as the *anchor block*. We derive its ba
 
 ## Key findings
 
-- **The 21k ETH transfer anchors both sides of the slot.** It freezes worst-case execution at 100 Mgas/s *and* sets an irreducible byte density of ~0.0105 B/gas (221 B per transfer, worst-case) that no pricing instrument can undercut. The anchor block propagates at ~214 Mgas/s, so it is execution-bound, and solving both ceilings at a symmetric 25% buffer gives **~473M with the PTC deadline at ~5.7s**. We treat the 25% buffer as a guideline, not a hard floor, and relax it slightly to land on round numbers: we recommend **500M at $D = 5.5$s**, which runs the anchor block at a ~23% worst-case execution buffer and a ~17% propagation buffer. This number is gated on the bandwidth fix below: under Glamsterdam pricing the densest *priced* block — not the transfer — binds the slot and caps the limit at ~339M.
-- **Hegota's bandwidth job is to bring every *priced* composition down to the transfer line.** Since we cannot reprice the transfer without touching the 21k cap, the goal is to make it the worst case by construction. Glamsterdam pricing fails this: the mixed calldata + `SLOAD` block sits at ~2.2× the line and pins the system at ~339M, ~134M below the anchor optimum. The solution is to raise the calldata floor again (64 → 96) plus coverage of BAL bytes, or introduce a single uniform calldata rate (~94) — trading mechanism complexity against incidence breadth. This is the fork's one open mechanism decision.
-- **Below the transfer line, only further optimizations move the optimum.** Pricing can equalize compositions at the line but cannot go beneath it. Each 10% improvement in the propagation time per kb increases the gas limit by roughly +15–20M, up to a max of 693M. In parallel, improvements in the execution time of ETH transfers would allow higher execution anchors, thus permitting higher limits without changing the PTC deadline.
-- **The remaining fork items are one constant each.** Re-derive `CPSB` (1,530 → ~5,100; otherwise state grows ~400 GiB/yr), make history expiry operational (~2.5 TiB/yr at the new limit), consider repricing `LOGDATA` (currently 8 gas/byte), and change nothing for memory. We can optionally reprice ~62 EVM operations and precompiles downward, cutting the ~12.4% of block gas currently wasted on overpriced operations to ~2.6%.
+- **The 21k ETH transfer anchors both sides of the slot.** It freezes worst-case execution at 100 Mgas/s *and* sets an irreducible byte density of ~0.0105 B/gas (221 B per transfer, worst-case) that no pricing instrument can undercut. The anchor block propagates at ~214 Mgas/s, so it is execution-bound, and solving both ceilings at a symmetric 25% buffer gives **~422M with the PTC deadline at ~6.4s**. We treat the 25% buffer as a guideline, not a hard floor, and relax it slightly to land on round numbers: we recommend **450M at $D = 6$s**, which runs the anchor block at a ~25% worst-case execution buffer and a ~11% propagation buffer. This number is gated on the bandwidth fix below: under Glamsterdam pricing the densest *priced* block — not the transfer — binds the slot and caps the limit at ~302M.
+- **Hegota's bandwidth job is to bring every *priced* composition down to the transfer line.** Since we cannot reprice the transfer without touching the 21k cap, the goal is to make it the worst case by construction. Glamsterdam pricing fails this: the mixed calldata + `SLOAD` block sits at ~2.2× the line and pins the system at ~302M, ~120M below the anchor optimum. The solution is to raise the calldata floor again (64 → 96) plus coverage of BAL bytes, or introduce a single uniform calldata rate (~94) — trading mechanism complexity against incidence breadth. This is the fork's one open mechanism decision.
+- **Below the transfer line, only further optimizations move the optimum.** Pricing can equalize compositions at the line but cannot go beneath it. Each 10% improvement in the propagation time per kb increases the gas limit by roughly +14–18M, up to a max of 618M. In parallel, improvements in the execution time of ETH transfers would allow higher execution anchors, thus permitting higher limits without changing the PTC deadline.
+- **The remaining fork items are one constant each.** Re-derive `CPSB` (1,530 → ~4,600; otherwise state grows ~360 GiB/yr), make history expiry operational (~2.2 TiB/yr at the new limit), consider repricing `LOGDATA` (currently 8 gas/byte), and change nothing for memory. We can optionally reprice ~62 EVM operations and precompiles downward, cutting the ~12.4% of block gas currently wasted on overpriced operations to ~2.6%.
 
 ## Background
 
@@ -26,8 +26,8 @@ The assumptions used throughout:
 |---|---:|---|
 | Execution anchor $R$ | 100 Mgas/s | Frozen by the 21k transfer cap |
 | Slot end $T_3$ | 12 s | |
-| Beacon-block attestation deadline $T_1$ | 2 s (pinned) | Earliest payload propagation start under ePBS; 2s vs 3s still open (sensitivity ~51M per second) |
-| Safety buffers | 25% on both the execution and propagation windows | Guideline, not a hard floor; the recommended 500M/5.5s point runs ~23% execution / ~17% propagation |
+| Beacon-block attestation deadline $T_1$ | 3 s (conservative) | Earliest payload propagation start under ePBS; 2s vs 3s still open, we take the conservative 3s (sensitivity ~51M per second, so 2s would add ~51M) |
+| Safety buffers | 25% on both the execution and propagation windows | Guideline, not a hard floor; the recommended 450M/6s point runs ~25% execution / ~11% propagation |
 | Propagation model | $t = 569 + 0.443 \cdot \text{KB}$ ms (p90, MEV-boost) | From Toni's [worst-case block-size analysis](https://github.com/nerolation/glamsterdam-worst-case-block-size/blob/main/payload_propagation.ipynb); snappy-compressed size, measured after release ($p_{90} - \min$). Transfer block treated as incompressible (post-snappy ≈ raw) |
 | Cold `SLOAD` | 3,000 | Assumed EIP-8038 landing; unchanged in Hegota |
 | Cold account access (`BALANCE`) | 3,000 | Assumed post-Glamsterdam landing; unchanged in Hegota |
@@ -68,7 +68,7 @@ The propagation model is calibrated on *post-snappy* bytes, so we map this raw 2
 
 ### Where should the PTC deadline go?
 
-The deadline $D$ splits the slot into a propagation window, from $T_1 = 2$s to $D$, and an execution window, from $D$ to 12s. Holding the 25% buffer guideline on both, a gas limit $L$ is feasible when the anchor block can both propagate and execute in time:
+The deadline $D$ splits the slot into a propagation window, from $T_1 = 3$s to $D$, and an execution window, from $D$ to 12s. Holding the 25% buffer guideline on both, a gas limit $L$ is feasible when the anchor block can both propagate and execute in time:
 
 $$ L \le 0.75 \cdot R \cdot (12 - D) \qquad \text{(execution)} $$
 
@@ -78,22 +78,22 @@ The first ceiling falls as $D$ moves later; the second rises. The optimum is the
 
 | Scenario | $D^*$ (s) | $L^*$ | Payload at $L^*$ |
 |---|---:|---:|---:|
-| **Worst-case accounting (221 B)** | **5.70** | **473M** | **4.97 MB** |
+| **Worst-case accounting (221 B)** | **6.38** | **422M** | **4.44 MB** |
 
-The transfer-anchored optimum, holding the 25% guideline on *both* windows, is **~473M at $D \approx 5.7$s**. The 25% buffer is a guideline rather than a hard floor, so we relax it slightly to recommend round operating numbers — **500M at $D = 5.5$s**, just above the optimum. The execution buffer barely moves; the propagation buffer absorbs the shortfall, dropping from 25% to ~17% — the anchor block then uses 83% of the propagation window instead of 75%:
+The transfer-anchored optimum, holding the 25% guideline on *both* windows, is **~422M at $D \approx 6.4$s**. The 25% buffer is a guideline rather than a hard floor, so we relax it slightly to recommend round operating numbers — **450M at $D = 6$s**, moving the deadline slightly earlier to trade propagation headroom for a higher limit. The execution buffer holds at ~25%; the propagation buffer absorbs the shift, dropping from 25% to ~11% — the anchor block then uses ~89% of the propagation window instead of 75%:
 
 | Operating point | Execution buffer | Propagation buffer |
 |---|---:|---:|
-| 473M @ 5.7s (symmetric optimum) | 25% | 25% |
-| **500M @ 5.5s (recommended)** | **~23%** | **~17%** |
+| 422M @ 6.38s (symmetric optimum) | 25% | 25% |
+| **450M @ 6s (recommended)** | **~25%** | **~11%** |
 
-The residual uncertainty is in the propagation fit (the p90 percentile and Toni's tail-emphasized versus conservative $\sqrt{n\cdot\text{size}}$ weighting) and the post-snappy compression assumption. Propagation improvements (below) would restore the symmetric 25% buffer at 500M, or push the limit higher.
+The residual uncertainty is in the propagation fit (the p90 percentile and Toni's tail-emphasized versus conservative $\sqrt{n\cdot\text{size}}$ weighting) and the post-snappy compression assumption. Propagation improvements (below) would restore the symmetric 25% buffer at 450M, or push the limit higher.
 
 ## The adversarial block
 
 ### The transfer block is not the worst case
 
-The transfer block anchors the slot, but it is not the densest block we can build — its $\beta_t \approx 0.0105$ B/gas is a floor, not a ceiling. Since we cannot price the transfer block without touching the 21k cap, our goal is to make it the worst case by construction: **every composition the protocol prices should carry at most $\beta_t$ bytes per gas**. Any priced block above $\beta_t$ binds the slot before the transfer block does and pulls $L^*$ below 473M, so we check each one.
+The transfer block anchors the slot, but it is not the densest block we can build — its $\beta_t \approx 0.0105$ B/gas is a floor, not a ceiling. Since we cannot price the transfer block without touching the 21k cap, our goal is to make it the worst case by construction: **every composition the protocol prices should carry at most $\beta_t$ bytes per gas**. Any priced block above $\beta_t$ binds the slot before the transfer block does and pulls $L^*$ below 422M, so we check each one.
 
 A single-resource block's byte density is its per-operation byte footprint over its gas cost, $\beta = b/c$:
 
@@ -137,7 +137,7 @@ However, **this still does not fix the mixed block.** Raising $F$ shrinks the ch
 
 The residual is the mixed block, at 1.84× the line. We have three options. The first two **price the BAL bytes** the calldata floor cannot see, layered on top of the 64 → 96 floor bump just derived; the third **leaves the BAL unpriced** and instead removes the dual-rate calldata structure the mixed block exploits.
 
-**Option 1: BAL bytes in the floor.** The obvious solution is to start including the BAL bytes in the floor calculation. [This proposal from Toni](https://github.com/ethereum/EIPs/compare/master...nerolation:EIPs:toni/data-repricing) extends the 7623-style floor to every payload byte, including the BAL bytes. Every priced byte then yields at most $1/96$ bytes per gas, with no `SLOAD` change at all. The cost is a new gas-accounting mechanism that keeps a runtime floor accumulator touching every cold-access path. This acts on the floor side only, so normal users and the 21k transfer are untouched.
+**Option 1: BAL bytes in the floor.** The obvious solution is to start including the BAL bytes in the floor calculation. [This proposal from Toni](https://github.com/ethereum/EIPs/pull/11739) extends the 7623-style floor to every payload byte, including the BAL bytes. Every priced byte then yields at most $1/96$ bytes per gas, with no `SLOAD` change at all. The cost is a new gas-accounting mechanism that keeps a runtime floor accumulator touching every cold-access path. This acts on the floor side only, so normal users and the 21k transfer are untouched.
 
 **Option 2: An intrinsic data surcharge.** Add an explicit data component to every BAL-contributing operation (cold access, cold storage, etc.), with transfers excluded automatically since they run no opcodes. This is constants-only, the simplest mechanism on top of the floor. But pricing the BAL bytes this way is a de facto state-access repricing: bringing the mixed block to the line requires raising cold-state-access costs substantially, which sits awkwardly with the frozen-anchor rationale even though it is execution-safe — and it further misprices the pure-opcode blocks, which are already under the line.
 
@@ -155,28 +155,28 @@ Pricing can equalize compositions at the transfer line but cannot go below it. P
 
 | Slope improvement | $D^*$ (s) | $L^*$ |
 |---:|---:|---:|
-| — (0.443 ms/KB) | 5.70 | 473M |
-| −10% | 5.49 | 488M |
-| −20% | 5.27 | 505M |
-| −30% | 5.03 | 523M |
-| −40% | 4.78 | 542M |
-| −50% | 4.51 | 562M |
-| Overhead halved (569 → 285 ms) only | 5.44 | 492M |
+| — (0.443 ms/KB) | 6.38 | 422M |
+| −10% | 6.19 | 436M |
+| −20% | 6.00 | 450M |
+| −30% | 5.79 | 466M |
+| −40% | 5.56 | 483M |
+| −50% | 5.32 | 501M |
+| Overhead halved (569 → 285 ms) only | 6.12 | 441M |
 
-The pattern is roughly **+15–20M of gas limit per 10% of slope improvement**, with the deadline drifting earlier in step; the $D = 5$s neighborhood arrives at about −30%, worth ~523M, and −40% reaches ~542M. Halving the fixed overhead (569 → 285 ms) is worth about one slope-decile on its own (~+19M). Note that transfer-heavy payloads are the least compressible shape (signatures are random bytes), so compression-based improvements help the adversarial tail more than the anchor block itself.
+The pattern is roughly **+14–18M of gas limit per 10% of slope improvement**, with the deadline drifting earlier in step; a −20% slope reaches the round 450M at $D = 6.0$s — restoring the symmetric 25% buffer at the recommended limit — and −50% reaches ~501M at $D \approx 5.3$s. Halving the fixed overhead (569 → 285 ms) is worth about one slope-decile on its own (~+19M). Note that transfer-heavy payloads are the least compressible shape (signatures are random bytes), so compression-based improvements help the adversarial tail more than the anchor block itself.
 
-The hard ceiling of this whole framing is execution: as $D$ approaches $T_1$ plus the fixed overhead, the execution window saturates at ~9.2s, i.e. **693M** at 75% of 100 Mgas/s. Going beyond that requires raising real execution throughput, which is what the parallel analysis on repricing overpriced compute operations addresses. That work couples back to this report in one place: cheaper execution pushes more transactions onto the calldata floor, so floor incidence at $F = 96$ should be evaluated against post-repricing execution costs.
+The hard ceiling of this whole framing is execution: as $D$ approaches $T_1$ plus the fixed overhead, the execution window saturates at ~8.2s, i.e. **618M** at 75% of 100 Mgas/s. Going beyond that requires raising real execution throughput, which is what the parallel analysis on repricing overpriced compute operations addresses. That work couples back to this report in one place: cheaper execution pushes more transactions onto the calldata floor, so floor incidence at $F = 96$ should be evaluated against post-repricing execution costs.
 
 ## Implications for the other resources
 
 ### State growth: re-derive `CPSB`
 
-The latest EIP-8037 spec fixes `CPSB = 1530`, derived at a 150M reference limit for a 120 GiB/yr target, and explicitly defers re-derivation to a subsequent fork. Left at 1,530, the target-rate growth at a 500M limit would be ~400 GiB/yr. Using the spec's own derivation at the new limits, we get:
+The latest EIP-8037 spec fixes `CPSB = 1530`, derived at a 150M reference limit for a 120 GiB/yr target, and explicitly defers re-derivation to a subsequent fork. Left at 1,530, the target-rate growth at a 450M limit would be ~360 GiB/yr. Using the spec's own derivation at the new limits, we get:
 
 | Operating point | `CPSB` | New slot (64 B) | New account (120 B) | 24 KiB deploy |
 |---:|---:|---:|---:|---:|
-| 500M | ~5,100 | 326k | 612k | 125M state-gas |
-| 562M (p2p stretch) | ~5,730 | 367k | 688k | 141M state-gas |
+| 450M | ~4,600 | 294k | 551k | 113M state-gas |
+| 501M (p2p stretch) | ~5,110 | 327k | 613k | 126M state-gas |
 
 The transfer is untouched either way, since only new-account creation pays state gas, in the separate dimension with the reservoir model.
 
@@ -184,7 +184,7 @@ There is also the question of how real demand will respond to the higher block l
 
 ### History: expiry becomes a prerequisite
 
-Measured geth history (headers, bodies, and receipts) grew at ~525 MiB/day — about **180 GiB/yr** — at the 36M limit over May 2024–May 2025 ([more info here](https://github.com/misilva73/evm-gas-repricings/blob/main/notebooks/0.3-history_growth_EDA.ipynb)). Scaling that linearly to 500M gives **~2.5 TiB/yr**. This already includes logs, which live in receipts, but the measurement window predates BALs, so the figure omits them. BALs (EIP-7928) are a second history channel of comparable size — ~41% of a transfer block's bytes, and dominant for the state-access-heavy compositions — but EIP-7928 permits pruning stored BALs to their hash root, so their *durable* contribution depends on the retention window.
+Measured geth history (headers, bodies, and receipts) grew at ~525 MiB/day — about **180 GiB/yr** — at the 36M limit over May 2024–May 2025 ([more info here](https://github.com/misilva73/evm-gas-repricings/blob/main/notebooks/0.3-history_growth_EDA.ipynb)). Scaling that linearly to 450M gives **~2.2 TiB/yr**. This already includes logs, which live in receipts, but the measurement window predates BALs, so the figure omits them. BALs (EIP-7928) are a second history channel of comparable size — ~41% of a transfer block's bytes, and dominant for the state-access-heavy compositions — but EIP-7928 permits pruning stored BALs to their hash root, so their *durable* contribution depends on the retention window.
 
 At these history growth rates, rolling history expiry (EIP-4444-family) therefore needs to be operational before the limit moves. Separately, `LOGDATA` at 8 gas/byte is now the cheapest byte in the system and exempt from every floor, because logs live in receipts rather than the payload. We may want to price it more accurately. The organizing principle is to price bytes by lifetime: payload bytes at the floor, history bytes consistently with the expiry horizon, state bytes at `CPSB`.
 
@@ -202,18 +202,18 @@ This overpricing is throughput left on the table. On [mainnet traffic](https://m
 
 | # | Item | Type |
 |---|---|---|
-| 1 | Gas limit → ~500M, $D = 5.5$s | Validator coordination, gated on 2–5 |
+| 1 | Gas limit → ~450M, $D = 6$s | Validator coordination, gated on 2–5 |
 | 2 | Calldata floor 64 → 96 | One constant (7976/7981) |
 | 3 | Mixed-block fix: BAL floor pair, intrinsic surcharge, or uniform calldata price (~94) | The one open mechanism decision |
-| 4 | `CPSB` re-derivation: 1,530 → ~5,100 (~5,730 at p2p stretch) | One constant, per the 8037 spec's process |
+| 4 | `CPSB` re-derivation: 1,530 → ~4,600 (~5,110 at p2p stretch) | One constant, per the 8037 spec's process |
 | 5 | History expiry operational | Networking/client prerequisite |
 | 6 | `LOGDATA` 8 → ? | One-constant candidate, after measurement |
-| 7 | p2p slope/overhead improvements | Non-fork track: +15–20M per 10% slope, up to ~562M |
+| 7 | p2p slope/overhead improvements | Non-fork track: +14–18M per 10% slope, up to ~501M |
 | 8 | Downward compute repricings | Fork item, parallel work |
 
 ## Limitations
 
-- All propagation numbers inherit Toni's **p90 MEV-boost** fit ($569 + 0.443 \cdot \text{KB}$ ms, snappy-compressed size, measured after release as $p_{90} - \min$) and the $T_1 = 2$s pin; both are choices, not givens. Toni's conservative $\sqrt{n\cdot\text{size}}$ weighting gives a steeper slope (and the Local / higher-percentile fits steeper still), each of which pulls the optimum down; the crossovers move ~51M per second of $T_1$ and proportionally with the slope.
+- All propagation numbers inherit Toni's **p90 MEV-boost** fit ($569 + 0.443 \cdot \text{KB}$ ms, snappy-compressed size, measured after release as $p_{90} - \min$) and the $T_1 = 3$s assumption; both are choices, not givens. Toni's conservative $\sqrt{n\cdot\text{size}}$ weighting gives a steeper slope (and the Local / higher-percentile fits steeper still), each of which pulls the optimum down; the crossovers move ~51M per second of $T_1$ and proportionally with the slope.
 - The per-transfer byte figure is derived from the confirmed RLP minimal-length encoding, so framing overhead is resolved; but Toni's propagation model is calibrated on *post-snappy* bytes and we assume the transfer block is **incompressible** (post-snappy ≈ raw 221 B). Real wire compression and the `block_access_index` width's growth with transaction count remain unmodeled and move every headline number — compression in particular only loosens the bound and raises $L^*$.
 - The crossover model treats propagation and execution as strictly serial with hard 25% buffers; pipelining or overlapping validation would shift the optimum outward.
 - The 8037 figures follow the live spec (`CPSB = 1530`); the local EIPs repo still carries the older auto-scaling draft, whose numbers do not apply.
