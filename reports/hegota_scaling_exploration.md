@@ -2,19 +2,20 @@
 
 ### Maria Silva, June 2026
 
-This report works out what Hegota needs to change to keep scaling the gas limit after Glamsterdam. The starting point is a single observation: the 21,000-gas ETH transfer bounds *both* dimensions of the slot.
+![Scaling and speed: Ethereum throughput accelerating upward](./figures/hegota_scaling_exploration/header.png)
+
+This post works out what Hegota needs to change to keep scaling the gas limit after Glamsterdam. The starting point is a single observation: the 21,000-gas ETH transfer bounds *both* dimensions of the slot.
 
 - On the execution side, the Glamsterdam repricings pushed costs as far as the transfer cap permits, fixing worst-case execution at 100 Mgas/s.
-- On the bandwidth side, a block full of transfers is itself a data payload (envelopes, signatures, and BAL entries) that no pricing instrument can touch without touching 21k.
+- On the bandwidth side, a block full of transfers is itself a data payload (envelopes, signatures, and BAL entries) that no pricing instrument can touch without charging more than 21k.
 
 We therefore use the transfer-full block as the *anchor block*. We derive its bandwidth performance, find the PTC deadline that maximizes the gas limit, compare it against the adversarial calldata + `SLOAD` block, and then ask what this implies for state growth, history, and memory.
 
 ## Key findings
 
-- **The 21k ETH transfer anchors both sides of the slot.** It freezes worst-case execution at 100 Mgas/s *and* sets an irreducible byte density of ~0.0105 B/gas (221 B per transfer, worst-case) that no pricing instrument can undercut. The anchor block propagates at ~214 Mgas/s, so it is execution-bound, and solving both ceilings at a symmetric 25% buffer gives **~422M with the PTC deadline at ~6.4s**. We treat the 25% buffer as a guideline, not a hard floor, and relax it slightly to land on round numbers: we recommend **450M at $D = 6$s**, which runs the anchor block at a ~25% worst-case execution buffer and a ~11% propagation buffer. This number is gated on the bandwidth fix below: under Glamsterdam pricing the densest *priced* block — not the transfer — binds the slot and caps the limit at ~302M.
-- **Hegota's bandwidth job is to bring every *priced* composition down to the transfer line.** Since we cannot reprice the transfer without touching the 21k cap, the goal is to make it the worst case by construction. Glamsterdam pricing fails this: the mixed calldata + `SLOAD` block sits at ~2.2× the line and pins the system at ~302M, ~120M below the anchor optimum. The solution is to raise the calldata floor again (64 → 96) plus coverage of BAL bytes, or introduce a single uniform calldata rate (~94) — trading mechanism complexity against incidence breadth. This is the fork's one open mechanism decision.
+- **The 21k ETH transfer anchors both sides of the slot.** It freezes worst-case execution at 100 Mgas/s *and* sets an irreducible byte density of ~0.0105 B/gas (221 B per transfer, worst-case) that no pricing instrument can undercut. The anchor block propagates at ~214 Mgas/s, so it is execution-bound, and solving both ceilings at a symmetric 25% buffer gives **~422M with the PTC deadline at ~6.4s**. We treat the 25% buffer as a guideline, not a hard floor, and relax it slightly to land on round numbers: we recommend **450M at $D = 6$s**, which runs the anchor block at a ~25% worst-case execution buffer and a ~11% propagation buffer.
+- **Hegota's repricing job is to bring every *priced* composition down to the transfer line.** Since we cannot reprice the transfer without touching the 21k cap, so the goal is to make it the worst case by construction. Glamsterdam pricing fails this: the mixed calldata + `SLOAD` block sits at ~2.2× the line and pins the system at ~302M, ~120M below the anchor optimum. The solution is to raise the calldata floor again (64 → 96) plus coverage of BAL bytes, or introduce a single uniform calldata rate (~94) — trading mechanism complexity against incidence breadth.
 - **Below the transfer line, only further optimizations move the optimum.** Pricing can equalize compositions at the line but cannot go beneath it. Each 10% improvement in the propagation time per kb increases the gas limit by roughly +14–18M, up to a max of 618M. In parallel, improvements in the execution time of ETH transfers would allow higher execution anchors, thus permitting higher limits without changing the PTC deadline.
-- **The remaining fork items are one constant each.** Re-derive `CPSB` (1,530 → ~4,600; otherwise state grows ~360 GiB/yr), make history expiry operational (~2.2 TiB/yr at the new limit), consider repricing `LOGDATA` (currently 8 gas/byte), and change nothing for memory. We can optionally reprice ~62 EVM operations and precompiles downward, cutting the ~12.4% of block gas currently wasted on overpriced operations to ~2.6%.
 
 ## Background
 
@@ -26,15 +27,14 @@ The assumptions used throughout:
 |---|---:|---|
 | Execution anchor $R$ | 100 Mgas/s | Frozen by the 21k transfer cap |
 | Slot end $T_3$ | 12 s | |
-| Beacon-block attestation deadline $T_1$ | 3 s (conservative) | Earliest payload propagation start under ePBS; 2s vs 3s still open, we take the conservative 3s (sensitivity ~51M per second, so 2s would add ~51M) |
+| Beacon-block attestation deadline $T_1$ | 3 s | Earliest payload propagation start under ePBS; 2s vs 3s still open |
 | Safety buffers | 25% on both the execution and propagation windows | Guideline, not a hard floor; the recommended 450M/6s point runs ~25% execution / ~11% propagation |
 | Propagation model | $t = 569 + 0.443 \cdot \text{KB}$ ms (p90, MEV-boost) | From Toni's [worst-case block-size analysis](https://github.com/nerolation/glamsterdam-worst-case-block-size/blob/main/payload_propagation.ipynb); snappy-compressed size, measured after release ($p_{90} - \min$). Transfer block treated as incompressible (post-snappy ≈ raw) |
-| Cold `SLOAD` | 3,000 | Assumed EIP-8038 landing; unchanged in Hegota |
-| Cold account access (`BALANCE`) | 3,000 | Assumed post-Glamsterdam landing; unchanged in Hegota |
-| Cold `SSTORE` | 13,000 | Assumed post-Glamsterdam landing; unchanged in Hegota |
+| Cold `SLOAD` | 3,000 | Preliminary [EIP-8038](https://eips.ethereum.org/EIPS/eip-8038) numbers; unchanged in Hegota |
+| Cold account access (`BALANCE`) | 3,000 | Preliminary [EIP-8038](https://eips.ethereum.org/EIPS/eip-8038) numbers; unchanged in Hegota |
+| Cold `SSTORE` | 13,000 | Preliminary [EIP-8038](https://eips.ethereum.org/EIPS/eip-8038) numbers; unchanged in Hegota |
 | Calldata pricing | 64/64 floor, 4/16 standard | EIP-7976/7981 |
 | State creation | `CPSB = 1530`, fixed | Latest [EIP-8037](https://eips.ethereum.org/EIPS/eip-8037) spec (150M reference, 120 GiB/yr) |
-| BAL encoding | RLP, minimal-length, per-account | [EIP-7928](https://eips.ethereum.org/EIPS/eip-7928), confirmed |
 
 ## A map of the resources
 
@@ -120,34 +120,34 @@ Evaluating the menu at the assumed prices for Glamsterdam (cold `SLOAD` 3,000, c
 **Key observations:**
 
 - **Only cold `SLOAD` rivals the transfer line.** A cold `BALANCE` writes only its 20-byte address to the BAL at 3,000 gas (0.63×), and a cold `SSTORE` writes a 64-byte key+value at 13,000 gas (0.47×) — both comfortably under. The 32-byte storage key paid for by cold `SLOAD`'s 3,000 gas is the byte-densest thing state access can add per gas, which is why the adversarial blocks are built from cold `SLOAD`.
-- **Cold `SLOAD` sits essentially on the line.** At 3,000 gas its 32-byte key gives 0.01067 B/gas, 1% above $\beta_t$; the line is reached exactly at $c = 3{,}041$. The assumed EIP-8038 value is within a whisker, so the pure-`SLOAD` block is — for practical purposes — already at the target.
+- **Cold `SLOAD` sits essentially on the line.** At 3,000 gas its 32-byte key gives 0.01067 B/gas, 1% above $\beta_t$; the line is reached exactly at $c = 3{,}041$.
 - **Two priced blocks exceed the line: pure calldata (1.49×) and the mixed block (2.25×).** Both overshoot for the same root cause — calldata priced below the transfer line — but, as we show next, they need different fixes.
 
 ### The smallest lever: re-raise the calldata floor
 
-The pure-calldata block is over the line for a one-line reason: the EIP-7976 floor of 64 gas/byte implies $1/64 = 0.0156$ B/gas, 49% above $\beta_t$. The floor was sized against execution throughput, not against the transfer's byte density, and it lands too low. The fix is a single constant — raise the floor to
+The pure-calldata block is over the line for a one-line reason: the EIP-7976 floor of 64 gas/byte implies $1/64 = 0.0156$ B/gas, 49% above $\beta_t$. The fix is a single constant — raise the floor to
 
 $$ F^* = \left\lceil 1 / \beta_t \right\rceil = \lceil 1 / 0.01052 \rceil = \lceil 95.06 \rceil = 96 \text{ gas/byte}, $$
 
-the smallest floor at which a priced calldata byte costs at least as much gas as a transfer byte. At $F = 96$ the pure-calldata block lands at $1/96 = 0.0104$ B/gas (0.99×), on the line. This is Hegota's cheapest bandwidth change: re-raise the floor 64 → 96.
+This is Hegota's easiest data pricing change. However, **this still does not fix the mixed block.** Raising $F$ shrinks the cheap calldata share (from $16/64 = 25\%$ to $16/96 = 16.7\%$) but the cold-`SLOAD` remainder keeps adding bytes to the BAL, resulting in an overall byte density of $\beta(96, 3000) = 0.0193$ B/gas. This is still 1.84× above the line.
 
-However, **this still does not fix the mixed block.** Raising $F$ shrinks the cheap calldata share (from $16/64 = 25\%$ to $16/96 = 16.7\%$) but cannot remove it, and the cold-`SLOAD` remainder keeps adding bytes to the BAL: $\beta(96, 3000) = 0.0193$ B/gas, still 1.84× the line, with the $F \to \infty$ asymptote pinned at $32/c$ — the `SLOAD` channel itself. No finite calldata floor brings the mixed block down, because the bytes that make it heavy are BAL bytes, not calldata bytes.
+In fact, with the $F \to \infty$, the byte density tends to $32/c$, which is the `SLOAD` block density itself. This means that no finite calldata floor brings the mixed block down enough.
 
 ### Three ways to tame the mixed block
 
-The residual is the mixed block, at 1.84× the line. We have three options. The first two **price the BAL bytes** the calldata floor cannot see, layered on top of the 64 → 96 floor bump just derived; the third **leaves the BAL unpriced** and instead removes the dual-rate calldata structure the mixed block exploits.
+The remaining bottleneck is the mixed block, at 1.84× the line. We have three options. The first two **price the BAL bytes** the calldata floor cannot see, layered on top of the 64 → 96 floor bump just derived; the third **leaves the BAL unpriced** and instead removes the dual-rate calldata structure the mixed block exploits.
 
 **Option 1: BAL bytes in the floor.** The obvious solution is to start including the BAL bytes in the floor calculation. [This proposal from Toni](https://github.com/ethereum/EIPs/pull/11739) extends the 7623-style floor to every payload byte, including the BAL bytes. Every priced byte then yields at most $1/96$ bytes per gas, with no `SLOAD` change at all. The cost is a new gas-accounting mechanism that keeps a runtime floor accumulator touching every cold-access path. This acts on the floor side only, so normal users and the 21k transfer are untouched.
 
-**Option 2: An intrinsic data surcharge.** Add an explicit data component to every BAL-contributing operation (cold access, cold storage, etc.), with transfers excluded automatically since they run no opcodes. This is constants-only, the simplest mechanism on top of the floor. But pricing the BAL bytes this way is a de facto state-access repricing: bringing the mixed block to the line requires raising cold-state-access costs substantially, which sits awkwardly with the frozen-anchor rationale even though it is execution-safe — and it further misprices the pure-opcode blocks, which are already under the line.
+**Option 2: An intrinsic data surcharge.** Alternatively, we can add an explicit data component to every BAL-contributing operation (cold access, cold storage, etc.). This is constants-only, the simplest mechanism on top of the floor. But pricing the BAL bytes this way is a de-facto state-access repricing. Bringing the mixed block to the line requires raising cold-state-access costs substantially, which sits awkwardly with the frozen-anchor rationale even though it is execution-safe. In addition, this further misprices the pure-opcode blocks, which are already under the line.
 
-**Option 3: A uniform calldata price, no BAL pricing.** The mixed block works only because calldata has two rates — the cheap 16 gas/byte standard rate, ridden up to the floor share, and the floor above it. Give calldata a single rate $p$ and the exploit vanishes: every calldata byte costs $p$, so the calldata block is bounded at $1/p$ and mixing it into a state block only dilutes the density. The worst case then reverts to the densest unpriced state op — cold `SLOAD` at $32/c$, on the transfer line after EIP-8038, with every other state op well below it (table above). So $p$ only needs to stop pure calldata from beating `SLOAD`:
+**Option 3: A uniform calldata price, no BAL pricing.** The mixed block works because calldata has two rates — the cheap 16 gas/byte standard rate, ridden up to the floor share, and the floor above it. If we give calldata a single rate $p$, this bottleneck disappears. Every calldata byte costs $p$, so the calldata block is bounded at $1/p$ and mixing it into a state block only dilutes the density. The worst case then reverts to the densest unpriced state op, which is the cold `SLOAD` at $32/c$. So $p$ only needs to stop pure calldata from beating `SLOAD`:
 
 $$ \frac{1}{p} \le \frac{32}{c} \;\Rightarrow\; p \ge \frac{c}{32} \approx 94 \text{ gas/byte} \quad (c = 3{,}000). $$
 
-This is barely under the floor's 96: **dropping the floor changes who pays, not the rate.** A floor of 96 bites only data-heavy transactions; a uniform 94 charges every calldata byte the floor rate — a ~6× rise on the 16 standard rate. In exchange it is the simplest mechanism (one rate, no BAL accounting, no `max()`).
+This is barely under the floor's 96: **dropping the floor changes who pays, not the rate.** A floor of 96 bites only data-heavy transactions, while a uniform 94 charges every calldata byte the floor rate. This is a ~6× rise on the 16 standard rate. In exchange, it is the simplest mechanism (one rate, no BAL accounting, no `max()`).
 
-The choice is between mechanism complexity and incidence breadth. Option 1 has the smallest impact on users — it only affects blocks that exceed the calldata floor — but it introduces a new gas-accounting and OOG mechanism that will likely not be needed after [EIP-7999](https://eips.ethereum.org/EIPS/eip-7999). Options 2 and 3 are both constants-only changes, but they affect every user of BAL-affecting operations (option 2) or every user of calldata (option 3). Option 3 is the cleanest and most defensible, since the operations that produce BAL bytes already have the correct price for both their execution and their bandwidth cost. The mixed block only exploits the dual-rate structure of calldata, so removing that is a direct fix without needing to touch the BAL bytes at all.
+The choice is between mechanism complexity and incidence breadth. Option 1 has the smallest impact on users — it only affects blocks that exceed the calldata floor — but it introduces a new gas-accounting mechanism. Options 2 and 3 are both constants-only changes, but they affect every user of BAL-affecting operations (option 2) or every user of calldata (option 3). Option 3 is cleaner and more defensible then option 2, since the operations that produce BAL bytes already have the correct price for both their execution and their bandwidth cost. The mixed block only exploits the dual-rate structure of calldata, so removing that is a direct fix without needing to touch the BAL bytes at all.
 
 ## What if propagation gets faster?
 
@@ -182,11 +182,11 @@ The transfer is untouched either way, since only new-account creation pays state
 
 There is also the question of how real demand will respond to the higher block limit and increased `CPSB`. The final value will likely be different once we observe how users adapt to the Glamsterdam fork.
 
-### History: expiry becomes a prerequisite
+### History: No need to repricing, but expiry becomes more important
 
 Measured geth history (headers, bodies, and receipts) grew at ~525 MiB/day — about **180 GiB/yr** — at the 36M limit over May 2024–May 2025 ([more info here](https://github.com/misilva73/evm-gas-repricings/blob/main/notebooks/0.3-history_growth_EDA.ipynb)). Scaling that linearly to 450M gives **~2.2 TiB/yr**. This already includes logs, which live in receipts, but the measurement window predates BALs, so the figure omits them. BALs (EIP-7928) are a second history channel of comparable size — ~41% of a transfer block's bytes, and dominant for the state-access-heavy compositions — but EIP-7928 permits pruning stored BALs to their hash root, so their *durable* contribution depends on the retention window.
 
-At these history growth rates, rolling history expiry (EIP-4444-family) therefore needs to be operational before the limit moves. Separately, `LOGDATA` at 8 gas/byte is now the cheapest byte in the system and exempt from every floor, because logs live in receipts rather than the payload. We may want to price it more accurately. The organizing principle is to price bytes by lifetime: payload bytes at the floor, history bytes consistently with the expiry horizon, state bytes at `CPSB`.
+At these history growth rates, rolling history expiry (EIP-4444-family) therefore becomes more important for validators. However, this growth rate is still manageable, and thus there is no need for repricing it.
 
 ### Memory: nothing to do
 
@@ -196,7 +196,9 @@ Worst-case EVM memory is a per-transaction quantity: quadratic expansion cost ag
 
 The flip side of freezing the 100 Mgas/s anchor is that most operations are now *over*priced relative to it: their worst-case client runtime sits below their current gas cost, so they consume more of the block's gas budget than the time they actually take. Taking [current client performance results](https://misilva73.github.io/hegota-compute-repricing/repricing.html), we could reprice ~62 EVM operations and precompiles, with 36 of them falling below 1 gas at the anchor rate. These are the cheap, high-frequency arithmetic, bitwise, stack, and memory ops.
 
-This overpricing is throughput left on the table. On [mainnet traffic](https://misilva73.github.io/hegota-compute-repricing/fracgas.html), **~12.4% of block gas is effectively wasted** today on operations charged above their fair runtime cost. Repricing downward with integer rounding (`max(⌈exact⌉, 1)`) cuts that to **~2.6% — an ~80% reduction**.
+This overpricing is throughput left on the table. On [mainnet traffic](https://misilva73.github.io/hegota-compute-repricing/fracgas.html), **~12.4% of block gas is effectively wasted** today on operations charged above their fair runtime cost. Repricing downward with integer rounding (`max(⌈exact⌉, 1)`) cuts that to **~2.6%**.
+
+A 10% gain is nice, but it very likely does not compensate the cost of repricing 62 operations. Therefore, the recomendation here is to no change copute costs in Hegota.
 
 ## What Hegota actually ships
 
@@ -206,10 +208,7 @@ This overpricing is throughput left on the table. On [mainnet traffic](https://m
 | 2 | Calldata floor 64 → 96 | One constant (7976/7981) |
 | 3 | Mixed-block fix: BAL floor pair, intrinsic surcharge, or uniform calldata price (~94) | The one open mechanism decision |
 | 4 | `CPSB` re-derivation: 1,530 → ~4,600 (~5,110 at p2p stretch) | One constant, per the 8037 spec's process |
-| 5 | History expiry operational | Networking/client prerequisite |
-| 6 | `LOGDATA` 8 → ? | One-constant candidate, after measurement |
-| 7 | p2p slope/overhead improvements | Non-fork track: +14–18M per 10% slope, up to ~501M |
-| 8 | Downward compute repricings | Fork item, parallel work |
+| 5 | p2p slope/overhead improvements | Non-fork track: +14–18M per 10% slope, up to ~501M |
 
 ## Limitations
 
