@@ -2,8 +2,6 @@
 
 ### Maria Silva, June 2026
 
-![Scaling and speed: Ethereum throughput accelerating upward](./figures/hegota_scaling_exploration/header.png)
-
 This post works out what Hegota needs to change to keep scaling the gas limit after Glamsterdam. The starting point is a single observation: the 21,000-gas ETH transfer bounds *both* dimensions of the slot.
 
 - On the execution side, the Glamsterdam repricings pushed costs as far as the transfer cap permits, fixing worst-case execution at 100 Mgas/s.
