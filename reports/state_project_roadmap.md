@@ -5,7 +5,9 @@
 Two key changes make us rethink how Ethereum handles state:
 
 - **zkevm**: once proofs are mandatory in-protocol (every block ships with a proof by default), attesting/fully-validating nodes verify a proof + sample data via PeerDAS instead of re-executing. They no longer need to hold state, so far fewer nodes are incentivized to do so.
-- **state growth**: as we scale toward gigagas, holding and serving the entire state gets harder and harder. State today grows ~100 GB/yr; even a conservative ~20x state target implies ~2 TB/yr and ~8 TB after four years. We can somwhat control this through 
+- **state growth**: as we scale toward gigagas, holding and serving the entire state gets harder and harder. State today grows ~100 GB/yr; even a conservative ~20x state target implies ~2 TB/yr and ~8 TB after four years. We can somewhat control this through pricing and new state types, but pricing alone cannot hold growth flat while still scaling throughput — so the operational work (holding, serving, syncing) has to keep pace.
+
+**Target.** Support a ~20x gas-limit increase (toward gigagas) while keeping it feasible to build, serve, and partially-validate state on home-staker / home-builder hardware — and while preserving a decentralized, non-custodial path to head-state access.
 
 ### Who still needs state after mandatory proofs
 
@@ -24,6 +26,15 @@ The set of state-holders shrinks to those who structurally require it:
 ## What do we need to solve?
 
 Two parallel arcs: an **operational** arc (make state manageable to hold and serve) and a **trie design** arc (ship a structure built for a post-zkevm gigagas chain). They share dependencies but can largely proceed in parallel until the migration.
+
+**Priorities.** If forced to rank, the order is:
+
+1. **State serving / RPC-decentralization** — the hard gate. Everything else (raising growth targets, scaling throughput) deepens centralization unless a decentralized retrieval path exists first. Highest priority and most under-explored.
+2. **Binary tree + zk-friendly hash** — the long-pole, hardfork-gated change that enables small witnesses (and thus statelessness). Needs to start now because of its lead time and migration risk.
+3. **State pricing + new state types** — controls the growth rate and buys time for the above; lower risk and largely additive.
+4. **DB optimizations & syncing** — necessary enablers, but can follow the design decisions above.
+
+The single thing we most need to get right is **state serving**: it is both the hardest and the least-understood, and it bounds how aggressively everything else can move.
 
 ### Arc 1 — Make holding & serving state manageable
 
@@ -77,3 +88,14 @@ Note: the 🤔 emoji denotes topics we are not sure about
 - **New state types depend on the trie** being "friendly to new types of state."
 - **State serving must exist before state grows** — treat a deployed, decentralized state-retrieval path as a hard gate on raising state-growth targets, not a follow-up.
 - **Trie witness format must match the zkEVM** execution-witness / stateless-guest interface (cross-team).
+
+## Risks & how we de-risk
+
+The ways this project can shoot itself in the foot, and how we avoid each:
+
+- **Growing state faster than we can serve it.** Raising growth targets before a decentralized retrieval path exists just hands more users to centralized RPC — the exact outcome we're trying to avoid. *De-risk:* treat a deployed, decentralized state-serving network as a hard gate on raising state-growth targets, not a follow-up.
+- **Two tree migrations.** Shipping the binary tree on an interim hash and then re-migrating to the target hash would mean paying the most expensive, timeline-sinking step twice. *De-risk:* gate trie finalization on the zk-friendly-hash go/no-go (Poseidon2 cryptanalysis) so we migrate once.
+- **Migration overruns the timeline.** A one-time MPT → binary-tree conversion over the full live state is historically the part that sinks these efforts. *De-risk:* decide overlay-tree vs flag-day early, prototype the conversion in ≥2 clients in the short term, and settle who bears conversion cost and how long clients run dual trees before committing to a rollout date.
+- **Reintroducing state expiry by another name.** Expiry designs repeatedly fail on proving non-existence and on backwards-compatibility with existing ERC-20 layouts. *De-risk:* do not expire existing state; keep it as-is but relatively pricier, and add opt-in cheaper tiers instead (see the note above).
+- **Witness/interface drift from the zkEVM.** A trie or witness format that doesn't match the zkEVM execution-witness / stateless-guest interface forces rework late. *De-risk:* coordinate the witness format cross-team before finalizing the spec.
+- **Locking out builders / includers via sync cost.** If syncing multi-TB state becomes too slow or hits bandwidth caps, being a builder or FOCIL includer stops being permissionless. *De-risk:* invest in BAL-assisted / executionless sync and P2P improvements in parallel with growth, not after.
