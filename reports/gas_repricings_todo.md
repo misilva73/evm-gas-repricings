@@ -32,7 +32,7 @@ End of June:
 
 - [X] [Rafael] Move benchmarkoor infra to schelk and test
 - [ ] [Rafael + Jochem] Integrate State Actor to benchmarkoor and test
-- [ ] [Louis] Improvements on `test_account_access`: move it to `CREATE2` + add `KECCAK` test for target size input
+- [X] [Louis] Improvements on `test_account_access`: move it to `CREATE2` + add `KECCAK` test for target size input
 - [ ] [Louis] Review entire benchmark suite and ensure we are not missing worst cases (we should ask help from clients)
   - Fix tests after bal-devnet-7 merge
   - Improve CREATE worst cases: ([Issue](https://github.com/ethereum/execution-specs/issues/1577))
@@ -43,8 +43,8 @@ End of June:
 ### Security and community outreach
 
 - [ ] [Carlos] Run backward compatibility analysis for:
-  - [ ] 8037 with bal-devnet-7 spec
-  - [ ] 8038 with latest numbers (testing)
+  - [X] 8037 with bal-devnet-7 spec
+  - [X] 8038 with latest numbers (testing)
   - [ ] 2780 with final numbers
 - [ ] [Maria] Figure out the best way to serve backward compatibility analysis to community
 - [ ] [Butta] Reach out to affected entities
@@ -52,12 +52,12 @@ End of June:
 
 ### EIPs & Devnet integration
 
-- [ ] [Maria] Update 8038 + 2780 spec shape for glamsterdam-devnet-7
-- [ ] [Maria] Update EIP-8038 with final numbers
-- [ ] [Maria] Update 2780 EIP with final numbers
-- [ ] [Guru] Finish and merge spec and tests for 2780
-- [ ] [Spencer] Finish and merge spec and tests for 8038
-- [ ] [Spencer + Guru + Maria] Add all EIPs to glamsterdam-devnet-7
+- [X] [Maria] Update 8038 + 2780 spec shape for glamsterdam-devnet-7
+- [X] [Maria] Update EIP-8038 with final numbers
+- [X] [Maria] Update 2780 EIP with final numbers
+- [X] [Guru] Finish and merge spec and tests for 2780
+- [X] [Spencer] Finish and merge spec and tests for 8038
+- [X] [Spencer + Guru + Maria] Add all EIPs to glamsterdam-devnet-7
 
 ## EIP trackers
 
