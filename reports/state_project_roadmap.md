@@ -34,6 +34,7 @@ The set of state-holders shrinks to those who structurally require it:
 - **De-risk open questions first.** Where a decision hinges on something we don't yet know, we resolve the uncertainty before committing — assess benefit before building (hot/cold separation), confirm necessity before speccing (binary tree), and benchmark before pricing (EIP-8037-style). The point is to avoid sinking effort into work that a later answer could invalidate.
 - **Ship iteratively.** Prefer near-term, net-positive steps that stand on their own over big-bang changes — e.g. the centralized "Nginx-like" aggregator before a fully distributed state network, and DB optimizations that pay off independently of the trie migration.
 - **Parallel, loosely-coupled workstreams.** The five near-term tracks proceed largely in parallel and unconditionally; we keep dependencies explicit so they can move independently until the points where they genuinely must converge.
+- **Open collaboration.** The project is large, the team is small, and the changes span the whole stack, so this has to be an ecosystem effort. We leverage collaborations with aligned teams and individuals, and focus our own effort on the high-leverage tasks and on coordination rather than trying to build everything ourselves.
 
 ## What do we need to solve?
 
